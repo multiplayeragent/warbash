@@ -1,0 +1,25 @@
+[
+ {
+  "version": "1.0.0",
+  "date": "2026-11-07",
+  "title": "War Bash",
+  "title_en": "War Bash",
+  "changes": [
+   {
+    "t": "new",
+    "x": "War Bash ouvre ses portes, avec un nouveau nom, un nouveau logo, une nouvelle illustration et de nouvelles musiques.",
+    "x_en": "War Bash opens its doors, with a new name, a new logo, new key art and new music."
+   },
+   {
+    "t": "new",
+    "x": "Chaque palier de niveau a son insigne de grade, de la première recrue au sommet.",
+    "x_en": "Every tier of levels has its own rank insignia, from fresh recruit to the very top."
+   },
+   {
+    "t": "new",
+    "x": "Les parties en ligne passent par de nouveaux serveurs. Créez un salon, partagez son code et jouez.",
+    "x_en": "Online matches run on new servers. Create a room, share its code and play."
+   }
+  ]
+ }
+]

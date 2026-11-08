@@ -1,0 +1,48 @@
+assets_src/
+__pycache__/
+*.png
+!docs/*.png
+# icône du jeu : sources et fichiers publiés, à versionner (sinon absents en production)
+!assets/icon/*.png
+!dist/icons/*.png
+# images du raccourci Steam (version Steam Deck)
+!assets/deck/*.png
+!dist/deck/*.png
+.DS_Store
+node_modules/
+package/
+
+# banc de test des salons (tools/nettest)
+tools/nettest/harness*.html
+.wrangler/
+audio-out/
+
+# pack d'animations Mixamo (licence : pas de fichiers bruts dans le dépôt ; seules les données cuites partent avec le jeu)
+/anim-source/
+
+# secrets locaux (vercel env pull, wrangler) : jamais dans le dépôt
+.env
+.env.*
+.vercel/
+.dev.vars
+**/.dev.vars
+# clean-game-repo: never commit the real key, agent notes or env files
+mp.config.local.js
+.notes/
+!.env.example
+dist/
+*.log
+
+# War Bash: local-only (live secret key, upstream reference clone, perf scratch, generated art staging)
+.mcp.json
+/upstream/
+/_eval/
+/_art/
+.claude/settings.local.json
+# soldier animations: baked from your own Mixamo account (docs/animations.md); never committed
+/assets/anim/clips.bin
+/assets/anim/clips.json
+/tools/gate/out/
+# publisher details for the legal pages (build.py; legal.example.json shows the shape)
+legal.local.json
+/tools/music/.cache/

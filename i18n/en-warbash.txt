@@ -1,0 +1,54 @@
+# War Bash: English entries for the texts added by this fork (same format as en.txt: « français ⇒ anglais »).
+
+# 09c-net.js, 09d-netrelay.js
+Mode en ligne indisponible sur cette page. ⇒ Online play is not available on this page.
+Toutes les parties publiques sont complètes. Réessayez dans un instant. ⇒ Every public match is full. Try again in a moment.
+En ligne ⇒ Online
+Jouer maintenant vous place dans une partie publique, avec des bots qui complètent les équipes. Personne n'y joue encore ? Vous l'ouvrez, et les suivants vous rejoignent. ⇒ Play now puts you in a public match, with bots filling the teams. Nobody playing yet? You open it, and the next players join you.
+Créer un salon ouvre une partie privée. Partagez son code ou son lien, et lancez quand vos amis sont là. ⇒ Create a lobby opens a private match. Share its code or link, and start when your friends are in.
+salon refusé ⇒ lobby refused
+serveur injoignable ⇒ server unreachable
+
+# 09k-legal.js
+War Bash est un jeu de tir gratuit, joué dans le navigateur, en solo contre des bots ou en ligne. Ces conditions encadrent son usage. ⇒ War Bash is a free shooter played in the browser, solo against bots or online. These terms govern its use.
+2. Comportement ⇒ 2. Conduct
+Sont interdits : tricher (modifier le jeu, falsifier des résultats, exploiter une faille), choisir un pseudo injurieux, haineux ou trompeur, et harceler d'autres joueurs, y compris dans la discussion d'un salon. Les mots grossiers ou haineux sont refusés dans les pseudos et masqués dans la discussion. Dans un salon, chacun peut masquer un joueur et l'hôte peut l'exclure. ⇒ Forbidden: cheating (modifying the game, faking results, exploiting a flaw), picking an insulting, hateful or misleading nickname, and harassing other players, including in lobby chat. Rude or hateful words are refused in nicknames and hidden in chat. In a lobby, anyone can mute a player and the host can kick them.
+3. Progression ⇒ 3. Progress
+Les niveaux, l'expérience et les déblocages sont gardés sur votre appareil, sans valeur monétaire. Effacer les données du navigateur les efface. ⇒ Levels, experience and unlocks are kept on your device and have no monetary value. Clearing your browser data clears them.
+4. Disponibilité et responsabilité ⇒ 4. Availability and liability
+Le jeu est fourni "en l'état", gratuitement, sans garantie de disponibilité continue : il peut être interrompu, modifié ou arrêté. Dans la mesure permise par la loi, l'éditeur n'est pas responsable des dommages indirects liés à l'usage du jeu. ⇒ The game is provided "as is", free of charge, with no guarantee of continuous availability. It may be interrupted, changed or shut down. To the extent permitted by law, the publisher is not liable for indirect damage arising from the use of the game.
+5. Licences ⇒ 5. Licenses
+Le code du jeu est publié sous licence MIT. Il dérive de Riposte: Frontline, de BenDBS. Les textures et éclairages sont sous licence CC0, les sons sous les licences données dans les crédits du projet. ⇒ The game's code is published under the MIT license. It derives from Riposte: Frontline, by BenDBS. Textures and lighting are under the CC0 license, sounds under the licenses given in the project credits.
+6. Contact ⇒ 6. Contact
+2. Quelles données, pour quoi ? ⇒ 2. What data, and why?
+Sur votre appareil ⇒ On your device
+: vos réglages, votre pseudo et votre progression (niveau, expérience, armes, classes, tenues) restent dans le stockage de votre navigateur. Ils ne sont envoyés nulle part. ⇒ : your settings, your nickname and your progress (level, experience, weapons, classes, outfits) stay in your browser's storage. They are not sent anywhere.
+: quand vous jouez en ligne, votre pseudo, votre niveau, vos actions de jeu et vos messages de discussion passent par notre serveur de jeu, qui les transmet aux autres joueurs du salon. Les joueurs ne se connectent jamais directement entre eux : ⇒ : when you play online, your nickname, your level, your game actions and your chat messages go through our game server, which passes them to the other players in the lobby. Players never connect to each other directly:
+, seulement du serveur. Il ne garde ni vos messages ni votre partie une fois le salon fermé. ⇒ , only to the server. It keeps neither your messages nor your match once the lobby is closed.
+Mesure d'audience et erreurs ⇒ Audience measurement and errors
+: quand vous jouez en ligne, le serveur de jeu compte les sessions de façon anonyme (un identifiant tiré au hasard et gardé sur votre appareil, l'adresse de la page, la langue et le fuseau horaire) et reçoit les erreurs techniques du jeu, pour suivre la fréquentation et corriger les problèmes. Aucun nom, aucune adresse e-mail. ⇒ : when you play online, the game server counts sessions anonymously (a random identifier kept on your device, the page address, the language and the time zone) and receives the game's technical errors, to follow attendance and fix problems. No name, no email address.
+Pas de compte, pas d'e-mail, pas de publicité, pas de revente ni de cession de données, pas de profilage. ⇒ No account, no email, no advertising, no selling or sharing of data, no profiling.
+4. Qui reçoit vos données ? ⇒ 4. Who receives your data?
+Uniquement l'hébergeur du jeu et du serveur de jeu, pour fournir le service (voir Mentions légales). Pour fonctionner, la page charge aussi ses polices de caractères chez Google Fonts, qui reçoit donc votre adresse IP comme tout site. ⇒ Only the host of the game and of the game server, to provide the service (see Legal notice). To work, the page also loads its fonts from Google Fonts, which therefore receives your IP address like any website.
+5. Cookies et stockage ⇒ 5. Cookies and storage
+Aucun cookie. Le navigateur garde vos réglages et votre progression sur votre appareil : vous pouvez les effacer à tout moment depuis les réglages du navigateur. ⇒ No cookies. The browser keeps your settings and your progress on your device: you can clear them at any time from your browser settings.
+6. Vos droits ⇒ 6. Your rights
+Pour toute demande d'accès, de rectification ou d'effacement, écrivez à {0}. Si vous estimez que vos droits ne sont pas respectés, vous pouvez saisir l'autorité de protection des données de votre pays. ⇒ For any request for access, correction or deletion, write to {0}. If you believe your rights are not respected, you can contact your country's data protection authority.
+7. Changements ⇒ 7. Changes
+La date en haut de cette page indique la version en vigueur. ⇒ The date at the top of this page shows the version in force.
+
+# 09s-rankup.js, 09sa-grades.js
+Promotion ⇒ Promoted
+Niveau ⇒ Level
+Caporal ⇒ Corporal
+Sergent ⇒ Sergeant
+Sergent-chef ⇒ Staff Sergeant
+Lieutenant ⇒ =
+Capitaine ⇒ Captain
+Commandant ⇒ Major
+Colonel ⇒ =
+Général ⇒ General
+Légende ⇒ Legend
+Niveau {0} · {1} ⇒ Level {0} · {1}
+{0} XP sur {1} pour le niveau {2} ⇒ {0} of {1} XP to level {2}
+Préparation des réglages graphiques ⇒ Preparing graphics settings

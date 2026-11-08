@@ -1,0 +1,170 @@
+{
+  "style": "AAA modern military PvP shooter marketing art, cinematic and gritty, high contrast, desaturated olive drab, gunmetal and charcoal with hot orange fire light and ember glow, sharp detailed rendering, dramatic rim lighting",
+  "items": [
+    {
+      "id": "logo",
+      "size": "1536x1024",
+      "text": "WAR BASH",
+      "prompt": "A bold video game title logo wordmark reading WAR BASH on a single line. Heavy, wide, angular military capital letters with stencil cuts, made of brushed and scratched gunmetal steel with chipped olive paint, a thick dark outline, a subtle bevel and hot orange ember glow along the lower edges. A thin angular steel bar runs under the letters. Centered, filling most of the width, crisp clean silhouette that reads at small sizes."
+    },
+    {
+      "id": "emblem",
+      "size": "1024x1024",
+      "opaque": true,
+      "text": "WB",
+      "prompt": "A square mobile game app icon. A battle-worn steel military crest: an angular shield with the bold stencil monogram WB in the middle, two crossed modern assault rifles behind it, set on a dark charcoal and olive background with a hot orange glow rising from below. Strong simple shapes, centered, the crest fills about 80 percent of the canvas so it still reads at 48 pixels."
+    },
+    {
+      "id": "keyart",
+      "size": "1536x1024",
+      "opaque": true,
+      "prompt": "Cinematic wide key art for a modern war shooter. A lone modern soldier in full combat gear (helmet with goggles, plate carrier, gloves, rifle held low and ready) stands on broken concrete rubble, seen from slightly below, placed at the right side of the frame with the soldier's center at about 72 percent of the width from the left edge. The soldier is backlit by a huge burning orange sunset haze, distant explosions and a ruined city skyline. The left 45 percent of the frame is a dark, smoky, nearly empty sky, calm enough to put menu buttons over it. Drifting smoke and glowing embers. Keep every important element inside the middle 62 percent of the height: the top and bottom will be cropped to a 21:9 banner."
+    },
+    {
+      "id": "rank01",
+      "size": "1024x1024",
+      "prompt": "A military rank insignia badge icon, front view, centered: a single bold bronze chevron pointing up, mounted on a dark gunmetal hexagonal plate with a thin bronze rim. Clean bold readable shapes for a game UI, soft rim light, no background."
+    },
+    {
+      "id": "rank02",
+      "size": "1024x1024",
+      "prompt": "A military rank insignia badge icon, front view, centered: two stacked bold bronze chevrons pointing up on a dark gunmetal hexagonal plate with a bronze rim and small rivets. Clean bold readable shapes for a game UI, soft rim light, no background."
+    },
+    {
+      "id": "rank03",
+      "size": "1024x1024",
+      "prompt": "A military rank insignia badge icon, front view, centered: three stacked bold polished silver chevrons pointing up on a dark gunmetal hexagonal plate with a silver rim. Clean bold readable shapes for a game UI, soft rim light, no background."
+    },
+    {
+      "id": "rank04",
+      "size": "1024x1024",
+      "prompt": "A military rank insignia badge icon, front view, centered: three polished silver chevrons pointing up with a curved silver rocker bar beneath them, on a dark gunmetal shield shape with a silver rim. Clean bold readable shapes for a game UI, soft rim light, no background."
+    },
+    {
+      "id": "rank05",
+      "size": "1024x1024",
+      "prompt": "A military rank insignia badge icon, front view, centered: three gold chevrons with a five-pointed gold star in their center and two rockers below, on a dark gunmetal shield with a gold rim. Clean bold readable shapes for a game UI, warm rim light, no background."
+    },
+    {
+      "id": "rank06",
+      "size": "1024x1024",
+      "prompt": "A military officer rank insignia badge icon, front view, centered: a single thick polished gold bar framed by two gold laurel branches, on a dark gunmetal rounded shield with a gold rim. Clean bold readable shapes for a game UI, warm rim light, no background."
+    },
+    {
+      "id": "rank07",
+      "size": "1024x1024",
+      "prompt": "A military officer rank insignia badge icon, front view, centered: two parallel polished gold bars over two small crossed rifles, inside a gold laurel wreath, on a dark gunmetal circular plate. Clean bold readable shapes for a game UI, warm rim light, no background."
+    },
+    {
+      "id": "rank08",
+      "size": "1024x1024",
+      "prompt": "A military rank insignia badge icon, front view, centered: one large five-pointed gold star with spread metallic eagle wings on both sides, on a dark gunmetal shield with a gold rim. Clean bold readable shapes for a game UI, warm rim light, no background."
+    },
+    {
+      "id": "rank09",
+      "size": "1024x1024",
+      "prompt": "A military rank insignia badge icon, front view, centered: two five-pointed gold stars side by side on a crimson enamel shield, framed by a full gold laurel wreath. Clean bold readable shapes for a game UI, warm rim light, no background."
+    },
+    {
+      "id": "rank10",
+      "size": "1024x1024",
+      "prompt": "A military general rank insignia badge icon, front view, centered: three five-pointed gold stars in an arc on a crimson enamel shield, with large spread gold eagle wings behind it and a laurel wreath below. Clean bold readable shapes for a game UI, warm rim light, no background."
+    },
+    {
+      "id": "rank11",
+      "size": "1024x1024",
+      "prompt": "The highest prestige rank insignia badge icon, front view, centered: a faceted platinum and gold star crest with flaming orange wings, a crimson gem in the center and a radiant halo of sharp light rays behind it. Clean bold readable shapes for a game UI, intense glow, no background."
+    },
+    {
+      "id": "map-sable",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/sable.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a sun-baked desert village of narrow alleys) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-givre",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/givre.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a snowbound mountain railway station) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-embruns",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/embruns.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a Breton fishing harbor and fish market at sunset) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-floreal",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/floreal.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a botanical garden with a great glass greenhouse) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-meltem",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/meltem.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a white Cycladic island village by the Aegean sea) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-tephra",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/tephra.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a volcano research station at the foot of an erupting volcano) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-stratus",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/stratus.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (floating islands above the clouds linked by rope bridges) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-simoun",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/simoun.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a sea of desert dunes) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "map-lotissement",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/lotissement.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a suburban housing estate of identical houses) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
+      "id": "crest-victory",
+      "size": "1024x1024",
+      "prompt": "A triumphant military victory crest emblem, front view, centered: a golden eagle with wide spread wings above a laurel wreath, two crossed modern rifles and a five-pointed star, polished gold and bronze with a hot orange glow and light rays. Bold readable silhouette for a game end screen."
+    },
+    {
+      "id": "crest-defeat",
+      "size": "1024x1024",
+      "prompt": "A battle-damaged military crest emblem, front view, centered: a cracked dark steel shield with a broken rifle across it, scorched edges, smoke curling up and a dim red ember glow, desaturated and somber. Bold readable silhouette for a game end screen."
+    }
+  ]
+}

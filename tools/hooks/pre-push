@@ -1,0 +1,3 @@
+#!/bin/sh
+# War Bash pre-push: refuse to push if a secret key is in any tracked file (install: sh tools/hooks/install.sh)
+exec node tools/check_secrets.mjs
