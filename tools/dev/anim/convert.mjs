@@ -14,12 +14,15 @@ const HERE = dirname(fileURLToPath(import.meta.url)), REPO = resolve(HERE, '../.
 const BIN = join(HERE, 'node_modules', 'fbx2gltf', 'bin', process.platform === 'win32' ? 'Windows_NT' : process.platform === 'darwin' ? 'Darwin' : 'Linux', process.platform === 'win32' ? 'FBX2glTF.exe' : 'FBX2glTF');
 if (!existsSync(BIN)) { console.error('FBX2glTF missing: run  npm --prefix tools/dev/anim install'); process.exit(1); }
 if (!existsSync(FBX)) { mkdirSync(FBX, { recursive: true }); console.error(`Put the Mixamo FBX files in ${FBX} (names: docs/animations.md), then run this again.`); process.exit(1); }
-const have = new Map(readdirSync(FBX).filter((f) => /\.fbx$/i.test(f)).map((f) => [f.toLowerCase().replace(/\.fbx$/, ''), f]));
+// a file is recognised by its name in docs/animations.md or by the Mixamo animation's own name, in any case, spacing or
+// punctuation, with anything in brackets ignored ("Rifle Walk Left (1).fbx" = "rifle-walk-left.fbx")
+const norm = (s) => s.toLowerCase().replace(/\.fbx$/, '').replace(/\([^)]*\)/g, '').replace(/[^a-z0-9]/g, '');
+const have = new Map(readdirSync(FBX).filter((f) => /\.fbx$/i.test(f)).map((f) => [norm(f), f]));
 const missing = [], used = new Set();
 for (const c of CLIPS) {
-  const f = have.get(c.file);
-  if (!f) { missing.push(c); continue; }
-  used.add(c.file);
+  const key = [norm(c.file), norm(c.mixamo)].find((k) => have.has(k) && !used.has(k));
+  if (!key) { missing.push(c); continue; }
+  const f = have.get(key); used.add(key);
   const out = join(SRC, c.id + '.glb'), tmp = join(SRC, '.tmp-' + c.file);
   mkdirSync(dirname(out), { recursive: true });
   execFileSync(BIN, ['--binary', '--input', join(FBX, f), '--output', tmp], { stdio: 'pipe' });

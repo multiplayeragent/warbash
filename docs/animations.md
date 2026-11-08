@@ -20,8 +20,9 @@ Without them the game still runs, with simpler fallback poses for the soldiers.
    - Skin: **Without Skin**
    - Frames per Second: **30**
    - Keyframe Reduction: **none**
-5. Rename the downloaded file to the name in the **File** column and put it in `anim-source/fbx/` at the root of the
-   repository (create the folder; `anim-source/` is gitignored).
+5. Put the downloaded file in `anim-source/fbx/` at the root of the repository (create the folder; `anim-source/` is
+   gitignored). Name it as in the **File** column, or keep Mixamo's name if it is the animation's name from the **Search**
+   column: the converter recognises both, in any case, and ignores anything in brackets.
 
 Any close match works: the bake measures speed, direction and the loop seam itself, and checks the direction against the
 table. If Mixamo has no exact match, take the nearest rifle animation.
