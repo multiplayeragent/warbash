@@ -1,0 +1,214 @@
+{
+ "mapKey": "portmael",
+ "naming": "Port-Maël",
+ "date": "2026-11-09",
+ "measures": {
+  "type": "open",
+  "meanView": 13.1,
+  "groundShortView": 3.1,
+  "viewsOver60m": 25.4,
+  "plazaShare": 40.4,
+  "elevatedShare": 5.2,
+  "walking": [
+   90.5,
+   97.6
+  ],
+  "routes": 6,
+  "deadEnds": 2,
+  "detour90": 1.29,
+  "junctions": 4,
+  "landmark": 61.8,
+  "chokepoint": {
+   "front": 16,
+   "passages": 9,
+   "detail": [
+    {
+     "whereAt": [
+      12,
+      9.5
+     ],
+     "breadth": 6,
+     "zone": "Harbor Street"
+    },
+    {
+     "whereAt": [
+      26,
+      8.5
+     ],
+     "breadth": 2,
+     "zone": "Ice factory"
+    },
+    {
+     "whereAt": [
+      -24,
+      9.5
+     ],
+     "breadth": 2,
+     "zone": "Dock basin"
+    },
+    {
+     "whereAt": [
+      -17.5,
+      4.5
+     ],
+     "breadth": 1,
+     "zone": "Landing quay"
+    },
+    {
+     "whereAt": [
+      5.5,
+      6.5
+     ],
+     "breadth": 1,
+     "elevated": true,
+     "zone": "Mezzanine"
+    },
+    {
+     "whereAt": [
+      -6.5,
+      7.5
+     ],
+     "breadth": 1,
+     "zone": "Fish market"
+    },
+    {
+     "whereAt": [
+      -0.5,
+      9.5
+     ],
+     "breadth": 1,
+     "zone": "Fish market"
+    },
+    {
+     "whereAt": [
+      3.5,
+      9.5
+     ],
+     "breadth": 1,
+     "zone": "Fish market"
+    }
+   ]
+  },
+  "tightTurns": 0,
+  "tightTurnsAt": [],
+  "points": [
+   {
+    "naming": "A",
+    "point": [
+     -2,
+     29
+    ],
+    "entrances": 2,
+    "walkable": 71,
+    "cover9m": 12,
+    "walking": [
+     26.9,
+     86.6
+    ],
+    "seenFromSpawns": [
+     4,
+     0
+    ]
+   },
+   {
+    "naming": "B",
+    "point": [
+     2.5,
+     0
+    ],
+    "entrances": 3,
+    "walkable": 86,
+    "cover9m": 26,
+    "walking": [
+     56.1,
+     56.9
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "C",
+    "point": [
+     -1.5,
+     -29.5
+    ],
+    "entrances": 2,
+    "walkable": 77,
+    "cover9m": 15,
+    "walking": [
+     86.6,
+     26.9
+    ],
+    "seenFromSpawns": [
+     0,
+     4
+    ]
+   }
+  ]
+ },
+ "defects": {
+  "navigation": [],
+  "decor": {
+   "blockedDoors": 0,
+   "pots": 0,
+   "badPosters": 0,
+   "bikes": 0,
+   "bridgeIssues": 0,
+   "sand": 0,
+   "overlapCount": 0,
+   "itemList": []
+  },
+  "slits": {
+   "slits": 0,
+   "bulletPass": 0,
+   "wallHoles": 0,
+   "margins": 25,
+   "marginsOver30cm": 25,
+   "itemList": [
+    "hole (-14.05, -56.33) 0.1 m",
+    "margin 4 m (-35.5, 19.9) metal",
+    "margin 4 m (-35.5, -19.9) metal",
+    "margin 3 m (-22.35, 25) metal",
+    "margin 3 m (-22.35, -25) metal",
+    "margin 2.2 m (-11.6, -6.95) metal",
+    "margin 1.2 m (-28.05, 31.6) metal",
+    "margin 1.2 m (-28.05, -31.6) metal",
+    "margin 1.2 m (-28.35, -12.5) metal",
+    "margin 1.2 m (-28.35, 12.5) metal",
+    "margin 1.2 m (-19.65, -12.5) metal",
+    "margin 1.2 m (-19.65, 12.5) metal",
+    "margin 0.81 m (-30.94, 32.31) metal",
+    "margin 0.81 m (-30.94, -32.31) metal",
+    "margin 0.63 m (19.2, -1.35) metal",
+    "margin 0.6 m (-22.13, -6.52) metal",
+    "margin 0.58 m (-21.62, -4.71) metal",
+    "margin 0.52 m (-25.87, -6.52) metal",
+    "margin 0.5 m (-31.19, 33.33) metal",
+    "margin 0.5 m (-31.19, -33.33) metal",
+    "margin 0.49 m (-21.71, -5.61) metal"
+   ]
+  },
+  "snags": {
+   "snagCount": 0,
+   "pathCount": 160,
+   "itemList": []
+  },
+  "zfight": {
+   "visibleCount": 86,
+   "blocking": 0,
+   "itemList": []
+  },
+  "crossing": {
+   "pairCount": 0,
+   "outOf": 741,
+   "itemList": [],
+   "jumpLinks": []
+  }
+ },
+ "outOfRange": [],
+ "waived": [],
+ "blocking": 0,
+ "minutes": 9.8
+}

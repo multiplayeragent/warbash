@@ -1,204 +1,204 @@
-"""Famille « impacts » : impacts de balles, sifflements, explosions, grenade, chutes de corps, objets et retours de touche
-(paquet impacts).
+""""Impacts" family: bullet impacts, whistles, explosions, grenade, body falls, objects and hit feedback
+(impacts pack).
 
-Sources (voir SOURCES) : prises Freesound CC0 retrouvées sur GitHub (FilmmakersManual « Valhalla » pour le béton, le métal
-et la chair, aust_paul pour les ricochets, G.Lamont pour le claquement supersonique, qubodup d'après des vidéos de l'armée
-américaine pour les explosions, C_Rogers pour le verre, mlsulli pour les corps...), les packs OpenGameArt CC0 de
-rubberduck (casse, bois, métal, eau), NOX SOUND « Footsteps Essentials » (terre, neige, feuilles) et Kenney (chocs).
-Les sons sans prise dédiée (bois, terre, neige, feuillage, sifflement de balle, débris, casse de poterie) sont composés de
-couches réelles : aucun son n'est synthétisé.
+Sources (see SOURCES): CC0 Freesound takes found on GitHub (FilmmakersManual "Valhalla" for concrete, metal
+and flesh, aust_paul for ricochets, G.Lamont for the supersonic crack, qubodup after US Army videos
+for explosions, C_Rogers for glass, mlsulli for bodies...), the CC0 OpenGameArt packs by
+rubberduck (breakage, wood, metal, water), NOX SOUND "Footsteps Essentials" (earth, snow, leaves) and Kenney (impacts).
+Sounds without a dedicated take (wood, earth, snow, foliage, bullet whistle, debris, pottery breakage) are composed of
+real layers: no sound is synthesized.
 
-Traitement commun : mono 48 kHz, passe-haut (bruit de manipulation, vent), début à l'attaque (2 ms gardées au plus),
-fondu de sortie, crête à -1 dBFS. Dans une même série de variantes, un limiteur doux ramène les crêtes isolées au même
-écart crête/niveau efficace, pour que les variantes sonnent aussi fort les unes que les autres.
-Les instants de découpe ci-dessous viennent de l'analyse des sources (enveloppe et spectrogramme)."""
+Common processing: mono 48 kHz, high-pass (handling noise, wind), start at the attack (2 ms kept at most),
+fade-out, peak at -1 dBFS. Within one series of variants, a soft limiter brings isolated peaks to the same
+peak/RMS gap, so that the variants sound equally loud.
+The cut times below come from the analysis of the sources (envelope and spectrogram)."""
 import urllib.parse
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
 import common as C
 from common import SR
 
-PAQ = 'impacts'
+PACK = 'impacts'
 
 SOURCES = {
     'filmmakersmanual': {
-        'nom': '« Bullet - Concrete Hit », « Bullet - Metal Hit », « Bullet - Hit Body » (bibliothèque « Valhalla », '
-               'freesound 522307 à 522509)',
-        'auteur': 'FilmmakersManual',
+        'naming': '"Bullet - Concrete Hit", "Bullet - Metal Hit", "Bullet - Hit Body" ("Valhalla" library, '
+               'freesound 522307 to 522509)',
+        'creator': 'FilmmakersManual',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/FilmmakersManual/',
-        'preuve': "README d'ArmorAlley (scottschiller) : « Bullet - Concrete Hit (2-4) ... by FilmmakersManual (CC0) », "
-                  "« Bullet - Metal Hit (2-4) ... (CC0) » ; fichiers *_license.txt de Mooses2k/SecretHistories ; "
-                  "sound/attributions.txt d'Aurora.3 : « part of \"Valhalla\", licensed under CC0 1.0 Universal »",
+        'proof': "ArmorAlley README (scottschiller): \"Bullet - Concrete Hit (2-4) ... by FilmmakersManual (CC0)\", "
+                  "\"Bullet - Metal Hit (2-4) ... (CC0)\"; *_license.txt files of Mooses2k/SecretHistories; "
+                  "Aurora.3 sound/attributions.txt: \"part of \"Valhalla\", licensed under CC0 1.0 Universal\"",
     },
     'mlsulli': {
-        'nom': '« Body Hits_Concrete » (freesound 234853)',
-        'auteur': 'mlsulli',
+        'naming': '"Body Hits_Concrete" (freesound 234853)',
+        'creator': 'mlsulli',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/mlsulli/sounds/234853/',
-        'preuve': "README d'ArmorAlley (scottschiller), section Sounds : « Body Hits_Concrete.wav by mlsulli (CC0) »",
+        'proof': "ArmorAlley README (scottschiller), Sounds section: \"Body Hits_Concrete.wav by mlsulli (CC0)\"",
     },
     'aust_paul': {
-        'nom': '« ricochet » (freesound 30932)',
-        'auteur': 'aust_paul',
+        'naming': '"ricochet" (freesound 30932)',
+        'creator': 'aust_paul',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/aust_paul/sounds/30932/',
-        'preuve': "assets/audio/CREDITS.md de jaher/shadow-six : « ricochet | aust_paul 30932 | CC0-1.0 »",
+        'proof': "assets/audio/CREDITS.md of jaher/shadow-six: \"ricochet | aust_paul 30932 | CC0-1.0\"",
     },
     'g_lamont': {
-        'nom': '« Whip Cracks » (freesound 118068)',
-        'auteur': 'G.Lamont',
+        'naming': '"Whip Cracks" (freesound 118068)',
+        'creator': 'G.Lamont',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/G.Lamont/sounds/118068/',
-        'preuve': "assets/sound/MANIFEST.md d'AnthonE/Gates : « Every file here is CC0 ... checked on each source's own "
-                  "page » ; « flyby_0-3 | G.Lamont, 118068, Whip Cracks.WAV »",
+        'proof': "AnthonE/Gates assets/sound/MANIFEST.md: \"Every file here is CC0 ... checked on each source's own "
+                  "page\"; \"flyby_0-3 | G.Lamont, 118068, Whip Cracks.WAV\"",
     },
-    'qubodup_militaire': {
-        'nom': '« military sounds » : blast, real bullet flyby (freesound 855893, 855248)',
-        'auteur': 'Iwan Gabovitch (qubodup), d\'après des vidéos de l\'armée américaine (domaine public)',
+    'qubodup_military': {
+        'naming': '"military sounds": blast, real bullet flyby (freesound 855893, 855248)',
+        'creator': 'Iwan Gabovitch (qubodup), after US Army videos (public domain)',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/qubodup/',
-        'preuve': "sounds/_readme_and_license.txt de frostburn/amortization2 (généré par Freesound) : « Licenses in this "
-                  "Pack: Creative Commons 0 », « 855893__qubodup__blast.flac ... license: Creative Commons 0 »",
+        'proof': "frostburn/amortization2 sounds/_readme_and_license.txt (generated by Freesound): \"Licenses in this "
+                  "Pack: Creative Commons 0\", \"855893__qubodup__blast.flac ... license: Creative Commons 0\"",
     },
     'qubodup_naval': {
-        'nom': '« Tiny Naval Battle Sounds Set » : WaterSurfaceExplosion02',
-        'auteur': 'Iwan Gabovitch (qubodup)',
+        'naming': '"Tiny Naval Battle Sounds Set": WaterSurfaceExplosion02',
+        'creator': 'Iwan Gabovitch (qubodup)',
         'licence': 'CC0 1.0',
         'url': 'https://opengameart.org/content/tiny-naval-battle-sounds-set',
-        'preuve': "Page OpenGameArt : qubodup, CC0, « based on US military videos » ; README de gknutson1/global-supply-"
-                  "chain : « Tiny Naval Battle Sounds Set : Copyright/Attribution Notice: optional: Iwan Gabovitch »",
+        'proof': "OpenGameArt page: qubodup, CC0, \"based on US military videos\"; README of gknutson1/global-supply-"
+                  "chain: \"Tiny Naval Battle Sounds Set: Copyright/Attribution Notice: optional: Iwan Gabovitch\"",
     },
     'survive_exp': {
-        'nom': 'Explosions réelles : « Pipe Bomb », « Real explosion recording » (freesound 737321, 784163), '
-               '« explosion_big_01/02 » (587193, 587194), « Explosion Pine Forest 200m » (734094), '
-               '« Explosion, Medium Blast » (516914)',
-        'auteur': 'modusmogulus, derplayer, Kinoton',
+        'naming': 'Real explosions: "Pipe Bomb", "Real explosion recording" (freesound 737321, 784163), '
+               '"explosion_big_01/02" (587193, 587194), "Explosion Pine Forest 200m" (734094), '
+               '"Explosion, Medium Blast" (516914)',
+        'creator': 'modusmogulus, derplayer, Kinoton',
         'licence': 'CC0 1.0',
         'url': 'https://github.com/webdevcody/survive-the-night-fps/tree/main/client/audio/samples',
-        'preuve': "client/audio/samples/CREDITS.md : « Every recording in this folder is CC0 1.0 ... The licence of each "
-                  "source was verified on its Freesound page » ; lignes exp_near et exp_far",
+        'proof': "client/audio/samples/CREDITS.md: \"Every recording in this folder is CC0 1.0 ... The licence of each "
+                  "source was verified on its Freesound page\"; lines exp_near and exp_far",
     },
     'survive_head': {
-        'nom': '« Headshot.wav » (freesound 511194), « Headshot sound » (660769), « Gore Impact » (641046)',
-        'auteur': 'Pablobd, MadPanCake, magnuswaker',
+        'naming': '"Headshot.wav" (freesound 511194), "Headshot sound" (660769), "Gore Impact" (641046)',
+        'creator': 'Pablobd, MadPanCake, magnuswaker',
         'licence': 'CC0 1.0',
         'url': 'https://github.com/webdevcody/survive-the-night-fps/tree/main/client/audio/samples',
-        'preuve': "client/audio/samples/CREDITS.md : « Every recording in this folder is CC0 1.0 » ; ligne hit_head",
+        'proof': "client/audio/samples/CREDITS.md: \"Every recording in this folder is CC0 1.0\"; line hit_head",
     },
     'samsterbirdies': {
-        'nom': '« Explosion Large » (freesound 587886)',
-        'auteur': 'SamsterBirdies',
+        'naming': '"Explosion Large" (freesound 587886)',
+        'creator': 'SamsterBirdies',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/SamsterBirdies/sounds/587886/',
-        'preuve': "_readme_and_license.txt généré par Freesound (miroir rodrigolisita/CM3030-GamesDevelopment) : "
-                  "« Licenses in this Pack: Creative Commons 0 »",
+        'proof': "_readme_and_license.txt generated by Freesound (mirror rodrigolisita/CM3030-GamesDevelopment): "
+                  "\"Licenses in this Pack: Creative Commons 0\"",
     },
     'felix_blume': {
-        'nom': '« Dynamite explosion in the mountain » (freesound 251401)',
-        'auteur': 'felix.blume',
+        'naming': '"Dynamite explosion in the mountain" (freesound 251401)',
+        'creator': 'felix.blume',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/felix.blume/sounds/251401/',
-        'preuve': "assets/sound/MANIFEST.md d'AnthonE/Gates : « Every file here is CC0 » ; « blast_0 | felix.blume, "
-                  "251401, Dynamite explosion in the mountain »",
+        'proof': "AnthonE/Gates assets/sound/MANIFEST.md: \"Every file here is CC0\"; \"blast_0 | felix.blume, "
+                  "251401, Dynamite explosion in the mountain\"",
     },
     'xkeril': {
-        'nom': '« Fall debris (crash) » (freesound 703248)',
-        'auteur': 'xkeril',
+        'naming': '"Fall debris (crash)" (freesound 703248)',
+        'creator': 'xkeril',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/xkeril/sounds/703248/',
-        'preuve': "assets/sound/MANIFEST.md d'AnthonE/Gates : « Every file here is CC0 » ; « collapse_1 | xkeril, 703248, "
-                  "Fall debris (crash) »",
+        'proof': "AnthonE/Gates assets/sound/MANIFEST.md: \"Every file here is CC0\"; \"collapse_1 | xkeril, 703248, "
+                  "Fall debris (crash)\"",
     },
     'c_rogers': {
-        'nom': '« Breaking Glass Sounds » (freesound, pack 12990)',
-        'auteur': 'C_Rogers',
+        'naming': '"Breaking Glass Sounds" (freesound, pack 12990)',
+        'creator': 'C_Rogers',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/C_Rogers/packs/12990/',
-        'preuve': "_readme_and_license.txt généré par Freesound (miroir yGabrielT/MonoCromo) : « Licenses in this pack: "
-                  "Creative Commons 0 »",
+        'proof': "_readme_and_license.txt generated by Freesound (mirror yGabrielT/MonoCromo): \"Licenses in this pack: "
+                  "Creative Commons 0\"",
     },
     'vinni_r': {
-        'nom': '« Bone Break » (freesound 630590 à 630594)',
-        'auteur': 'Vinni_R',
+        'naming': '"Bone Break" (freesound 630590 to 630594)',
+        'creator': 'Vinni_R',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/Vinni_R/',
-        'preuve': "licenses/vinni_r_readme_and_license.txt de Weesoid/All-That-Jazz-Project (généré par Freesound) : "
-                  "« Bone Break ... Creative Commons 0 »",
+        'proof': "Weesoid/All-That-Jazz-Project licenses/vinni_r_readme_and_license.txt (generated by Freesound): "
+                  "\"Bone Break ... Creative Commons 0\"",
     },
     'erbsland': {
-        'nom': '« Large ceramic plate hit » (freesound 634154)',
-        'auteur': 'Erbsland-Music',
+        'naming': '"Large ceramic plate hit" (freesound 634154)',
+        'creator': 'Erbsland-Music',
         'licence': 'CC0 1.0',
         'url': 'https://freesound.org/people/erbsland-music/sounds/634154/',
-        'preuve': "resources/sounds/impacts/ceramic_and_glass/634154__erbsland-music__large-ceramic-plate-hit_license.txt "
-                  "de Mooses2k/SecretHistories : « CC0 »",
+        'proof': "resources/sounds/impacts/ceramic_and_glass/634154__erbsland-music__large-ceramic-plate-hit_license.txt "
+                  "of Mooses2k/SecretHistories: \"CC0\"",
     },
     'bush': {
-        'nom': '« looking_in_bushes » (freesound 59315) et « few small branches snapping » (354103)',
-        'auteur': 'vibe_crc, Bini_trns',
+        'naming': '"looking_in_bushes" (freesound 59315) and "few small branches snapping" (354103)',
+        'creator': 'vibe_crc, Bini_trns',
         'licence': 'CC0 1.0',
         'url': 'https://github.com/AnthonE/Gates/tree/main/assets/sound/freesound',
-        'preuve': "assets/sound/MANIFEST.md d'AnthonE/Gates : « Every file here is CC0 ... checked on each source's own "
-                  "page » ; « bush_pick_0-2 | vibe_crc, 59315 ... ; Bini_trns, 354103 »",
+        'proof': "AnthonE/Gates assets/sound/MANIFEST.md: \"Every file here is CC0 ... checked on each source's own "
+                  "page\"; \"bush_pick_0-2 | vibe_crc, 59315 ... ; Bini_trns, 354103\"",
     },
-    'rubberduck_casse': {
-        'nom': '« 75 CC0 breaking / falling / hit sfx »',
-        'auteur': 'rubberduck (opengameart.org)',
+    'rubberduck_break': {
+        'naming': '"75 CC0 breaking / falling / hit sfx"',
+        'creator': 'rubberduck (opengameart.org)',
         'licence': 'CC0 1.0',
         'url': 'https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx',
-        'preuve': "Page OpenGameArt : « 75 CC0 breaking / falling / hit sfx », licence CC0 ; license.txt du miroir "
-                  "fighter-435/Break-the-Battle-Formation renvoie vers cette page",
+        'proof': "OpenGameArt page: \"75 CC0 breaking / falling / hit sfx\", CC0 license; license.txt of the mirror "
+                  "fighter-435/Break-the-Battle-Formation points to this page",
     },
-    'rubberduck_bois_metal': {
-        'nom': '« 100 CC0 metal and wood SFX »',
-        'auteur': 'rubberduck (opengameart.org)',
+    'rubberduck_wood_metal': {
+        'naming': '"100 CC0 metal and wood SFX"',
+        'creator': 'rubberduck (opengameart.org)',
         'licence': 'CC0 1.0',
         'url': 'https://opengameart.org/content/100-cc0-metal-and-wood-sfx',
-        'preuve': "SOURCE.txt du miroir 1993velezpadilla-source/config-old-3 (cc0_horror_library) : « License: CC0 / "
-                  "Public Domain dedication » ; SUMMARY.json : « CC0/public-domain raw source pool »",
+        'proof': "SOURCE.txt of mirror 1993velezpadilla-source/config-old-3 (cc0_horror_library): \"License: CC0 / "
+                  "Public Domain dedication\"; SUMMARY.json: \"CC0/public-domain raw source pool\"",
     },
-    'rubberduck_eau': {
-        'nom': '« 40 CC0 water / splash / slime SFX »',
-        'auteur': 'rubberduck (opengameart.org)',
+    'rubberduck_water': {
+        'naming': '"40 CC0 water / splash / slime SFX"',
+        'creator': 'rubberduck (opengameart.org)',
         'licence': 'CC0 1.0',
         'url': 'https://opengameart.org/content/40-cc0-water-splash-slime-sfx',
-        'preuve': "SOURCE.txt du miroir 1993velezpadilla-source/config-old-3 (cc0_horror_library) : « License: CC0 / "
-                  "Public Domain dedication »",
+        'proof': "SOURCE.txt of mirror 1993velezpadilla-source/config-old-3 (cc0_horror_library): \"License: CC0 / "
+                  "Public Domain dedication\"",
     },
     'rubberduck_100': {
-        'nom': '« 100 CC0 SFX »',
-        'auteur': 'rubberduck (opengameart.org)',
+        'naming': '"100 CC0 SFX"',
+        'creator': 'rubberduck (opengameart.org)',
         'licence': 'CC0 1.0',
         'url': 'https://opengameart.org/content/100-cc0-sfx',
-        'preuve': "SOURCE.txt du miroir 1993velezpadilla-source/config-old-3 (cc0_horror_library) : « License: CC0 / "
-                  "Public Domain dedication »",
+        'proof': "SOURCE.txt of mirror 1993velezpadilla-source/config-old-3 (cc0_horror_library): \"License: CC0 / "
+                  "Public Domain dedication\"",
     },
     'nox': {
-        'nom': 'NOX SOUND « Footsteps - Essentials »',
-        'auteur': 'Nox_Sound',
+        'naming': 'NOX SOUND "Footsteps - Essentials"',
+        'creator': 'Nox_Sound',
         'licence': 'CC0 1.0',
         'url': 'https://github.com/helzpont/home4/tree/main/assets/audio/Footsteps_Essentials_NOX_SOUND',
-        'preuve': "Essentials_Series_README.pdf livré avec le pack : « All these sounds are under CC0 license. »",
+        'proof': "Essentials_Series_README.pdf shipped with the pack: \"All these sounds are under CC0 license.\"",
     },
     'kenney': {
-        'nom': 'Kenney « RPG Audio », « Foley Sounds », « Impact Sounds »',
-        'auteur': 'Kenney (www.kenney.nl)',
+        'naming': 'Kenney "RPG Audio", "Foley Sounds", "Impact Sounds"',
+        'creator': 'Kenney (www.kenney.nl)',
         'licence': 'CC0 1.0',
         'url': 'https://github.com/series-ai/jam-ready-assets',
-        'preuve': "License.txt de chaque pack : « License: (Creative Commons Zero, CC0) http://creativecommons.org/"
-                  "publicdomain/zero/1.0/ »",
+        'proof': "License.txt of each pack: \"License: (Creative Commons Zero, CC0) http://creativecommons.org/"
+                  "publicdomain/zero/1.0/\"",
     },
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Fichiers sources : chemin local sous assets_src/sfx/src -> adresse de téléchargement direct.
+# Source files: local path under assets_src/sfx/src -> direct download URL.
 FILES = {}
 
 
-def _url(depot, branche, chemin, lfs=False):
+def _url(depot, branch_snd, pathway, lfs=False):
     base = 'https://media.githubusercontent.com/media' if lfs else 'https://raw.githubusercontent.com'
-    return f'{base}/{depot}/{branche}/' + urllib.parse.quote(chemin)
+    return f'{base}/{depot}/{branch_snd}/' + urllib.parse.quote(pathway)
 
 
 def _f(rel, url):
@@ -206,43 +206,43 @@ def _f(rel, url):
     return rel
 
 
-def _aa(nom):               # ArmorAlley : sons Freesound CC0 (FilmmakersManual, mlsulli)
-    return _f('armoralley/' + nom, _url('scottschiller/ArmorAlley', 'master', 'assets/audio/wav/' + nom))
+def _aa(naming):               # ArmorAlley: Freesound CC0 sounds (FilmmakersManual, mlsulli)
+    return _f('armoralley/' + naming, _url('scottschiller/ArmorAlley', 'master', 'assets/audio/wav/' + naming))
 
 
-def _sh(chemin):            # SecretHistories (Git LFS)
-    return _f('secrethistories/' + chemin.split('/')[-1],
-              _url('Mooses2k/SecretHistories', 'main', 'resources/sounds/impacts/' + chemin, lfs=True))
+def _sh(pathway):            # SecretHistories (Git LFS)
+    return _f('secrethistories/' + pathway.split('/')[-1],
+              _url('Mooses2k/SecretHistories', 'main', 'resources/sounds/impacts/' + pathway, lfs=True))
 
 
-def _s6(chemin):            # SHADOW SIX : prises Freesound CC0 découpées
-    return _f('shadow-six/' + chemin.split('/')[-1], _url('jaher/shadow-six', 'master', 'assets/audio/sfx/' + chemin))
+def _s6(pathway):            # SHADOW SIX: cut CC0 Freesound takes
+    return _f('shadow-six/' + pathway.split('/')[-1], _url('jaher/shadow-six', 'master', 'assets/audio/sfx/' + pathway))
 
 
-def _stn(nom):              # survive-the-night-fps : planches de prises Freesound CC0
-    return _f('survive-the-night/' + nom, _url('webdevcody/survive-the-night-fps', 'main', 'client/audio/samples/' + nom))
+def _stn(naming):              # survive-the-night-fps: CC0 Freesound take collections
+    return _f('survive-the-night/' + naming, _url('webdevcody/survive-the-night-fps', 'main', 'client/audio/samples/' + naming))
 
 
-def _gates(nom):
-    return _f('gates/' + nom, _url('AnthonE/Gates', 'main', 'assets/sound/freesound/' + nom))
+def _gates(naming):
+    return _f('gates/' + naming, _url('AnthonE/Gates', 'main', 'assets/sound/freesound/' + naming))
 
 
-def _rdc(nom):              # rubberduck « 75 CC0 breaking / falling / hit sfx »
-    return _f('rubberduck/casse/' + nom, _url('fighter-435/Break-the-Battle-Formation', 'main',
-                                              'sci-fi-fps/assets/audios/sfx_breaking_and_falling/' + nom))
+def _rdc(naming):              # rubberduck "75 CC0 breaking / falling / hit sfx"
+    return _f('rubberduck/break/' + naming, _url('fighter-435/Break-the-Battle-Formation', 'main',
+                                              'sci-fi-fps/assets/audios/sfx_breaking_and_falling/' + naming))
 
 
-def _hl(chemin):            # miroir cc0_horror_library (rubberduck, OwlishMedia)
-    return _f('cc0-horror-library/' + chemin, _url('1993velezpadilla-source/config-old-3', 'main',
-                                                   'assets/audio/cc0_horror_library/' + chemin))
+def _hl(pathway):            # cc0_horror_library mirror (rubberduck, OwlishMedia)
+    return _f('cc0-horror-library/' + pathway, _url('1993velezpadilla-source/config-old-3', 'main',
+                                                   'assets/audio/cc0_horror_library/' + pathway))
 
 
-def _nox(chemin):           # 'Footsteps_Snow/Footsteps_Snow_Jump/Footsteps_Snow_Hard_Jump_Land_02.wav'
-    return _f('nox/' + chemin, _url('helzpont/home4', 'main', 'assets/audio/Footsteps_Essentials_NOX_SOUND/' + chemin))
+def _nox(pathway):           # 'Footsteps_Snow/Footsteps_Snow_Jump/Footsteps_Snow_Hard_Jump_Land_02.wav'
+    return _f('nox/' + pathway, _url('helzpont/home4', 'main', 'assets/audio/Footsteps_Essentials_NOX_SOUND/' + pathway))
 
 
-def _ken(chemin):           # 'kenney-impact-sounds/audio/Audio/impactSoft_heavy_000.ogg'
-    return _f('kenney/' + chemin, _url('series-ai/jam-ready-assets', 'main', chemin, lfs=True))
+def _ken(pathway):           # 'kenney-impact-sounds/audio/Audio/impactSoft_heavy_000.ogg'
+    return _f('kenney/' + pathway, _url('series-ai/jam-ready-assets', 'main', pathway, lfs=True))
 
 
 KI = 'kenney-impact-sounds/audio/Audio/'
@@ -262,7 +262,7 @@ BODY = {n: _sh(f'bullets_to_flesh/{i}__filmmakersmanual__bullet-hit-body-{n}.wav
 BODYFALL = {n: _aa(f'234853__mlsulli__body-hits-concrete_{n}.wav') for n in (1, 2, 5)}
 CERAMIC = _sh('ceramic_and_glass/634154__erbsland-music__large-ceramic-plate-hit.ogg')
 
-# autres prises Freesound
+# other Freesound takes
 RICOCHET = {n: _s6(f'ricochet/ricochet_30932_{n}.ogg') for n in (0, 2, 3)}
 EXP_NEAR, EXP_FAR, HIT_HEAD = _stn('exp_near.ogg'), _stn('exp_far.ogg'), _stn('hit_head.ogg')
 WHIP = [_gates(f'flyby_{n}.ogg') for n in range(4)]
@@ -314,9 +314,9 @@ NX = {n: _nox(n) for n in (
 )}
 
 
-def nx(nom):
-    """Fichier NOX par son nom court ('Snow_Hard_Jump_Land_02')."""
-    return next(v for k, v in NX.items() if k.endswith(f'Footsteps_{nom}.wav'))
+def nx(naming):
+    """NOX file by its short name ('Snow_Hard_Jump_Land_02')."""
+    return next(v for k, v in NX.items() if k.endswith(f'Footsteps_{naming}.wav'))
 
 
 # Kenney
@@ -332,32 +332,32 @@ K.update({n: _ken(KF + n + '.ogg') for n in ('Swords/hitHelmet2', 'Swords/hitHel
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Outils de traitement
+# Processing tools
 
-def src(rel, debut=None, duree=None):
-    """Source décodée en mono 48 kHz (extrait debut..debut+duree s)."""
-    return C.load(C.SRC / rel, start=debut, dur=duree)
+def src(rel, startpoint=None, duration_s=None):
+    """Source decoded to mono 48 kHz (excerpt startpoint..startpoint+duration_s s)."""
+    return C.load(C.SRC / rel, start=startpoint, dur=duration_s)
 
 
-def ken(n, debut=None, duree=None):
-    """Prise Kenney : les fichiers s'arrêtent net sur un léger décalage continu, on retire les 20 dernières ms."""
-    x = src(K[n], debut, duree)
+def ken(n, startpoint=None, duration_s=None):
+    """Kenney take: the files stop abruptly on a slight DC offset, so the last 20 ms are removed."""
+    x = src(K[n], startpoint, duration_s)
     return x[:max(1, len(x) - int(0.02 * SR))]
 
 
-def af(x, *filtres):
-    """Chaîne de filtres ffmpeg (les éléments vides sont ignorés)."""
-    ch = ','.join(f for f in filtres if f)
+def af(x, *filters):
+    """ffmpeg filter chain (empty elements are ignored)."""
+    ch = ','.join(f for f in filters if f)
     return C.ff(x, ch) if ch else x
 
 
 def hp(f):
-    """Passe-haut 24 dB/octave."""
+    """High-pass 24 dB/octave."""
     return f'highpass=f={f}:poles=2,highpass=f={f}:poles=2'
 
 
 def lp(f):
-    """Passe-bas 24 dB/octave."""
+    """Low-pass 24 dB/octave."""
     return f'lowpass=f={f}:poles=2,lowpass=f={f}:poles=2'
 
 
@@ -373,45 +373,45 @@ def dbg(d):
     return 10 ** (d / 20)
 
 
-def transpose(x, demitons):
-    """Transposition par changement de vitesse (la durée change avec la hauteur)."""
-    if not demitons: return x
-    r = 2 ** (demitons / 12)
+def transpose(x, semitones):
+    """Transposition by speed change (duration changes with pitch)."""
+    if not semitones: return x
+    r = 2 ** (semitones / 12)
     return C.ff(x, f'asetrate={int(round(SR * r))},aresample={SR}')
 
 
-def attaque(x, seuil=-36.0, pre=0.002):
-    """Coupe la tête : début pre secondes avant le premier échantillon à seuil dB sous la crête."""
-    return C.trim(x, seuil, pre)
+def attack_time(x, cutpoint=-36.0, pre=0.002):
+    """Cuts the head: starts pre seconds before the first sample at cutpoint dB under the peak."""
+    return C.trim(x, cutpoint, pre)
 
 
-def coupe(x, debut, duree):
-    return x[int(debut * SR):int((debut + duree) * SR)]
+def cut_at(x, startpoint, duration_s):
+    return x[int(startpoint * SR):int((startpoint + duration_s) * SR)]
 
 
 def n1(x):
     return C.norm(x, 0.0)
 
 
-def decroit(x, tenue, tau):
-    """Enveloppe : pleine pendant tenue s, puis décroissance exponentielle de constante tau s (raccourcit une queue)."""
+def decays(x, hold, tau):
+    """Envelope: full for hold s, then exponential decay with constant tau s (shortens a tail)."""
     t = np.arange(len(x)) / SR
-    env = np.where(t < tenue, 1.0, np.exp(-(t - tenue) / tau))
+    env = np.where(t < hold, 1.0, np.exp(-(t - hold) / tau))
     return x * env
 
 
-def niveau(x, w=0.05):
-    """Niveau efficace de la fenêtre de w s la plus forte."""
+def levelling(x, w=0.05):
+    """RMS level of the loudest w s window."""
     n = int(w * SR)
     if len(x) <= n: return float(np.sqrt(np.mean(x ** 2)))
     e = np.convolve(x ** 2, np.ones(n) / n, mode='valid')
     return float(np.sqrt(e.max()))
 
 
-def limiteur(x, seuil, att=0.0005, rel=0.004):
-    """Limiteur à anticipation : gain jamais au-dessus de seuil/|x| (fenêtre de 2*att), retour en rel s, lissé."""
+def limiter(x, cutpoint, att=0.0005, rel=0.004):
+    """Look-ahead limiter: gain never above cutpoint/|x| (window of 2*att), recovery in rel s, smoothed."""
     a = np.abs(x)
-    r = np.minimum(1.0, seuil / np.maximum(a, 1e-12))
+    r = np.minimum(1.0, cutpoint / np.maximum(a, 1e-12))
     w = max(1, int(att * SR))
     pad = np.concatenate([np.ones(w), r, np.ones(w)])
     gm = sliding_window_view(pad, 2 * w + 1).min(axis=1)
@@ -426,431 +426,431 @@ def limiteur(x, seuil, att=0.0005, rel=0.004):
     return x * g
 
 
-def ecart(x):
-    """Écart crête / niveau efficace (dB)."""
-    return C.db(C.peak(x)) - C.db(niveau(x))
+def deviation(x):
+    """Peak / RMS gap (dB)."""
+    return C.db(C.peak(x)) - C.db(levelling(x))
 
 
-def harmonise(sons, marge=1.0, max_red=4.0, dens=0.0):
-    """Ramène l'écart crête/niveau de chaque variante d'une série vers le plus petit écart de la série (+ marge dB,
-    - dens dB pour densifier toute la série), sans réduire une crête de plus de max_red dB, puis normalise en crête
-    à -1 dBFS."""
-    cible = min(ecart(x) for x in sons) + marge - dens
+def harmonizes(soundList, leeway=1.0, max_red=4.0, dens=0.0):
+    """Brings the peak/level gap of each variant of a series down to the smallest gap of the series (+ leeway dB,
+    - dens dB to densify the whole series), without reducing a peak by more than max_red dB, then peak-normalizes
+    to -1 dBFS."""
+    objective = min(deviation(x) for x in soundList) + leeway - dens
     out = []
-    for x in sons:
-        d = ecart(x) - cible
+    for x in soundList:
+        d = deviation(x) - objective
         if d > 0.1:
             d = min(d, max_red)
-            x = limiteur(x, C.peak(x) * dbg(-d))
+            x = limiter(x, C.peak(x) * dbg(-d))
         out.append(C.norm(x, -1.0))
     return out
 
 
-ENTREES = []
+ENTRIES = []
 
 
-def finit(x, dmax, fout=0.04, fin_seuil=-60.0):
-    """Coupe la fin sous fin_seuil (dB sous la crête), limite à dmax s, fondus d'entrée et de sortie."""
+def fade_ends(x, dmax, fout=0.04, end_threshold=-60.0):
+    """Cuts the end below end_threshold (dB under the peak), limits to dmax s, fade-in and fade-out."""
     x = np.asarray(x, dtype=np.float64)
-    x = x[:C.tail_end(x, fin_seuil)]
+    x = x[:C.tail_end(x, end_threshold)]
     if len(x) > int(dmax * SR):
         x = x[:int(dmax * SR)]
         fout = max(fout, min(0.15, dmax * 0.3))
     return C.fade(x, 0.001, min(fout, len(x) / SR * 0.5))
 
 
-def ecrit(sid, x, credits, crete=-1.0):
-    """Écrit un master (crête -1 dBFS) et ses crédits : credits = [(source, fichier, détail), ...]."""
-    x = C.norm(x, crete)
-    C.save_master(PAQ, sid, x)
+def writes(sid, x, credits, crest_of=-1.0):
+    """Writes a master (peak -1 dBFS) and its credits: credits = [(source, file, detail), ...]."""
+    x = C.norm(x, crest_of)
+    C.save_master(PACK, sid, x)
     for source, f, d in credits:
-        ENTREES.append(C.credit(sid, PAQ, source, nom(f), d))
+        ENTRIES.append(C.credit(sid, PACK, source, naming(f), d))
     return x
 
 
-def serie(base, sons, dmax, fout=0.04, fin_seuil=-60.0, marge=1.0, max_red=4.0, crete=-1.0, dens=0.0):
-    """Finit et écrit une série de variantes base-1, base-2... : sons = [(signal, credits), ...]. dens : réduction
-    supplémentaire des crêtes (dB) pour un son plus dense."""
-    xs = [finit(x, dmax, fout, fin_seuil) for x, _ in sons]
-    xs = harmonise(xs, marge, max_red + dens, dens) if len(xs) > 1 or dens else xs
-    for k, (x, (_, cr)) in enumerate(zip(xs, sons)):
-        sid = f'{base}-{k + 1}' if len(sons) > 1 else base
-        ecrit(sid, x, cr, crete)
+def serie(base, soundList, dmax, fout=0.04, end_threshold=-60.0, leeway=1.0, max_red=4.0, crest_of=-1.0, dens=0.0):
+    """Finishes and writes a series of variants base-1, base-2...: soundList = [(signal, credits), ...]. dens: extra
+    peak reduction (dB) for a denser sound."""
+    xs = [fade_ends(x, dmax, fout, end_threshold) for x, _ in soundList]
+    xs = harmonizes(xs, leeway, max_red + dens, dens) if len(xs) > 1 or dens else xs
+    for k, (x, (_, cr)) in enumerate(zip(xs, soundList)):
+        sid = f'{base}-{k + 1}' if len(soundList) > 1 else base
+        writes(sid, x, cr, crest_of)
 
 
-def nom(rel):
+def naming(rel):
     return rel.split('/', 1)[1] if '/' in rel else rel
 
 
-def prise(rel, debut=None, duree=None, hpf=50, filtres='', seuil=-36.0, pre=0.001):
-    """Extrait d'une source : passe-haut, début à l'attaque."""
-    x = af(src(rel, debut, duree), hp(hpf) if hpf else '', filtres)
-    return attaque(x, seuil, pre)
+def recording(rel, startpoint=None, duration_s=None, hpf=50, filters='', cutpoint=-36.0, pre=0.001):
+    """Excerpt of a source: high-pass, start at the attack."""
+    x = af(src(rel, startpoint, duration_s), hp(hpf) if hpf else '', filters)
+    return attack_time(x, cutpoint, pre)
 
 
-def claquement(rel=None, hpf=1800, duree=0.025):
-    """Claquement bref (couche d'attaque) tiré du début d'un impact de balle sur béton."""
-    x = prise(rel or CONCRETE[1], hpf=hpf, seuil=-30, pre=0.0005)
-    x = x[:int(duree * SR)]
-    return C.fade(x, 0.0005, duree * 0.6, 2.0)
+def snap_snd(rel=None, hpf=1800, duration_s=0.025):
+    """Brief crack (attack layer) taken from the start of a bullet impact on concrete."""
+    x = recording(rel or CONCRETE[1], hpf=hpf, cutpoint=-30, pre=0.0005)
+    x = x[:int(duration_s * SR)]
+    return C.fade(x, 0.0005, duration_s * 0.6, 2.0)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Impacts de balles
+# Bullet impacts
 
-def balles():
-    # béton : quatre prises FilmmakersManual (claquement sec + éclats qui s'effritent)
-    sons = []
+def bullets():
+    # concrete: four FilmmakersManual takes (dry crack + crumbling fragments)
+    soundList = []
     for k, rel in enumerate(CONCRETE):
-        x = prise(rel, hpf=60)
-        cr = [('filmmakersmanual', rel, f'prise {k + 1} entière (0,5 s au plus), passe-haut 60 Hz')]
-        if k == 1:      # la prise 2 monte en 20 ms : claquement de la prise 4 en tête
-            x = C.mix((n1(x), 0.0, 1.0), (n1(claquement(CONCRETE[3], hpf=900, duree=0.03)), 0.0, dbg(-5)))
-            cr.append(('filmmakersmanual', CONCRETE[3], 'claquement de tête : 30 premières ms de la prise 4, passe-haut 900 Hz (-5 dB)'))
-        sons.append((x, cr))
-    serie('i_concrete', sons, 0.5, fout=0.12)
+        x = recording(rel, hpf=60)
+        cr = [('filmmakersmanual', rel, f'take {k + 1} whole (0.5 s at most), high-pass 60 Hz')]
+        if k == 1:      # take 2 rises over 20 ms: crack of take 4 at the head
+            x = C.mix((n1(x), 0.0, 1.0), (n1(snap_snd(CONCRETE[3], hpf=900, duration_s=0.03)), 0.0, dbg(-5)))
+            cr.append(('filmmakersmanual', CONCRETE[3], 'head crack: first 30 ms of take 4, high-pass 900 Hz (-5 dB)'))
+        soundList.append((x, cr))
+    serie('i_concrete', soundList, 0.5, fout=0.12)
 
-    # métal : prise FilmmakersManual (claquement + tintement) raccourcie (tenue 30 ms, déclin 70 ms : pas de cloche)
-    # + tôle frappée rubberduck (« tonk ») en dessous
-    toles = ['metal_sheet_05', 'metal_sheet_01', 'metal_sheet_04', 'metal_sheet_02']
-    sons = []
+    # metal: FilmmakersManual take (crack + ringing) shortened (hold 30 ms, decay 70 ms: no bell)
+    # + struck rubberduck sheet metal ("tonk") underneath
+    sheet_metal = ['metal_sheet_05', 'metal_sheet_01', 'metal_sheet_04', 'metal_sheet_02']
+    soundList = []
     for k, rel in enumerate(METAL):
-        a = decroit(prise(rel, hpf=120), 0.03, 0.075)
-        t = decroit(prise(WM[toles[k]], hpf=90, filtres=lp(6000)), 0.04, 0.06)
+        a = decays(recording(rel, hpf=120), 0.03, 0.075)
+        t = decays(recording(WM[sheet_metal[k]], hpf=90, filters=lp(6000)), 0.04, 0.06)
         x = C.mix((n1(a), 0, 1.0), (n1(t), 0.002, dbg(-5)))
-        sons.append((x, [('filmmakersmanual', rel, 'prise raccourcie : tenue 30 ms puis déclin de 70 ms, passe-haut 120 Hz'),
-                         ('rubberduck_bois_metal', WM[toles[k]], 'couche « tonk » de tôle (-5 dB, passe-bas 6 kHz, déclin 60 ms)')]))
-    serie('i_metal', sons, 0.45, fout=0.1)
+        soundList.append((x, [('filmmakersmanual', rel, 'shortened take: hold 30 ms then 70 ms decay, high-pass 120 Hz'),
+                         ('rubberduck_wood_metal', WM[sheet_metal[k]], 'sheet metal "tonk" layer (-5 dB, low-pass 6 kHz, decay 60 ms)')]))
+    serie('i_metal', soundList, 0.45, fout=0.1)
 
-    # bois : choc de bois rubberduck + éclatement (wood_cracking) + claquement de balle (béton filtré au-dessus de 1,8 kHz)
+    # wood: rubberduck wood hit + splintering (wood_cracking) + bullet crack (concrete filtered above 1.8 kHz)
     combos = [('wood_hit_02', 'wood_cracking_02', 0.012), ('wood_hit_08', 'wood_cracking_04', 0.008),
               ('wood_hit_04', 'wood_cracking_03', 0.015)]
-    sons = []
+    soundList = []
     for k, (h, c, off) in enumerate(combos):
-        a = prise(WM[h], hpf=80)
-        b = prise(WM[c], hpf=500)
-        cl = claquement(CONCRETE[k + 1])
+        a = recording(WM[h], hpf=80)
+        b = recording(WM[c], hpf=500)
+        cl = snap_snd(CONCRETE[k + 1])
         x = C.mix((n1(a), 0.003, 1.0), (n1(b), off, dbg(-6)), (n1(cl), 0, dbg(-8)))
-        sons.append((x, [('rubberduck_bois_metal', WM[h], f'choc de bois {h} + éclatement {c} (-6 dB, à {off * 1000:.0f} ms)'),
-                         ('filmmakersmanual', CONCRETE[k + 1], 'claquement : 25 premières ms, passe-haut 1,8 kHz (-8 dB)')]))
-    serie('i_wood', sons, 0.5, fout=0.1, dens=2.0)
+        soundList.append((x, [('rubberduck_wood_metal', WM[h], f'wood thud {h} + splintering {c} (-6 dB, at {off * 1000:.0f} ms)'),
+                         ('filmmakersmanual', CONCRETE[k + 1], 'crack: first 25 ms, high-pass 1.8 kHz (-8 dB)')]))
+    serie('i_wood', soundList, 0.5, fout=0.1, dens=2.0)
 
-    # terre / sable : souffle sourd (réception NOX sur terre ou sable) + coup grave (Kenney impactSoft) + gravillons
+    # earth / sand: dull thud (NOX landing on earth or sand) + low hit (Kenney impactSoft) + gravel
     combos = [('Mud_Jump_Land_03', 'impactSoft_heavy_000', 'rock_falling_05', 0.03),
               ('DirtyGround_Jump_Land_02', 'impactSoft_heavy_002', 'rock_falling_03', 0.05),
               ('Sand_Jump_Land_03', 'impactSoft_medium_001', 'rock_falling_08', 0.04)]
-    sons = []
-    for k, (terre, coup, grav, off) in enumerate(combos):
-        a = prise(nx(terre), hpf=70, seuil=-30)
-        b = decroit(af(ken(coup), hp(45), lp(400)), 0.03, 0.05)
-        g = prise(RD[grav], hpf=900, seuil=-30)
-        g = decroit(g, 0.08, 0.12)
-        cl = claquement(CONCRETE[0], hpf=1200, duree=0.02)
+    soundList = []
+    for k, (earth, blow, grav, off) in enumerate(combos):
+        a = recording(nx(earth), hpf=70, cutpoint=-30)
+        b = decays(af(ken(blow), hp(45), lp(400)), 0.03, 0.05)
+        g = recording(RD[grav], hpf=900, cutpoint=-30)
+        g = decays(g, 0.08, 0.12)
+        cl = snap_snd(CONCRETE[0], hpf=1200, duration_s=0.02)
         x = C.mix((n1(a), 0, 1.0), (n1(b), 0, dbg(-6)), (n1(g), off, dbg(-14)), (n1(cl), 0, dbg(-12)))
-        sons.append((x, [('nox', nx(terre), f'souffle de terre : réception {terre}, passe-haut 70 Hz'),
-                         ('kenney', K[coup], 'coup grave (passe-bas 400 Hz, -6 dB)'),
-                         ('rubberduck_casse', RD[grav], f'gravillons (passe-haut 900 Hz, -14 dB, à {off * 1000:.0f} ms)'),
-                         ('filmmakersmanual', CONCRETE[0], 'claquement d\'entrée (20 ms, passe-haut 1,2 kHz, -12 dB)')]))
-    serie('i_dirt', sons, 0.5, fout=0.12)
+        soundList.append((x, [('nox', nx(earth), f'earth thud: landing {earth}, high-pass 70 Hz'),
+                         ('kenney', K[blow], 'low thud (low-pass 400 Hz, -6 dB)'),
+                         ('rubberduck_break', RD[grav], f'gravel (high-pass 900 Hz, -14 dB, at {off * 1000:.0f} ms)'),
+                         ('filmmakersmanual', CONCRETE[0], 'entry crack (20 ms, high-pass 1.2 kHz, -12 dB)')]))
+    serie('i_dirt', soundList, 0.5, fout=0.12)
 
-    # verre : prises C_Rogers (coup qui fait voler le verre en éclats), queue d'éclats écourtée
-    noms = ['203368__c_rogers__glass-shattering-hit_01', '203374__c_rogers__glass-shattering_02',
+    # glass: C_Rogers takes (blow that shatters glass), shard tail shortened
+    nameset = ['203368__c_rogers__glass-shattering-hit_01', '203374__c_rogers__glass-shattering_02',
             '203377__c_rogers__glass-shattering_05']
-    sons = [(prise(GLASS[n], hpf=150), [('c_rogers', GLASS[n], 'attaque et premiers éclats (0,5 s), passe-haut 150 Hz')])
-            for n in noms]
-    serie('i_glass', sons, 0.5, fout=0.15)
+    soundList = [(recording(GLASS[n], hpf=150), [('c_rogers', GLASS[n], 'attack and first shards (0.5 s), high-pass 150 Hz')])
+            for n in nameset]
+    serie('i_glass', soundList, 0.5, fout=0.15)
 
-    # chair : prises FilmmakersManual « Bullet - Hit Body » (mat et humide), 0,3 s
-    sons = []
+    # flesh: FilmmakersManual "Bullet - Hit Body" takes (dull and wet), 0.3 s
+    soundList = []
     for n in (3, 8, 9, 6):
-        sons.append((prise(BODY[n], hpf=50, seuil=-22), [('filmmakersmanual', BODY[n], f'prise {n} : 0,3 s, passe-haut 50 Hz')]))
-    serie('i_flesh', sons, 0.3, fout=0.1)
+        soundList.append((recording(BODY[n], hpf=50, cutpoint=-22), [('filmmakersmanual', BODY[n], f'take {n}: 0.3 s, high-pass 50 Hz')]))
+    serie('i_flesh', soundList, 0.3, fout=0.1)
 
-    # tête : craquement sec (os) sur un impact de chair
-    a = prise(HIT_HEAD, 0.66, 0.3, hpf=80, filtres=eq(8500, -14, 6) + ',' + eq(17000, -10, 4), seuil=-30)
-    a = decroit(a, 0.02, 0.04)      # la prise sonne vers 8,5 kHz : on garde le craquement, pas le tintement
-    b = prise(BONE[3], hpf=300, seuil=-30)
-    c = prise(BODY[7], hpf=60, seuil=-22)
+    # head: dry crack (bone) over a flesh impact
+    a = recording(HIT_HEAD, 0.66, 0.3, hpf=80, filters=eq(8500, -14, 6) + ',' + eq(17000, -10, 4), cutpoint=-30)
+    a = decays(a, 0.02, 0.04)      # the take rings around 8.5 kHz: we keep the crack, not the ringing
+    b = recording(BONE[3], hpf=300, cutpoint=-30)
+    c = recording(BODY[7], hpf=60, cutpoint=-22)
     x1 = C.mix((n1(a), 0, 1.0), (n1(b), 0.004, dbg(-7)), (n1(c), 0, dbg(-8)))
-    d = prise(BODY[6], hpf=60, seuil=-22)
-    e = prise(BONE[1], hpf=300, seuil=-30)
-    f = prise(HIT_HEAD, 0.0, 0.3, hpf=80, seuil=-30)
+    d = recording(BODY[6], hpf=60, cutpoint=-22)
+    e = recording(BONE[1], hpf=300, cutpoint=-30)
+    f = recording(HIT_HEAD, 0.0, 0.3, hpf=80, cutpoint=-30)
     x2 = C.mix((n1(d), 0, 1.0), (n1(e), 0.002, dbg(-5)), (n1(f), 0.0, dbg(-9)))
     serie('i_head', [
-        (x1, [('survive_head', HIT_HEAD, 'tir à la tête, prise 2 (0,66-0,96 s), tintement de 8,5 kHz atténué, déclin 40 ms'),
-              ('vinni_r', BONE[3], 'craquement d\'os (passe-haut 300 Hz, -7 dB)'),
-              ('filmmakersmanual', BODY[7], 'impact de chair (prise 7, -8 dB)')]),
-        (x2, [('filmmakersmanual', BODY[6], 'impact de chair (prise 6)'),
-              ('vinni_r', BONE[1], 'craquement d\'os (passe-haut 300 Hz, -5 dB)'),
-              ('survive_head', HIT_HEAD, 'tir à la tête, prise 1 (0-0,3 s, -9 dB)')]),
+        (x1, [('survive_head', HIT_HEAD, 'headshot, take 2 (0.66-0.96 s), 8.5 kHz ringing attenuated, decay 40 ms'),
+              ('vinni_r', BONE[3], 'bone crack (high-pass 300 Hz, -7 dB)'),
+              ('filmmakersmanual', BODY[7], 'flesh impact (take 7, -8 dB)')]),
+        (x2, [('filmmakersmanual', BODY[6], 'flesh impact (take 6)'),
+              ('vinni_r', BONE[1], 'bone crack (high-pass 300 Hz, -5 dB)'),
+              ('survive_head', HIT_HEAD, 'headshot, take 1 (0-0.3 s, -9 dB)')]),
     ], 0.3, fout=0.1, dens=3.0)
 
-    # eau : petite éclaboussure rubberduck + gerbe (bruine d'une autre éclaboussure) + claquement d'entrée
-    gerbe = decroit(af(attaque(src(WS['splash_13']), -30), hp(1500)), 0.04, 0.12)
-    sons = []
+    # water: small rubberduck splash + spray (drizzle from another splash) + entry crack
+    spray_burst = decays(af(attack_time(src(WS['splash_13']), -30), hp(1500)), 0.04, 0.12)
+    soundList = []
     for k, n in enumerate(('splash_10', 'splash_09', 'splash_02')):
-        a = prise(WS[n], hpf=100, seuil=-30)
-        cl = claquement(CONCRETE[k + 1], hpf=2500, duree=0.015)
-        x = C.mix((n1(a), 0.0, 1.0), (n1(cl), 0, dbg(-14)), (n1(gerbe), 0.012, dbg(-13 if k < 2 else -18)))
-        sons.append((x, [('rubberduck_eau', WS[n], f'éclaboussure {n}, passe-haut 100 Hz ; gerbe : splash_13 (passe-haut '
-                          f'1,5 kHz, déclin 120 ms, à 12 ms)'),
-                         ('filmmakersmanual', CONCRETE[k + 1], 'claquement d\'entrée (15 ms, passe-haut 2,5 kHz, -14 dB)')]))
-    serie('i_water', sons, 0.5, fout=0.12, dens=2.0)
+        a = recording(WS[n], hpf=100, cutpoint=-30)
+        cl = snap_snd(CONCRETE[k + 1], hpf=2500, duration_s=0.015)
+        x = C.mix((n1(a), 0.0, 1.0), (n1(cl), 0, dbg(-14)), (n1(spray_burst), 0.012, dbg(-13 if k < 2 else -18)))
+        soundList.append((x, [('rubberduck_water', WS[n], f'splash {n}, high-pass 100 Hz; spray: splash_13 (high-pass '
+                          f'1.5 kHz, decay 120 ms, at 12 ms)'),
+                         ('filmmakersmanual', CONCRETE[k + 1], 'entry crack (15 ms, high-pass 2.5 kHz, -14 dB)')]))
+    serie('i_water', soundList, 0.5, fout=0.12, dens=2.0)
 
-    # neige : crissement (réception NOX sur neige tassée) + coup sourd étouffé
+    # snow: crunch (NOX landing on packed snow) + muffled dull thud
     combos = [('Snow_Hard_Jump_Land_04', 'impactSoft_medium_001'), ('Snow_Hard_Jump_Land_05', 'impactSoft_medium_003')]
-    sons = []
-    for neige, coup in combos:
-        a = prise(nx(neige), hpf=90, seuil=-30)
-        b = decroit(af(ken(coup), hp(50), lp(300)), 0.02, 0.04)
+    soundList = []
+    for snowy, blow in combos:
+        a = recording(nx(snowy), hpf=90, cutpoint=-30)
+        b = decays(af(ken(blow), hp(50), lp(300)), 0.02, 0.04)
         x = C.mix((n1(a), 0, 1.0), (n1(b), 0, dbg(-8)))
-        sons.append((x, [('nox', nx(neige), f'crissement : réception {neige}'),
-                         ('kenney', K[coup], 'coup sourd (passe-bas 300 Hz, -8 dB)')]))
-    serie('i_snow', sons, 0.45, fout=0.12)
+        soundList.append((x, [('nox', nx(snowy), f'crunch: landing {snowy}'),
+                         ('kenney', K[blow], 'dull thud (low-pass 300 Hz, -8 dB)')]))
+    serie('i_snow', soundList, 0.45, fout=0.12)
 
-    # feuillage : feuilles froissées (réception NOX dans les feuilles) + bruissement de buisson + brindille qui casse
+    # foliage: crumpled leaves (NOX landing in leaves) + bush rustle + twig snapping
     combos = [('Leaves_Jump_Land_01', 0, 'wood_cracking_02'), ('Leaves_Jump_Land_02', 1, 'wood_cracking_04')]
-    sons = []
-    for feuilles, b, br in combos:
-        a = prise(nx(feuilles), hpf=200, seuil=-30)
+    soundList = []
+    for leaf_snd, b, br in combos:
+        a = recording(nx(leaf_snd), hpf=200, cutpoint=-30)
         r = af(src(BUSH[b]), hp(400))
-        r = decroit(attaque(r, -30), 0.05, 0.12)
-        t = decroit(prise(WM[br], hpf=1500, seuil=-30), 0.01, 0.03)
+        r = decays(attack_time(r, -30), 0.05, 0.12)
+        t = decays(recording(WM[br], hpf=1500, cutpoint=-30), 0.01, 0.03)
         x = C.mix((n1(a), 0.004, 1.0), (n1(r), 0.012, dbg(-6)), (n1(t), 0.0, dbg(-9)))
-        sons.append((x, [('nox', nx(feuilles), f'feuilles froissées : {feuilles}, passe-haut 200 Hz'),
-                         ('bush', BUSH[b], 'bruissement de buisson (passe-haut 400 Hz, déclin 120 ms, -6 dB)'),
-                         ('rubberduck_bois_metal', WM[br], 'brindille : attaque de l\'éclatement de bois (passe-haut 1,5 kHz, -9 dB)')]))
-    serie('i_leaf', sons, 0.45, fout=0.12)
+        soundList.append((x, [('nox', nx(leaf_snd), f'crumpled leaves: {leaf_snd}, high-pass 200 Hz'),
+                         ('bush', BUSH[b], 'bush rustle (high-pass 400 Hz, decay 120 ms, -6 dB)'),
+                         ('rubberduck_wood_metal', WM[br], 'twig: attack of the wood splintering (high-pass 1.5 kHz, -9 dB)')]))
+    serie('i_leaf', soundList, 0.45, fout=0.12)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Ricochets et sifflements
+# Ricochets and whistles
 
-def sifflements():
-    sons = []
+def whistles():
+    soundList = []
     for k in (3, 2, 0):
-        x = prise(RICOCHET[k], hpf=150, seuil=-30)
-        sons.append((x, [('aust_paul', RICOCHET[k], f'prise {k + 1} : choc + stridence descendante, passe-haut 150 Hz')]))
-    serie('i_ric', sons, 0.6, fout=0.15)
+        x = recording(RICOCHET[k], hpf=150, cutpoint=-30)
+        soundList.append((x, [('aust_paul', RICOCHET[k], f'take {k + 1}: impact + descending screech, high-pass 150 Hz')]))
+    serie('i_ric', soundList, 0.6, fout=0.15)
 
-    # balle qui frôle : claquement supersonique (fouet) + vraie balle qui passe (qubodup) + souffle qui passe
-    # (souffle Kenney accéléré, qui s'éteint en 0,3 s)
-    souffles = ['Woosh/woosh1', 'Woosh/woosh4', 'Woosh/woosh5', 'Woosh/woosh6']
-    hauteurs = [0, -1, 1, -2]
-    sons = []
+    # grazing bullet: supersonic crack (whip) + real bullet passing (qubodup) + passing whoosh
+    # (sped-up Kenney whoosh, fading out in 0.3 s)
+    blasts = ['Woosh/woosh1', 'Woosh/woosh4', 'Woosh/woosh5', 'Woosh/woosh6']
+    heights = [0, -1, 1, -2]
+    soundList = []
     for k in range(4):
-        cr = prise(WHIP[k], hpf=700, seuil=-30)
-        cr = decroit(cr, 0.01, 0.05)
-        fb = transpose(prise(FLYBY, hpf=600, seuil=-30), hauteurs[k])
-        w = af(ken(souffles[k]), hp(300))
-        i = max(0, int(np.argmax(np.abs(w))) - int(0.02 * SR))     # seconde moitié du souffle : il s'éloigne
+        cr = recording(WHIP[k], hpf=700, cutpoint=-30)
+        cr = decays(cr, 0.01, 0.05)
+        fb = transpose(recording(FLYBY, hpf=600, cutpoint=-30), heights[k])
+        w = af(ken(blasts[k]), hp(300))
+        i = max(0, int(np.argmax(np.abs(w))) - int(0.02 * SR))     # second half of the whoosh: it moves away
         w = transpose(C.fade(w[i:], 0.008, 0.0), 3)
-        w = decroit(w, 0.03, 0.06)
+        w = decays(w, 0.03, 0.06)
         x = C.mix((n1(cr), 0, 1.0), (n1(fb), 0.0, dbg(-5)), (n1(w), 0.004, dbg(-5)))
-        sons.append((x, [('g_lamont', WHIP[k], 'claquement de fouet : tenue 10 ms, déclin 50 ms, passe-haut 700 Hz'),
-                         ('qubodup_militaire', FLYBY, f'vraie balle qui passe (80 ms, {hauteurs[k]:+d} demi-ton, passe-haut '
+        soundList.append((x, [('g_lamont', WHIP[k], 'whip crack: hold 10 ms, decay 50 ms, high-pass 700 Hz'),
+                         ('qubodup_military', FLYBY, f'real bullet passing (80 ms, {heights[k]:+d} semitone, high-pass '
                           '600 Hz, -5 dB)'),
-                         ('kenney', K[souffles[k]], 'souffle qui s\'éloigne : seconde moitié du souffle (dès 20 ms avant son '
-                          'maximum), +3 demi-tons, déclin 60 ms (-5 dB)')]))
-    serie('i_whiz', sons, 0.4, fout=0.1)
+                         ('kenney', K[blasts[k]], 'receding whoosh: second half of the whoosh (from 20 ms before its '
+                          'peak), +3 semitones, decay 60 ms (-5 dB)')]))
+    serie('i_whiz', soundList, 0.4, fout=0.1)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Explosions
 
 def explosions():
-    sub = af(prise(BIG_BLAST, hpf=25), lp(140))
-    sub = decroit(sub, 0.15, 0.6)
+    sub = af(recording(BIG_BLAST, hpf=25), lp(140))
+    sub = decays(sub, 0.15, 0.6)
 
-    a = prise(BLAST, hpf=30, seuil=-30)
-    cl = claquement(CONCRETE[2], hpf=400, duree=0.04)
+    a = recording(BLAST, hpf=30, cutpoint=-30)
+    cl = snap_snd(CONCRETE[2], hpf=400, duration_s=0.04)
     x1 = C.mix((n1(a), 0, 1.0), (n1(sub), 0.0, dbg(-6)), (n1(cl), 0.0, dbg(-7)))
-    b = prise(EXP_NEAR, 0.0, 3.3, hpf=30, seuil=-30)
+    b = recording(EXP_NEAR, 0.0, 3.3, hpf=30, cutpoint=-30)
     x2 = C.mix((n1(b), 0, 1.0), (n1(sub), 0.0, dbg(-8)))
     serie('x_near', [
-        (x1, [('qubodup_militaire', BLAST, 'explosion réelle (enregistrement militaire), passe-haut 30 Hz'),
-              ('samsterbirdies', BIG_BLAST, 'grondement : passe-bas 140 Hz, tenue 150 ms puis déclin 0,6 s (-6 dB)'),
-              ('filmmakersmanual', CONCRETE[2], 'claquement d\'attaque : 40 premières ms d\'un impact sur béton, '
-               'passe-haut 400 Hz (-7 dB)')]),
-        (x2, [('survive_exp', EXP_NEAR, 'explosion réelle, prise 1 (0-3,3 s), passe-haut 30 Hz'),
-              ('samsterbirdies', BIG_BLAST, 'grondement : passe-bas 140 Hz (-8 dB)')]),
-    ], 2.5, fout=0.6, fin_seuil=-55, marge=1.5)
+        (x1, [('qubodup_military', BLAST, 'real explosion (military recording), high-pass 30 Hz'),
+              ('samsterbirdies', BIG_BLAST, 'rumble: low-pass 140 Hz, hold 150 ms then 0.6 s decay (-6 dB)'),
+              ('filmmakersmanual', CONCRETE[2], 'attack crack: first 40 ms of an impact on concrete, '
+               'high-pass 400 Hz (-7 dB)')]),
+        (x2, [('survive_exp', EXP_NEAR, 'real explosion, take 1 (0-3.3 s), high-pass 30 Hz'),
+              ('samsterbirdies', BIG_BLAST, 'rumble: low-pass 140 Hz (-8 dB)')]),
+    ], 2.5, fout=0.6, end_threshold=-55, leeway=1.5)
 
-    f1 = af(prise(EXP_FAR, 0.0, 5.4, hpf=30, seuil=-30), lp(2500))
-    f2 = af(prise(BLAST_MOUNTAIN, hpf=30, seuil=-30), lp(2200))
+    f1 = af(recording(EXP_FAR, 0.0, 5.4, hpf=30, cutpoint=-30), lp(2500))
+    f2 = af(recording(BLAST_MOUNTAIN, hpf=30, cutpoint=-30), lp(2200))
     serie('x_far', [
-        (f1, [('survive_exp', EXP_FAR, 'explosion lointaine (forêt à 200 m), prise 1, passe-bas 2,5 kHz')]),
-        (f2, [('felix_blume', BLAST_MOUNTAIN, 'dynamite en montagne avec roulement, passe-bas 2,2 kHz')]),
-    ], 3.0, fout=0.9, fin_seuil=-55, marge=1.5)
+        (f1, [('survive_exp', EXP_FAR, 'distant explosion (forest at 200 m), take 1, low-pass 2.5 kHz')]),
+        (f2, [('felix_blume', BLAST_MOUNTAIN, 'dynamite in the mountains with rumble, low-pass 2.2 kHz')]),
+    ], 3.0, fout=0.9, end_threshold=-55, leeway=1.5)
 
-    # débris : gravats qui retombent (rubberduck rock_falling, en cascade) + queue d'éboulis (xkeril) étouffée
-    deb = af(prise(DEBRIS, hpf=60, seuil=-30), lp(5000))
-    sons = []
+    # debris: rubble falling back (rubberduck rock_falling, cascading) + muffled rockslide tail (xkeril)
+    debris_take = af(recording(DEBRIS, hpf=60, cutpoint=-30), lp(5000))
+    soundList = []
     for k, seq in enumerate([[('rock_falling_01', 0.0, 0), ('rock_falling_07', 0.18, -3), ('rock_falling_05', 0.5, -7)],
                              [('rock_falling_03', 0.0, 0), ('rock_falling_08', 0.22, -3), ('rock_falling_01', 0.55, -8)]]):
-        layers = [(n1(prise(RD[n], hpf=120, seuil=-40)), off, dbg(g)) for n, off, g in seq]
-        d = coupe(deb, 0.3 + 0.5 * k, 1.5)
+        layers = [(n1(recording(RD[n], hpf=120, cutpoint=-40)), off, dbg(g)) for n, off, g in seq]
+        d = cut_at(debris_take, 0.3 + 0.5 * k, 1.5)
         d = C.fade(d, 0.05, 0.6)
         layers.append((n1(d), 0.0, dbg(-10)))
         x = C.mix(*layers)
-        cred = [('rubberduck_casse', RD[seq[0][0]], 'cascade de gravats : ' + ', '.join(f'{n} à {o:.2f} s ({g} dB)' for n, o, g in seq))]
-        cred.append(('xkeril', DEBRIS, f'queue d\'éboulis ({0.3 + 0.5 * k:.1f}-{1.8 + 0.5 * k:.1f} s, passe-bas 5 kHz, -10 dB)'))
-        sons.append((x, cred))
-    serie('x_debris', sons, 1.5, fout=0.4, fin_seuil=-55)
+        cred = [('rubberduck_break', RD[seq[0][0]], 'rubble cascade: ' + ', '.join(f'{n} at {o:.2f} s ({g} dB)' for n, o, g in seq))]
+        cred.append(('xkeril', DEBRIS, f'rockslide tail ({0.3 + 0.5 * k:.1f}-{1.8 + 0.5 * k:.1f} s, low-pass 5 kHz, -10 dB)'))
+        soundList.append((x, cred))
+    serie('x_debris', soundList, 1.5, fout=0.4, end_threshold=-55)
 
-    # explosion dans l'eau : gerbe réelle (qubodup) + coup sourd (grondement grave) + retombée (éclaboussure)
-    w = prise(WATER_BLAST, hpf=30, seuil=-30)
-    s = prise(WS['splash_04'], hpf=150, seuil=-30)
+    # explosion in water: real spray (qubodup) + dull thud (low rumble) + fallback (splash)
+    w = recording(WATER_BLAST, hpf=30, cutpoint=-30)
+    s = recording(WS['splash_04'], hpf=150, cutpoint=-30)
     x = C.mix((n1(w), 0, 1.0), (n1(sub), 0, dbg(-7)), (n1(s), 0.75, dbg(-12)))
-    serie('x_water', [(x, [('qubodup_naval', WATER_BLAST, 'explosion à la surface de l\'eau, coupée avant la fin franche'),
-                           ('samsterbirdies', BIG_BLAST, 'coup sourd : passe-bas 140 Hz (-7 dB)'),
-                           ('rubberduck_eau', WS['splash_04'], 'retombée : éclaboussure à 0,75 s (-12 dB)')])],
-          2.5, fout=0.5, fin_seuil=-55)
+    serie('x_water', [(x, [('qubodup_naval', WATER_BLAST, 'explosion at the water surface, cut before the abrupt end'),
+                           ('samsterbirdies', BIG_BLAST, 'dull thud: low-pass 140 Hz (-7 dB)'),
+                           ('rubberduck_water', WS['splash_04'], 'fallback: splash at 0.75 s (-12 dB)')])],
+          2.5, fout=0.5, end_threshold=-55)
 
-    x = prise(WS['splash_04'], hpf=60, seuil=-30)
-    serie('x_splash', [(x, [('rubberduck_eau', WS['splash_04'], '« plouf » avec bulle grave, passe-haut 60 Hz')])],
+    x = recording(WS['splash_04'], hpf=60, cutpoint=-30)
+    serie('x_splash', [(x, [('rubberduck_water', WS['splash_04'], '"plop" with low bubble, high-pass 60 Hz')])],
           0.8, fout=0.2)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Grenade, corps
+# Grenade, bodies
 
 def grenade():
-    sons = []
+    soundList = []
     for n in ('metal_hit_04', 'metal_hit_05', 'metal_hit_06'):
-        x = decroit(prise(RD[n], hpf=80, filtres=lp(9000), seuil=-30), 0.03, 0.06)
-        sons.append((x, [('rubberduck_casse', RD[n], f'{n} : objet en fonte sur sol dur, déclin 60 ms, passe-bas 9 kHz')]))
-    serie('n_bounce', sons, 0.3, fout=0.08)
+        x = decays(recording(RD[n], hpf=80, filters=lp(9000), cutpoint=-30), 0.03, 0.06)
+        soundList.append((x, [('rubberduck_break', RD[n], f'{n}: cast-iron object on hard floor, decay 60 ms, low-pass 9 kHz')]))
+    serie('n_bounce', soundList, 0.3, fout=0.08)
 
-    sons = []
-    for terre, n in (('DirtyGround_Jump_Land_02', 'metal_hit_05'), ('Snow_Jump_Land_01', 'metal_hit_04')):
-        a = decroit(prise(nx(terre), hpf=80, seuil=-18), 0.03, 0.05)
-        b = decroit(prise(RD[n], hpf=100, filtres=lp(2500), seuil=-30), 0.015, 0.03)
+    soundList = []
+    for earth, n in (('DirtyGround_Jump_Land_02', 'metal_hit_05'), ('Snow_Jump_Land_01', 'metal_hit_04')):
+        a = decays(recording(nx(earth), hpf=80, cutpoint=-18), 0.03, 0.05)
+        b = decays(recording(RD[n], hpf=100, filters=lp(2500), cutpoint=-30), 0.015, 0.03)
         x = C.mix((n1(a), 0, 1.0), (n1(b), 0, dbg(-10)))
-        sons.append((x, [('nox', nx(terre), f'choc sur sol meuble : {terre}, déclin 50 ms'),
-                         ('rubberduck_casse', RD[n], 'petit choc métallique étouffé (passe-bas 2,5 kHz, -10 dB)')]))
-    serie('n_bounce_soft', sons, 0.25, fout=0.07)
+        soundList.append((x, [('nox', nx(earth), f'impact on soft ground: {earth}, decay 50 ms'),
+                         ('rubberduck_break', RD[n], 'small muffled metallic hit (low-pass 2.5 kHz, -10 dB)')]))
+    serie('n_bounce_soft', soundList, 0.25, fout=0.07)
 
 
-def corps():
+def bodypart():
     combos = [(1, 'Helmet/setDown1', 'impactPunch_heavy_000'), (2, 'Helmet/setDown2', 'impactPunch_heavy_001'),
               (5, 'Helmet/setDown1', 'impactPunch_heavy_002')]
-    sons = []
-    for k, (b, eqp, coup) in enumerate(combos):
-        a = prise(BODYFALL[b], hpf=50)
-        g = af(attaque(ken(eqp), -12), hp(300))
-        g = decroit(g, 0.04, 0.08)
-        p = decroit(af(ken(coup), hp(40), lp(900)), 0.04, 0.08)
+    soundList = []
+    for k, (b, eqp, blow) in enumerate(combos):
+        a = recording(BODYFALL[b], hpf=50)
+        g = af(attack_time(ken(eqp), -12), hp(300))
+        g = decays(g, 0.04, 0.08)
+        p = decays(af(ken(blow), hp(40), lp(900)), 0.04, 0.08)
         x = af(C.mix((n1(a), 0, 1.0), (n1(p), 0, dbg(-6)), (n1(g), 0.025 + 0.01 * k, dbg(-9))), eq(900, 4, 0.8))
-        sons.append((x, [('mlsulli', BODYFALL[b], f'corps qui heurte le béton, prise {b}, passe-haut 50 Hz ; ensemble +4 dB '
-                          'vers 900 Hz'),
-                         ('kenney', K[coup], 'coup mat (passe-bas 900 Hz, -6 dB)'),
-                         ('kenney', K[eqp], 'équipement qui claque : casque posé (passe-haut 300 Hz, -9 dB)')]))
-    serie('b_fall', sons, 0.6, fout=0.15)
+        soundList.append((x, [('mlsulli', BODYFALL[b], f'body hitting concrete, take {b}, high-pass 50 Hz; whole +4 dB '
+                          'around 900 Hz'),
+                         ('kenney', K[blow], 'dull thud (low-pass 900 Hz, -6 dB)'),
+                         ('kenney', K[eqp], 'equipment clatter: helmet set down (high-pass 300 Hz, -9 dB)')]))
+    serie('b_fall', soundList, 0.6, fout=0.15)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Objets
+# Objects
 
-def objets():
-    def court(rel, hpf=60, filtres='', tenue=0.05, tau=0.08, seuil=-30, kenney=False):
-        x = af(attaque(ken(rel) if kenney else src(rel), seuil), hp(hpf), filtres)
-        return decroit(x, tenue, tau)
+def things():
+    def short_snd(rel, hpf=60, filters='', hold=0.05, tau=0.08, cutpoint=-30, kenney=False):
+        x = af(attack_time(ken(rel) if kenney else src(rel), cutpoint), hp(hpf), filters)
+        return decays(x, hold, tau)
 
     serie('o_metal', [
-        (court(WM['metal_sheet_06'], 70), [('rubberduck_bois_metal', WM['metal_sheet_06'], 'tôle frappée, déclin 80 ms')]),
-        (court(RD['metal_hit_02'], 70), [('rubberduck_casse', RD['metal_hit_02'], 'objet métallique heurté, déclin 80 ms')]),
+        (short_snd(WM['metal_sheet_06'], 70), [('rubberduck_wood_metal', WM['metal_sheet_06'], 'struck sheet metal, decay 80 ms')]),
+        (short_snd(RD['metal_hit_02'], 70), [('rubberduck_break', RD['metal_hit_02'], 'metal object hit, decay 80 ms')]),
     ], 0.35, fout=0.1)
     serie('o_wood', [
-        (court(WM['wood_hit_01'], 60), [('rubberduck_bois_metal', WM['wood_hit_01'], 'choc de bois, déclin 80 ms')]),
-        (court('impactWood_medium_002', 60, kenney=True), [('kenney', K['impactWood_medium_002'], 'choc de bois, déclin 80 ms')]),
+        (short_snd(WM['wood_hit_01'], 60), [('rubberduck_wood_metal', WM['wood_hit_01'], 'wood hit, decay 80 ms')]),
+        (short_snd('impactWood_medium_002', 60, kenney=True), [('kenney', K['impactWood_medium_002'], 'wood hit, decay 80 ms')]),
     ], 0.35, fout=0.1)
     serie('o_plastic', [
-        (court(HIT100, 100, lp(8000), tau=0.05), [('rubberduck_100', HIT100, 'choc creux et sec (hit_01), passe-bas 8 kHz, '
-                                                  'déclin 50 ms')]),
-        (court(RD['hit_10'], 100, lp(8000), tau=0.05), [('rubberduck_casse', RD['hit_10'], 'choc creux et sec (hit_10), '
-                                                        'passe-bas 8 kHz, déclin 50 ms')]),
+        (short_snd(HIT100, 100, lp(8000), tau=0.05), [('rubberduck_100', HIT100, 'hollow dry thud (hit_01), low-pass 8 kHz, '
+                                                  'decay 50 ms')]),
+        (short_snd(RD['hit_10'], 100, lp(8000), tau=0.05), [('rubberduck_break', RD['hit_10'], 'hollow dry thud (hit_10), '
+                                                        'low-pass 8 kHz, decay 50 ms')]),
     ], 0.35, fout=0.1)
     serie('o_clay', [
-        (court(CERAMIC, 80, lp(9000), tenue=0.03, tau=0.06), [('erbsland', CERAMIC, 'grande assiette en céramique frappée, déclin 60 ms')]),
-        (court('impactPlate_light_002', 80, kenney=True, tau=0.06), [('kenney', K['impactPlate_light_002'], 'choc de vaisselle, déclin 60 ms')]),
+        (short_snd(CERAMIC, 80, lp(9000), hold=0.03, tau=0.06), [('erbsland', CERAMIC, 'large ceramic plate struck, decay 60 ms')]),
+        (short_snd('impactPlate_light_002', 80, kenney=True, tau=0.06), [('kenney', K['impactPlate_light_002'], 'dishware hit, decay 60 ms')]),
     ], 0.35, fout=0.1)
-    a = court('dropLeather', 60, tenue=0.03, tau=0.06, seuil=-15, kenney=True)
-    b = court('impactSoft_medium_003', 40, lp(1500), kenney=True, tenue=0.02, tau=0.04)
+    a = short_snd('dropLeather', 60, hold=0.03, tau=0.06, cutpoint=-15, kenney=True)
+    b = short_snd('impactSoft_medium_003', 40, lp(1500), kenney=True, hold=0.02, tau=0.04)
     serie('o_soft', [(C.mix((n1(a), 0, 1.0), (n1(b), 0, dbg(-6))),
-                      [('kenney', K['dropLeather'], 'sac de cuir lâché (RPG Audio dropLeather), déclin 60 ms'),
-                       ('kenney', K['impactSoft_medium_003'], 'coup mou grave (passe-bas 1,5 kHz, -6 dB)')])], 0.35, fout=0.1)
-    a = court(WS['slime_15'], 80, tau=0.08)
-    b = court('impactPunch_heavy_002', 50, lp(1200), kenney=True, tenue=0.02, tau=0.05)
+                      [('kenney', K['dropLeather'], 'leather bag dropped (RPG Audio dropLeather), decay 60 ms'),
+                       ('kenney', K['impactSoft_medium_003'], 'low soft hit (low-pass 1.5 kHz, -6 dB)')])], 0.35, fout=0.1)
+    a = short_snd(WS['slime_15'], 80, tau=0.08)
+    b = short_snd('impactPunch_heavy_002', 50, lp(1200), kenney=True, hold=0.02, tau=0.05)
     serie('o_fruit', [(C.mix((n1(a), 0, 1.0), (n1(b), 0, dbg(-8))),
-                       [('rubberduck_eau', WS['slime_15'], 'écrasement humide (slime_15)'),
-                        ('kenney', K['impactPunch_heavy_002'], 'coup mat (passe-bas 1,2 kHz, -8 dB)')])], 0.35, fout=0.1)
-    serie('o_snow', [(court(nx('Snow_Jump_Land_03'), 80, tau=0.08),
-                      [('nox', nx('Snow_Jump_Land_03'), 'paquet de neige : réception sur neige fraîche')])], 0.35, fout=0.1)
+                       [('rubberduck_water', WS['slime_15'], 'wet squelch (slime_15)'),
+                        ('kenney', K['impactPunch_heavy_002'], 'dull thud (low-pass 1.2 kHz, -8 dB)')])], 0.35, fout=0.1)
+    serie('o_snow', [(short_snd(nx('Snow_Jump_Land_03'), 80, tau=0.08),
+                      [('nox', nx('Snow_Jump_Land_03'), 'clump of snow: landing on fresh snow')])], 0.35, fout=0.1)
 
-    # casse (1 s)
-    sons = []
+    # breakage (1 s)
+    soundList = []
     for n in ('203371__c_rogers__glass-explosion_01', '203375__c_rogers__glass-shattering_01'):
-        sons.append((prise(GLASS[n], hpf=120), [('c_rogers', GLASS[n], 'verre qui vole en éclats (1 s), passe-haut 120 Hz')]))
-    serie('o_break_glass', sons, 1.0, fout=0.3)
+        soundList.append((recording(GLASS[n], hpf=120), [('c_rogers', GLASS[n], 'glass shattering (1 s), high-pass 120 Hz')]))
+    serie('o_break_glass', soundList, 1.0, fout=0.3)
 
-    sons = []
+    soundList = []
     for k, d in enumerate(DISHES):
-        a = court(CERAMIC, 80, tenue=0.02, tau=0.05)
-        b = prise(d, hpf=100, seuil=-30)
-        r = prise(RD['breaking_01' if k == 0 else 'breaking_03'], hpf=200, seuil=-30)
+        a = short_snd(CERAMIC, 80, hold=0.02, tau=0.05)
+        b = recording(d, hpf=100, cutpoint=-30)
+        r = recording(RD['breaking_01' if k == 0 else 'breaking_03'], hpf=200, cutpoint=-30)
         x = C.mix((n1(a), 0, dbg(-3)), (n1(b), 0.005, 1.0), (n1(r), 0.05, dbg(-10)))
-        sons.append((x, [('rubberduck_100', d, 'vaisselle qui se brise'),
-                         ('erbsland', CERAMIC, 'attaque : assiette en céramique frappée (-3 dB)'),
-                         ('rubberduck_casse', RD['breaking_01' if k == 0 else 'breaking_03'], 'éclats (-10 dB, à 50 ms)')]))
-    serie('o_break_clay', sons, 1.0, fout=0.3)
+        soundList.append((x, [('rubberduck_100', d, 'dishes breaking'),
+                         ('erbsland', CERAMIC, 'attack: ceramic plate struck (-3 dB)'),
+                         ('rubberduck_break', RD['breaking_01' if k == 0 else 'breaking_03'], 'shards (-10 dB, at 50 ms)')]))
+    serie('o_break_clay', soundList, 1.0, fout=0.3)
 
-    a = prise(nx('Snow_Hard_Jump_Land_04'), hpf=80, seuil=-30)
-    b = prise(nx('Snow_Hard_Run_03'), hpf=150, seuil=-30)
-    c = decroit(af(ken('impactSoft_heavy_000'), hp(45), lp(300)), 0.03, 0.06)
+    a = recording(nx('Snow_Hard_Jump_Land_04'), hpf=80, cutpoint=-30)
+    b = recording(nx('Snow_Hard_Run_03'), hpf=150, cutpoint=-30)
+    c = decays(af(ken('impactSoft_heavy_000'), hp(45), lp(300)), 0.03, 0.06)
     x = C.mix((n1(a), 0, 1.0), (n1(b), 0.09, dbg(-6)), (n1(c), 0, dbg(-8)))
-    serie('o_break_snow', [(x, [('nox', nx('Snow_Hard_Jump_Land_04'), 'bloc de neige qui s\'écrase : réception sur neige '
-                                'tassée + crissement Snow_Hard_Run_03 (-6 dB, à 90 ms)'),
-                                ('kenney', K['impactSoft_heavy_000'], 'coup sourd (passe-bas 300 Hz, -8 dB)')])], 1.0, fout=0.25)
+    serie('o_break_snow', [(x, [('nox', nx('Snow_Hard_Jump_Land_04'), 'block of snow crashing: landing on packed '
+                                'snow + crunch Snow_Hard_Run_03 (-6 dB, at 90 ms)'),
+                                ('kenney', K['impactSoft_heavy_000'], 'dull thud (low-pass 300 Hz, -8 dB)')])], 1.0, fout=0.25)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Retours de touche (couches ajoutées au « hitmarker » du jeu)
+# Hit feedback (layers added to the game's "hitmarker")
 
-def retours():
-    # tête : tintement de casque très bref (sabre sur casque Kenney, raccourci) + petit choc métallique
-    sons = []
+def returns():
+    # head: very brief helmet ring (Kenney saber on helmet, shortened) + small metallic hit
+    soundList = []
     for k, (h, m) in enumerate((('Swords/hitHelmet2', 'impactMetal_light_000'), ('Swords/hitHelmet3', 'impactMetal_light_002'))):
-        a = decroit(af(attaque(ken(h), -30, 0.0005), hp(900)), 0.012, 0.03)
-        b = decroit(af(attaque(ken(m), -30, 0.0005), hp(500)), 0.01, 0.025)
+        a = decays(af(attack_time(ken(h), -30, 0.0005), hp(900)), 0.012, 0.03)
+        b = decays(af(attack_time(ken(m), -30, 0.0005), hp(500)), 0.01, 0.025)
         x = C.mix((n1(a), 0, 1.0), (n1(b), 0, dbg(-6)))
-        sons.append((x, [('kenney', K[h], 'tintement de casque : tenue 12 ms, déclin 30 ms, passe-haut 900 Hz'),
-                         ('kenney', K[m], 'petit choc métallique (passe-haut 500 Hz, -6 dB)')]))
-    serie('h_head', sons, 0.15, fout=0.05)
+        soundList.append((x, [('kenney', K[h], 'helmet ring: hold 12 ms, decay 30 ms, high-pass 900 Hz'),
+                         ('kenney', K[m], 'small metallic hit (high-pass 500 Hz, -6 dB)')]))
+    serie('h_head', soundList, 0.15, fout=0.05)
 
-    # élimination : « thunk » grave (coup de poing lourd) + corps (chute de corps, médium) + petit métal (plaque)
-    sons = []
+    # kill: low "thunk" (heavy punch) + body (body fall, midrange) + small metal (plate)
+    soundList = []
     for k, (p, pl, c) in enumerate((('impactPunch_heavy_000', 'impactPlate_heavy_000', 1),
                                     ('impactPunch_heavy_001', 'impactPlate_heavy_002', 2))):
-        a = decroit(af(attaque(ken(p), -30, 0.0005), hp(40), lowshelf(90, -6), lp(2500)), 0.05, 0.07)
-        b = decroit(af(attaque(ken(pl), -30, 0.0005), hp(400)), 0.03, 0.05)
-        m = decroit(prise(BODYFALL[c], hpf=150, filtres=lp(5000), seuil=-20, pre=0.0005), 0.03, 0.05)
+        a = decays(af(attack_time(ken(p), -30, 0.0005), hp(40), lowshelf(90, -6), lp(2500)), 0.05, 0.07)
+        b = decays(af(attack_time(ken(pl), -30, 0.0005), hp(400)), 0.03, 0.05)
+        m = decays(recording(BODYFALL[c], hpf=150, filters=lp(5000), cutpoint=-20, pre=0.0005), 0.03, 0.05)
         x = af(C.mix((n1(a), 0, 1.0), (n1(m), 0.0, dbg(-2)), (n1(b), 0.0, dbg(-3))), eq(1000, 4, 0.8))
-        sons.append((x, [('kenney', K[p], 'thunk grave : coup de poing lourd, -6 dB sous 90 Hz, passe-bas 2,5 kHz, déclin 70 ms'),
-                         ('mlsulli', BODYFALL[c], f'corps : chute de corps prise {c} (passe-bande 150 Hz-5 kHz, -2 dB)'),
-                         ('kenney', K[pl], 'petit métal : plaque frappée (passe-haut 400 Hz, -3 dB) ; ensemble +4 dB vers 1 kHz '
-                          '(audible sur un haut-parleur de téléphone)')]))
-    serie('h_kill', sons, 0.3, fout=0.08)
+        soundList.append((x, [('kenney', K[p], 'low thunk: heavy punch, -6 dB below 90 Hz, low-pass 2.5 kHz, decay 70 ms'),
+                         ('mlsulli', BODYFALL[c], f'body: body fall take {c} (band-pass 150 Hz-5 kHz, -2 dB)'),
+                         ('kenney', K[pl], 'small metal: plate struck (high-pass 400 Hz, -3 dB); overall +4 dB around 1 kHz '
+                          '(audible on a phone speaker)')]))
+    serie('h_kill', soundList, 0.3, fout=0.08)
 
 
-GROUPES = (balles, sifflements, explosions, grenade, corps, objets, retours)
+SOUND_GROUPS = (bullets, whistles, explosions, grenade, bodypart, things, returns)
 
 
-def build(seulement=None):
-    """Fabrique les masters de la famille (seulement : noms de groupes pour les essais)."""
-    ENTREES.clear()
-    for g in GROUPES:
-        if seulement is None or g.__name__ in seulement:
+def build(exclusively=None):
+    """Builds the family's masters (only: group names for tests)."""
+    ENTRIES.clear()
+    for g in SOUND_GROUPS:
+        if exclusively is None or g.__name__ in exclusively:
             g()
-    if seulement is None:
-        C.write_credits('impacts', ENTREES)
+    if exclusively is None:
+        C.write_credits('impacts', ENTRIES)

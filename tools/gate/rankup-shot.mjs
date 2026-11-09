@@ -1,5 +1,5 @@
 // Screenshots of the level-up banner in a bot match: node tools/gate/rankup-shot.mjs [level=20]
-// GPU=soft (default) | igpu | dgpu ; writes tools/gate/out/rankup-<t>.png and menu-rank.png
+// GPU=soft (default) | igpu | dgpu; writes tools/gate/out/rankup-<t>.png and menu-rank.png
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { openGame, serve, OUT } from './lib.mjs';

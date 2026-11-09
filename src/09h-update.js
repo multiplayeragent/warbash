@@ -1,21 +1,21 @@
 /* ==========================================================================
-   MISE À JOUR AUTOMATIQUE
-   Un onglet resté ouvert, une page restaurée par le navigateur (retour arrière, onglets rouverts au démarrage, mobile)
-   ou un cache trop zélé peuvent faire tourner une ancienne version du jeu. build.py donne à chaque version un
-   identifiant (meta cod-build) et publie dist/version.json, que Vercel sert sans cache (vercel.json). Le jeu compare
-   les deux au lancement, au retour sur l'onglet, puis toutes les 3 minutes :
-   - hors partie et hors salon en ligne (chargement, menus), il recharge aussitôt la page, l'identifiant de la nouvelle
-     version dans l'adresse pour passer outre tout cache ;
-   - en partie ou dans un salon, un bandeau prévient et le rechargement attend le retour au menu : on ne coupe jamais
-     une partie.
-   Un seul essai automatique par version et par onglet : si le serveur sert encore l'ancienne page, pas de boucle,
-   le bandeau reste avec un bouton pour recharger. Page ouverte depuis le disque (file://) : rien à vérifier.
+   AUTOMATIC UPDATE
+   A tab left open, a page restored by the browser (back button, tabs reopened at startup, mobile)
+   or an overzealous cache can run an old version of the game. build.py gives each version an
+   identifier (cod-build meta) and publishes dist/version.json, which Vercel serves uncached (vercel.json). The game compares
+   the two at launch, when returning to the tab, then every 3 minutes:
+   - outside a match and outside an online lobby (loading, menus), it reloads the page immediately, with the new
+     version's identifier in the address to bypass any cache;
+   - in a match or a lobby, a banner warns and the reload waits for the return to the menu: a match is never
+     interrupted.
+   One automatic attempt per version and per tab: if the server still serves the old page, no loop,
+   the banner stays with a button to reload. Page opened from disk (file://): nothing to check.
    ========================================================================== */
 const BUILD_ID = (document.querySelector('meta[name="cod-build"]') || {}).content || '';
 const UPD = { latest: '', pending: false, lastCheck: -1e9, busy: false, el: null, closed: false, playT: 0 };
 const updOn = () => /^https?:$/.test(location.protocol) && /^[0-9a-f]{12}$/.test(BUILD_ID);
-/* rechargement sans risque : ni en partie (y compris pause, killcam, tableau de fin), ni dans un salon en ligne */
-const updSafe = () => !['playing', 'paused', 'killcam', 'ended'].includes(MATCH.state) && !netInLobby() && !UI.flow && !ACCT.code && !ACCT.busy; // pas pendant un lancement, ni pendant que le code de secours est affiché (il ne vit qu'en mémoire) ou qu'une demande du compte est en route
+/* safe reload: not in a match (including pause, killcam, end screen), nor in an online lobby */
+const updSafe = () => !['playing', 'paused', 'killcam', 'ended'].includes(MATCH.state) && !netInLobby() && !UI.flow && !ACCT.code && !ACCT.busy; // not during a launch, nor while the recovery code is displayed (it lives only in memory) or an account request is in progress
 async function updCheck(force = false) {
   if (!updOn() || UPD.busy) return;
   const now = performance.now();
@@ -25,40 +25,40 @@ async function updCheck(force = false) {
     const r = await fetch(new URL('/version.json?t=' + Date.now(), location.href), { cache: 'no-store' });
     const j = r.ok ? await r.json() : null;
     if (j && /^[0-9a-f]{12}$/.test(j.build) && j.build !== BUILD_ID) { UPD.latest = j.build; UPD.pending = true; updApply(); }
-  } catch (e) { /* hors ligne ou fichier absent : nouvel essai au prochain contrôle */ } finally { UPD.busy = false; }
+  } catch (e) { /* offline or file missing: try again at the next check */ } finally { UPD.busy = false; }
 }
 function updApply() {
   if (!UPD.pending) return;
   if (updSafe() && updReload()) return;
   updBanner();
 }
-/* recharge vers la nouvelle version ; renvoie false si c'est déjà fait une fois dans cet onglet pour cette version */
+/* reloads to the new version; returns false if this was already done once in this tab for this version */
 function updReload() {
-  let tried = ''; try { tried = sessionStorage.getItem('cod_upd_try') || ''; } catch (e) { /* stockage indisponible */ }
+  let tried = ''; try { tried = sessionStorage.getItem('cod_upd_try') || ''; } catch (e) { /* storage unavailable */ }
   if (tried === UPD.latest) return false;
-  try { sessionStorage.setItem('cod_upd_try', UPD.latest); } catch (e) { /* stockage indisponible */ }
-  const u = new URL(location.href); u.searchParams.set('v', UPD.latest); // adresse neuve : aucun cache ne peut la servir
+  try { sessionStorage.setItem('cod_upd_try', UPD.latest); } catch (e) { /* storage unavailable */ }
+  const u = new URL(location.href); u.searchParams.set('v', UPD.latest); // fresh address: no cache can serve it
   PAGE_LEAVE.ok = true; location.replace(u.href);
   return true;
 }
-/* Bandeau (#updBar, style dans shell.html) : en haut au centre, sous la zone sûre ; le joueur peut le fermer. En pleine action, il se pose sous le score
-   et s'efface au bout de 8 s (il ne cache rien du jeu) ; il revient au retour aux menus, sauf s'il a été fermé. */
+/* Banner (#updBar, style in shell.html): top center, below the safe area; the player can close it. During action, it sits below the score
+   and fades after 8 s (it hides nothing of the game); it returns when back in the menus, unless it was closed. */
 function updBanner() {
   if (UPD.el) return;
   const el = UPD.el = document.createElement('div'); el.id = 'updBar'; el.setAttribute('role', 'status');
   el.innerHTML = '<span id="updMsg"></span><button type="button" class="btn primary"></button><button type="button" class="upd-x"></button>';
   const [go, x] = el.querySelectorAll('button');
-  go.textContent = _t('Recharger'); x.setAttribute('aria-label', _t('Fermer')); x.title = _t('Fermer');
-  go.addEventListener('click', () => { try { sessionStorage.removeItem('cod_upd_try'); } catch (e) { /* ignoré */ } updReload(); });
+  go.textContent = _t('Reload'); x.setAttribute('aria-label', _t('Close')); x.title = _t('Close');
+  go.addEventListener('click', () => { try { sessionStorage.removeItem('cod_upd_try'); } catch (e) { /* ignored */ } updReload(); });
   x.addEventListener('click', () => { UPD.closed = true; el.classList.add('hidden'); });
   document.body.appendChild(el);
   updMsgSet();
 }
-/* Texte de la bannière : quand la mise à jour se chargera ; sa place et sa visibilité selon le moment (appelé chaque seconde) */
+/* Banner text: when the update will load; its position and visibility depending on the moment (called every second) */
 function updMsgSet() {
   if (!UPD.el) return;
-  const msg = updSafe() ? _t('Nouvelle version du jeu disponible.')
-    : netInLobby() && !['playing', 'paused', 'killcam', 'ended'].includes(MATCH.state) ? _t('Nouvelle version du jeu disponible. Elle se chargera en quittant le salon.') : _t('Nouvelle version du jeu disponible. Elle se chargera à la fin de la partie.');
+  const msg = updSafe() ? _t('A new version of the game is available.')
+    : netInLobby() && !['playing', 'paused', 'killcam', 'ended'].includes(MATCH.state) ? _t('A new version of the game is available. It will load when you leave the lobby.') : _t('A new version of the game is available. It will load when the match ends.');
   const m = UPD.el.querySelector('#updMsg'); if (m.textContent !== msg) m.textContent = msg;
   const play = MATCH.state === 'playing' || MATCH.state === 'killcam';
   if (!play) UPD.playT = 0; else if (!UPD.playT) UPD.playT = performance.now();
@@ -67,16 +67,16 @@ function updMsgSet() {
   UPD.el.classList.toggle('hidden', UPD.closed || (play && performance.now() - UPD.playT > 8000));
 }
 function updInit() {
-  // l'adresse de rechargement (?v=...) ne sert qu'une fois : on la retire, sans toucher au reste (lien d'invitation ?salon=...)
+  // the reload address (?v=...) is only used once: remove it, without touching the rest (invite link ?lobby=...)
   const u = new URL(location.href);
   if (u.searchParams.has('v')) { u.searchParams.delete('v'); history.replaceState(history.state, '', u.pathname + u.search + u.hash); }
   if (!updOn()) return;
   updCheck(true);
   addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') updCheck(); });
-  addEventListener('pageshow', (e) => { if (e.persisted) updCheck(true); }); // page restaurée telle quelle par le navigateur
+  addEventListener('pageshow', (e) => { if (e.persisted) updCheck(true); }); // page restored as is by the browser
   addEventListener('focus', () => updCheck());
   setInterval(() => updCheck(true), 180000);
-  // une mise à jour en attente se fait dès le retour au menu (fin de partie, salon quitté)
+  // a pending update happens as soon as back at the menu (end of match, lobby left)
   setInterval(() => {
     if (UPD.pending && updSafe()) updApply();
     updMsgSet();

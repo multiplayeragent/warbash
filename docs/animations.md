@@ -92,11 +92,11 @@ From the repository root:
 ```bash
 npm --prefix tools/dev/anim install     # once: the FBX converter and three.js 0.147
 node tools/dev/anim/convert.mjs          # anim-source/fbx/*.fbx -> anim-source/<clip>.glb and anim-source/manifest.json
-node tools/dev/anim/cuire.mjs            # bake -> assets/anim/clips.bin and assets/anim/clips.json
+node tools/dev/anim/bake.mjs            # bake -> assets/anim/clips.bin and assets/anim/clips.json
 python3 build.py                         # the game embeds them
 ```
 
-`convert.mjs` lists any file it is still missing, and any file whose name it does not recognise. `cuire.mjs` prints one line
+`convert.mjs` lists any file it is still missing, and any file whose name it does not recognise. `bake.mjs` prints one line
 per clip with its speed, direction and loop seam; a direction that disagrees with the table is flagged.
 
 ## 3. Check them in the game

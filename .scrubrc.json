@@ -1,1 +1,6 @@
-{ "allow": ["banksean@gmail\\.com", "i@izs\\.me"] }
+{
+ "allow": [
+  "banksean@gmail\\.com",
+  "i@izs\\.me"
+ ]
+}

@@ -1,14 +1,14 @@
-"""Réduction du code de la page (build.py) : retire les commentaires et les blancs inutiles du script et de la feuille de style,
-sans rien renommer ni réécrire. Le code reste le même, jeton pour jeton, à l'octet près dans les chaînes, les gabarits `...`
-(shaders GLSL, HTML) et les expressions régulières.
+"""Page code minification (build.py): removes comments and unneeded whitespace from the script and the stylesheet,
+without renaming or rewriting anything. The code stays the same, token for token, byte for byte inside strings, `...` templates
+(GLSL shaders, HTML) and regular expressions.
 
-Script : découpé en jetons (chaînes, gabarits avec leurs ${...} imbriqués, expressions régulières distinguées de la division
-par le jeton qui précède). Entre deux jetons, on n'écrit rien, une espace quand les deux se colleraient en un autre jeton
-(deux mots, « + + », « / / »...), ou un saut de ligne quand l'original en avait un et que l'insertion automatique des
-points-virgules pourrait en dépendre (après return, après une accolade fermante, avant un mot...). Dans le doute, le saut de
-ligne reste : il ne coûte qu'un octet.
+Script: split into tokens (strings, templates with their nested ${...}, regular expressions told apart from division
+by the preceding token). Between two tokens, nothing is written, a space when the two would otherwise merge into another token
+(two words, "+ +", "/ /"...), or a newline when the original had one and automatic semicolon insertion
+might depend on it (after return, after a closing brace, before a word...). When in doubt, the newline
+stays: it only costs one byte.
 
-Contrôle : tools/dev/check_minif.js compare l'arbre syntaxique du script avant et après (terser, outil de développement)."""
+Check: tools/dev/check_minif.js compares the syntax tree of the script before and after (terser, a development tool)."""
 import re
 
 _WS = r"[ \t\f\v ﻿  -   　]"
@@ -23,19 +23,19 @@ _TOK = re.compile(r"""
 |(?P<p>>>>=|\.\.\.|===|!==|\*\*=|<<=|>>=|>>>|&&=|\|\|=|\?\?=|=>|==|!=|<=|>=|&&|\|\||\?\?|\?\.(?!\d)|\+\+|--|\+=|-=|\*=|%=|&=|\|=|\^=|/=|\*\*|<<|>>|[{}()\[\];,<>+\-*/%&|^!~?:=.@#])
 """, re.X)
 _REGEX = re.compile(r"/(?:[^/\\\[\n\r]|\\.|\[(?:[^\]\\\n\r]|\\.)*\])+/[A-Za-z]*")
-# mots après lesquels un « / » ouvre une expression régulière (et pas une division)
+# words after which a "/" opens a regular expression (not a division)
 _KW_EXPR = {"return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "throw", "case", "do", "else", "yield", "await"}
-# productions restreintes : un saut de ligne après eux change le sens (return\nx renvoie undefined)
+# restricted productions: a newline after them changes the meaning (return\nx returns undefined)
 _RESTRICT = {"return", "throw", "break", "continue", "yield", "async", "++", "--"}
-# ponctuations après lesquelles l'instruction continue forcément : le saut de ligne qui suit ne sert à rien
+# punctuation after which the statement necessarily continues: the newline that follows is useless
 _NL_PREV = {"{", "(", "[", ",", ";", ":", "?", "=", "==", "===", "!=", "!==", "<", ">", "<=", ">=", "+", "-", "*", "/", "%", "**",
             "&", "|", "^", "!", "~", "&&", "||", "??", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=", "|=", "^=",
             "&&=", "||=", "??=", "<<", ">>", ">>>", "=>", ".", "?.", "..."}
-# jetons qui ne peuvent que continuer l'instruction en cours (jamais d'insertion de point-virgule devant eux)...
+# tokens that can only continue the current statement (never a semicolon insertion before them)...
 _NL_NEXT = {")", "]", "}", ",", ";", ":", "?", ".", "?.", "(", "[", "=", "==", "===", "!=", "!==", "<", ">", "<=", ">=", "+", "-",
             "*", "/", "%", "**", "&", "|", "^", "&&", "||", "??", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", ">>>=", "&=",
             "|=", "^=", "&&=", "||=", "??=", "<<", ">>", ">>>", "=>", "`"}
-# ... sauf après l'accolade fermante d'une fonction fléchée (() => {}\n(x) : deux instructions) : là, seuls ceux-ci
+# ... except after the closing brace of an arrow function (() => {}\n(x): two statements): there, only these
 _NL_NEXT_BRACE = {")", "]", "}", ",", ";", ":"}
 
 
@@ -51,12 +51,12 @@ class _Tok:
 
 
 def _tokens(src):
-    """Jetons significatifs ; chacun note si un blanc ou un commentaire le précède (gap) et s'il contient un saut de ligne (nl)."""
+    """Significant tokens; each notes whether whitespace or a comment precedes it (gap) and whether it contains a newline (nl)."""
     out = []; i = 0; n = len(src); gap = False; nl = False
-    stack = []          # accolades ouvertes : "{" (bloc ou objet) ou "${" (expression d'un gabarit)
-    parens = []         # parenthèses ouvertes : mot qui les précède (if, while, for, with : un « / » après la fermante est une regex)
-    prev = None         # dernier jeton significatif
-    after_ctrl = False  # le dernier jeton est la parenthèse fermante d'un if/while/for/with
+    stack = []          # open braces: "{" (block or object) or "${" (template expression)
+    parens = []         # open parentheses: the word preceding them (if, while, for, with: a "/" after the closing one is a regex)
+    prev = None         # last significant token
+    after_ctrl = False  # the last token is the closing parenthesis of an if/while/for/with
 
     def regex_ok():
         if prev is None: return True
@@ -67,14 +67,14 @@ def _tokens(src):
         return False
 
     def template(j):
-        """Gabarit qui commence (ou reprend après un ${...}) à j : retourne la fin du morceau et s'il ouvre une expression."""
+        """Template that starts (or resumes after a ${...}) at j: returns the end of the chunk and whether it opens an expression."""
         while j < n:
             c = src[j]
             if c == "\\": j += 2; continue
             if c == "`": return j + 1, False
             if c == "$" and j + 1 < n and src[j + 1] == "{": return j + 2, True
             j += 1
-        raise ValueError("gabarit non fermé")
+        raise ValueError("template not closed")
 
     while i < n:
         c = src[i]
@@ -86,11 +86,11 @@ def _tokens(src):
             i = j; gap = nl = False; continue
         if c == "/" and i + 1 < n and src[i + 1] not in "/*" and regex_ok():
             m = _REGEX.match(src, i)
-            if not m: raise ValueError(f"expression régulière illisible vers {src[i:i + 40]!r}")
+            if not m: raise ValueError(f"unreadable regular expression near {src[i:i + 40]!r}")
             prev = _Tok("r", m.group(0), nl, gap); out.append(prev); after_ctrl = False
             i = m.end(); gap = nl = False; continue
         m = _TOK.match(src, i)
-        if not m: raise ValueError(f"caractère inattendu {c!r} vers {src[max(0, i - 30):i + 30]!r}")
+        if not m: raise ValueError(f"unexpected character {c!r} vers {src[max(0, i - 30):i + 30]!r}")
         k = m.lastgroup; t = m.group(0); i = m.end()
         if k in ("ws", "lc", "bc"):
             gap = True
@@ -105,17 +105,17 @@ def _tokens(src):
             elif t == ")": ctrl = bool(parens) and parens.pop() in ("if", "while", "for", "with")
         prev = _Tok("p" if k == "p" else ("id" if k == "id" else k), t, nl, gap); out.append(prev); after_ctrl = ctrl
         gap = nl = False
-    if stack: raise ValueError("accolades non équilibrées")
+    if stack: raise ValueError("unbalanced braces")
     return out
 
 
 def _sep(a, b):
-    """Faut-il un blanc entre a et b pour qu'ils restent deux jetons distincts ?"""
+    """Is a blank needed between a and b for them to remain two distinct tokens?"""
     x = a.t[-1]; y = b.t[0]
     if (_word(x) or a.k == "r") and _word(y): return True
     if a.k == "num" and y == ".": return True
     if (x == "+" and y == "+") or (x == "-" and y == "-"): return True
-    if x == "/" and y in "/*": return True        # division suivie d'une regex, ou fin de regex : jamais un commentaire
+    if x == "/" and y in "/*": return True        # division followed by a regex, or end of regex: never a comment
     if x == "<" and y in "!/": return True         # ni <!-- ni </script
     if x == "-" and y == ">": return True          # ni -->
     return False
@@ -137,7 +137,7 @@ def js(src):
             elif t.gap and _sep(prev, t):
                 out.append(" ")
             elif not t.gap and _sep(prev, t):
-                out.append(" ")  # déjà collés dans l'original : impossible pour deux mots, possible pour « a+ +b » réécrit
+                out.append(" ")  # already stuck together in the original: impossible for two words, possible for a rewritten "a+ +b"
         out.append(t.t)
         prev = t
     return "".join(out)
@@ -147,8 +147,8 @@ _CSS_TOK = re.compile(r"""(?P<c>/\*[\s\S]*?\*/)|(?P<s>"(?:[^"\\]|\\[\s\S])*"|'(?
 
 
 def css(src):
-    """Feuille de style : commentaires retirés, blancs réduits à une espace, rien autour de { } ; , > ni après : et ( ni avant ) !,
-    pas de ; devant }. Le blanc entre deux mots (sélecteur descendant, valeurs, calc(a + b)) reste."""
+    """Stylesheet: comments removed, whitespace reduced to a single space, nothing around { } ; , > nor after : and ( nor before ) !,
+    no ; before }. The blank between two words (descendant selector, values, calc(a + b)) stays."""
     toks = []
     for m in _CSS_TOK.finditer(src):
         k = m.lastgroup

@@ -1,5 +1,5 @@
 // Screenshot of the main menu or another screen: node tools/gate/shot.mjs [out.png] [screen]
-// GPU=soft (default, SwiftShader headless) | igpu | dgpu | any ; W, H: window size ; WAIT: ms before the shot
+// GPU=soft (default, SwiftShader headless) | igpu | dgpu | any; W, H: window size; WAIT: ms before the shot
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { openGame, serve, OUT } from './lib.mjs';

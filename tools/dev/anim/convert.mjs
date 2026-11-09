@@ -2,7 +2,7 @@
 // Mixamo FBX downloads -> the GLB pack and manifest the bake reads (anim-source/, gitignored: Mixamo files are never committed).
 //   npm --prefix tools/dev/anim install      once (FBX2glTF converter and three.js 0.147)
 //   node tools/dev/anim/convert.mjs           anim-source/fbx/<file>.fbx -> anim-source/<id>.glb + anim-source/manifest.json
-//   node tools/dev/anim/cuire.mjs             bake -> assets/anim/clips.bin and clips.json (gitignored), then python3 build.py
+//   node tools/dev/anim/bake.mjs             bake -> assets/anim/clips.bin and clips.json (gitignored), then python3 build.py
 // The file names to use are in tools/dev/anim/clips.mjs and docs/animations.md. Missing files are listed; the bake needs all 50.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, writeFileSync, rmSync, renameSync } from 'node:fs';
@@ -31,10 +31,10 @@ for (const c of CLIPS) {
   console.log('ok  ', c.file.padEnd(34), '->', c.id + '.glb');
 }
 for (const [k, f] of have) if (!used.has(k)) console.log('??  ', f, ': not one of the expected names (docs/animations.md)');
-writeFileSync(join(SRC, 'manifest.json'), JSON.stringify({ clips: CLIPS.map((c) => ({ fichier: c.id + '.glb', boucle: c.loop, direction_deg: c.dir })) }, null, 1) + '\n');
+writeFileSync(join(SRC, 'manifest.json'), JSON.stringify({ clips: CLIPS.map((c) => ({ filepath: c.id + '.glb', looping: c.loop, direction_deg: c.dir })) }, null, 1) + '\n');
 if (missing.length) {
   console.log(`\n${missing.length} clip(s) still missing:`);
   for (const c of missing) console.log(`  ${c.file}.fbx  <- Mixamo: ${c.mixamo}`);
   process.exit(2);
 }
-console.log(`\nall ${CLIPS.length} clips converted. Next: node tools/dev/anim/cuire.mjs, then python3 build.py`);
+console.log(`\nall ${CLIPS.length} clips converted. Next: node tools/dev/anim/bake.mjs, then python3 build.py`);

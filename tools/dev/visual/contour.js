@@ -1,35 +1,35 @@
-/* Contour d'une photo sur le modèle d'une arme : l'arme seule (sans mains) est rendue de profil, vue presque orthographique (champ de 3°),
-   à l'échelle de la photo et sur sa grille de pixels ; le pourtour de la photo est tracé en rouge par-dessus. Pour refaire un modèle d'après
-   une vraie arme et vérifier, à chaque retouche, qu'il en suit la silhouette.
-   node contour.js --arme glock18 --photo profil.png --mmpx 0.13 --ancre 1406,560,0.012,-0.008 [--cote gauche|droite] [--acc red,sil]
-                   [--tol 40] [--sortie contour-glock18.png]
-   --photo  : vue de profil de l'arme (PNG, JPEG ou WebP) ; le fond est la transparence de l'image si elle en a, sinon la couleur de ses coins
-              (--tol : écart de couleur toléré, 40 par défaut). La photo reste hors du dépôt.
-   --mmpx   : échelle de la photo (mm par pixel), d'ordinaire calée sur une longueur connue de la vraie arme.
-   --ancre  : px,py,z,y : le pixel (px, py) de la photo est le point (z, y) du repère de l'arme (z vers l'arrière, y vers le haut).
-   --cote   : gauche (défaut, bouche à gauche de la photo) ou droite (bouche à droite).
-   Sortie : <sortie> (rendu et contour rouge de la photo) et <sortie>-ecarts.png (en bleu, la photo que le modèle ne couvre pas ; en
-   orange, le modèle qui dépasse de la photo) ; le recouvrement des deux silhouettes et les surfaces des écarts (mm²) sont affichés. */
+/* Outline of a photo over a weapon model: the weapon alone (no hands) is rendered in profile, nearly orthographic view (3° field),
+   at the photo's scale and on its pixel grid; the photo's outline is drawn in red on top. For rebuilding a model from
+   a real weapon and checking, at each tweak, that it follows the silhouette.
+   node contour.js --firearm glock18 --photo sideView.png --mmpx 0.13 --anchorPt 1406,560,0.012,-0.008 [--side left|right] [--acc red,sil]
+                   [--tol 40] [--out contour-glock18.png]
+   --photo: profile view of the weapon (PNG, JPEG or WebP); the background is the image's transparency if it has any, otherwise the color of its corners
+            (--tol: tolerated color difference, 40 by default). The photo stays out of the repo.
+   --mmpx: scale of the photo (mm per pixel), usually fitted to a known length of the real weapon.
+   --anchorPt: px,py,z,y: the photo pixel (px, py) is the point (z, y) of the weapon's frame (z toward the rear, y upward).
+   --side: left (default, muzzle on the left of the photo) or right (muzzle on the right).
+   Output: <out> (render and red outline of the photo) and <out>-gaps.png (in blue, the part of the photo the model does not cover; in
+   orange, the part of the model that sticks out of the photo); the overlap of the two silhouettes and the areas of the gaps (mm²) are printed. */
 const fs = require('fs'), path = require('path');
 const { openGame } = require('./common');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf('--' + k); return i >= 0 ? args[i + 1] : d; };
-const id = opt('arme', ''), photo = opt('photo', ''), mmpx = +opt('mmpx', '0'), ancre = opt('ancre', '').split(',').map(Number);
-const cote = opt('cote', 'gauche'), acc = opt('acc', ''), tol = +opt('tol', '40'), out = opt('sortie', `contour-${id}.png`);
-if (!id || !photo || !(mmpx > 0) || ancre.length !== 4 || ancre.some((v) => !Number.isFinite(v))) {
-  console.error('usage : node contour.js --arme <id> --photo <image> --mmpx <mm par pixel> --ancre px,py,z,y [--cote gauche|droite] [--acc a,b] [--tol 40] [--sortie f.png]');
+const id = opt('firearm', ''), photo = opt('photo', ''), mmpx = +opt('mmpx', '0'), anchorPt = opt('anchorPt', '').split(',').map(Number);
+const muzzleSide = opt('side', 'left'), acc = opt('acc', ''), tol = +opt('tol', '40'), out = opt('out', `contour-${id}.png`);
+if (!id || !photo || !(mmpx > 0) || anchorPt.length !== 4 || anchorPt.some((v) => !Number.isFinite(v))) {
+  console.error('usage: node contour.js --firearm <id> --photo <image> --mmpx <mm per pixel> --anchorPt px,py,z,y [--side left|right] [--acc a,b] [--tol 40] [--out f.png]');
   process.exit(2);
 }
 const mime = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp' }[path.extname(photo).toLowerCase()] || 'image/png';
 const photoURL = `data:${mime};base64,${fs.readFileSync(photo).toString('base64')}`;
 (async () => {
-  // taille de la photo (la page du jeu sert aussi à la lire)
+  // size of the photo (the game page is also used to read it)
   let { browser, page } = await openGame({ w: 640, h: 360, settings: { quality: 'low', dynres: false }, noMap: true, noHdri: true, gate: true });
   const [W, H] = await page.evaluate(async (u) => { const im = new Image(); im.src = u; await im.decode(); return [im.naturalWidth, im.naturalHeight]; }, photoURL);
   await browser.close();
   ({ browser, page } = await openGame({ w: W, h: H, settings: { quality: 'medium', dynres: false }, noMap: true, noHdri: true }));
-  const s = mmpx / 1000, [px, py, z0, y0] = ancre, side = cote === 'droite' ? -1 : 1;
-  // repère : le pixel (u, v) de la photo est le point z = z0 + side (u - px) s, y = y0 - (v - py) s ; la caméra vise le centre de l'image
+  const s = mmpx / 1000, [px, py, z0, y0] = anchorPt, side = muzzleSide === 'right' ? -1 : 1;
+  // frame: the photo pixel (u, v) is the point z = z0 + side (u - px) s, y = y0 - (v - py) s; the camera aims at the center of the image
   const zc = z0 + side * (W / 2 - px) * s, yc = y0 - (H / 2 - py) * s;
   await page.evaluate(([id, acc, zc, yc, H, s, side]) => {
     MATCH.state = 'capture';
@@ -50,7 +50,7 @@ const photoURL = `data:${mime};base64,${fs.readFileSync(photo).toString('base64'
   }, [id, acc, zc, yc, H, s, side]);
   await page.waitForTimeout(300);
   const shot = await page.screenshot();
-  // silhouette nette : l'arme en noir mat sur fond blanc (ni ombre ni reflet)
+  // clean silhouette: the weapon in matte black on a white background (no shadow, no reflection)
   await page.evaluate(() => {
     const black = new THREE.MeshBasicMaterial({ color: 0x000000 });
     VM.cur.group.traverse((o) => { if (o.isMesh) o.material = black; });
@@ -58,8 +58,8 @@ const photoURL = `data:${mime};base64,${fs.readFileSync(photo).toString('base64'
   });
   await page.waitForTimeout(300);
   const mask = await page.screenshot();
-  // la même arme en blanc : le voile et le vignetage du rendu touchent le fond pareil dans les deux passes, la silhouette est ce qui change
-  // (comparer au fond seul ne suffit pas, le voile peut éclaircir le noir presque jusqu'au fond)
+  // the same weapon in white: the render's veil and vignetting affect the background the same way in both passes, the silhouette is what changes
+  // (comparing against the background alone is not enough, the veil can lighten the black almost up to the background)
   await page.evaluate(() => {
     const white = new THREE.MeshBasicMaterial({ color: 0xffffff });
     VM.cur.group.traverse((o) => { if (o.isMesh) o.material = white; });
@@ -69,7 +69,7 @@ const photoURL = `data:${mime};base64,${fs.readFileSync(photo).toString('base64'
   const res = await page.evaluate(async ([shotU, maskU, emptyU, photoU, W, H, tol]) => {
     const load = async (u) => { const im = new Image(); im.src = u; await im.decode(); const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.drawImage(im, 0, 0, W, H); return { c, x, d: x.getImageData(0, 0, W, H) }; };
     const R = await load(shotU), Mk = await load(maskU), Em = await load(emptyU), Ph = await load(photoU), n = W * H;
-    // photo : transparence si elle en a, sinon écart à la couleur moyenne des coins
+    // photo: transparency if it has any, otherwise difference from the average color of the corners
     const pd = Ph.d.data; let transp = 0;
     for (let i = 3; i < pd.length; i += 4) if (pd[i] < 128) transp++;
     const A = new Uint8Array(n), Bm = new Uint8Array(n);
@@ -82,13 +82,13 @@ const photoURL = `data:${mime};base64,${fs.readFileSync(photo).toString('base64'
     }
     const md = Mk.d.data, ed = Em.d.data;
     for (let i = 0; i < n; i++) Bm[i] = ed[i * 4] + ed[i * 4 + 1] + ed[i * 4 + 2] - md[i * 4] - md[i * 4 + 1] - md[i * 4 + 2] > 3 * 16 ? 1 : 0;
-    // contour de la photo (pixel de la silhouette qui touche le fond), épaissi d'un pixel, en rouge sur le rendu
+    // outline of the photo (silhouette pixel that touches the background), thickened by one pixel, in red on the render
     const E = new Uint8Array(n);
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = y * W + x; if (A[i] && (!A[i - 1] || !A[i + 1] || !A[i - W] || !A[i + W])) E[i] = 1; }
     const rd = R.d.data;
     for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = y * W + x; if (E[i] || E[i - 1] || E[i + 1] || E[i - W] || E[i + W]) { rd[i * 4] = 230; rd[i * 4 + 1] = 20; rd[i * 4 + 2] = 20; } }
     R.x.putImageData(R.d, 0, 0);
-    // écarts : photo seule (bleu), modèle seul (orange), commun (gris)
+    // gaps: photo only (blue), model only (orange), shared (gray)
     const D = Mk.x.createImageData(W, H), dd = D.data; let inter = 0, onlyA = 0, onlyB = 0;
     for (let i = 0; i < n; i++) {
       const a = A[i], b = Bm[i], c = a && b ? [150, 150, 150] : a ? [40, 110, 230] : b ? [240, 140, 20] : [255, 255, 255];
@@ -99,11 +99,11 @@ const photoURL = `data:${mime};base64,${fs.readFileSync(photo).toString('base64'
     return { over: R.c.toDataURL('image/png'), diff: Mk.c.toDataURL('image/png'), inter, onlyA, onlyB, photoPx: inter + onlyA };
   }, ['data:image/png;base64,' + shot.toString('base64'), 'data:image/png;base64,' + mask.toString('base64'), 'data:image/png;base64,' + empty.toString('base64'), photoURL, W, H, tol]);
   fs.writeFileSync(out, Buffer.from(res.over.split(',')[1], 'base64'));
-  const outD = out.replace(/\.png$/i, '') + '-ecarts.png';
+  const outD = out.replace(/\.png$/i, '') + '-gaps.png';
   fs.writeFileSync(outD, Buffer.from(res.diff.split(',')[1], 'base64'));
   const mm2 = (n) => (n * mmpx * mmpx).toFixed(0);
-  if (!res.photoPx) console.log('ATTENTION : aucune silhouette trouvée sur la photo (fond, --tol ?)');
-  console.log(`${id} : recouvrement ${(100 * res.inter / Math.max(1, res.inter + res.onlyA + res.onlyB)).toFixed(1)} % ; photo non couverte ${mm2(res.onlyA)} mm², modèle hors de la photo ${mm2(res.onlyB)} mm²`);
+  if (!res.photoPx) console.log('WARNING: no silhouette found on the photo (background, --tol?)');
+  console.log(`${id}: overlap ${(100 * res.inter / Math.max(1, res.inter + res.onlyA + res.onlyB)).toFixed(1)} %; photo not covered ${mm2(res.onlyA)} mm², model outside the photo ${mm2(res.onlyB)} mm²`);
   console.log(`  ${out}\n  ${outD}`);
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(2); });

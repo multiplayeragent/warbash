@@ -56,8 +56,8 @@ pacing check open a browser window: leave it in front, a covered window is throt
 - `tools/check_secrets.mjs` and `tools/hooks/`: refuse any commit, push or build that contains a secret key.
 - `tools/dev/`: the upstream development tools (visual checks, benches, asset builders).
 
-The code and its comments are in French, as in the upstream project. Comments that point to a README section ("voir README
-« ... »") refer to the upstream project's development notes.
+The code, comments and tools are in English. In-world signs and place names stay in the language of the country each map is set
+in. Comments that point to a README section refer to the upstream project's development notes.
 
 ## License
 

@@ -1,21 +1,21 @@
 /* ==========================================================================
-   ATLAS DES TENUES : une texture couleur, une texture de relief et une texture rugosité / métal
-   communes aux soldats et aux bras de la vue subjective. Chaque zone de l'atlas a un rôle :
-     camouflage (raccordable dans les deux sens, à l'échelle réelle du tissu), tissu de gant, sangles
-     MOLLE, visage, caoutchouc ; et une colonne de tuiles unies qui ne portent que la rugosité et le
-     métal d'une matière (la couleur vient alors des couleurs de sommets).
-   Une texture couleur par tenue (SKINS, 06ga-tenues.js) : seul le camouflage change d'une tenue à l'autre. Le relief
-   et la rugosité sont communs. Le canal rouge de la texture rugosité / métal, inutilisé par three.js, marque la tuile
-   « tag » (bandes de reconnaissance) : la retouche de la matière y met la couleur allié ou ennemi (skinTagPatch) ; à mi-valeur,
-   il marque la tuile « glow » (néons des tenues de défi), qui éclaire de sa couleur de sommet.
-   La zone « art » (sous les tuiles) porte l'emblème propre à une tenue (cape, pans de veste : SKINS.<id>.art).
-   Tout est généré au chargement, sans image externe. Un maillage d'un seul appel de rendu peut ainsi
-   mêler toile, nylon, polymère, caoutchouc, métal, peau et verres.
+   OUTFIT ATLAS: one color texture, one relief texture and one roughness / metal texture
+   shared by the soldiers and the first-person arms. Each zone of the atlas has a role:
+     camouflage (tileable both ways, at the real scale of the fabric), glove fabric, MOLLE
+     straps, face, rubber; and a column of plain tiles that carry only the roughness and the
+     metal of a material (the color then comes from the vertex colors).
+   One color texture per outfit (SKINS, 06ga-outfits.js): only the camouflage changes from one outfit to another. Relief
+   and roughness are shared. The red channel of the roughness / metal texture, unused by three.js, marks the "tag" tile
+   (recognition bands): the material patch puts the ally or enemy color there (skinTagPatch); at half value,
+   it marks the "glow" tile (neons of the challenge outfits), which lights with its vertex color.
+   The "art" zone (below the tiles) carries the emblem specific to an outfit (cape, jacket panels: SKINS.<id>.art).
+   Everything is generated at load time, with no external image. A single-draw-call mesh can thus
+   mix canvas, nylon, polymer, rubber, metal, skin and glass.
    ========================================================================== */
 const ATLAS_N = 1024;
-/* zones [x, y, largeur, hauteur] en pixels de la toile (y vers le bas) */
+/* zones [x, y, width, height] in canvas pixels (y downward) */
 const ATLAS_R = { camo: [0, 0, 768, 768], glove: [0, 768, 256, 128], leath: [0, 896, 256, 128], web: [256, 768, 256, 256], face: [512, 768, 256, 256], misc: [768, 768, 256, 256], art: [768, 384, 256, 384] };
-/* tuiles unies : nom, rugosité, métal (4 colonnes de 64 px dans la bande x 768 à 1024) */
+/* plain tiles: name, roughness, metal (4 columns of 64 px in the band x 768 to 1024) */
 const GEAR_TILES = [
   ['fab', 0.94, 0], ['nyl', 0.78, 0], ['poly', 0.52, 0.04], ['rub', 0.88, 0],
   ['met', 0.34, 0.92], ['metD', 0.52, 0.7], ['skin', 0.56, 0], ['lens', 0.05, 0.55],
@@ -24,29 +24,29 @@ const GEAR_TILES = [
   ['tag', 0.6, 0], ['glow', 0.45, 0],
 ];
 const GEAR_TILE = {};
-/* bruit de valeur centré (-0,5 à 0,5), périodique de période p (motifs raccordables) */
+/* centered value noise (-0.5 to 0.5), periodic with period p (tileable patterns) */
 function noise2(seed) { const n = makeNoise(seed); return (x, y, p = 256) => n(x, y, p, p) - 0.5; }
 GEAR_TILES.forEach(([n], i) => { GEAR_TILE[n] = [(768 + (i % 4) * 64 + 32) / ATLAS_N, 1 - (Math.floor(i / 4) * 64 + 32) / ATLAS_N]; });
-/* coordonnées de texture dans une zone (s, t de 0 à 1, bordure de 3 px pour éviter les débords) */
+/* texture coordinates within a zone (s, t from 0 to 1, 3 px border to avoid bleeding) */
 function atlasUV(reg, s, t) {
   const r = ATLAS_R[reg];
   return [(r[0] + 3 + clamp(s, 0, 1) * (r[2] - 6)) / ATLAS_N, 1 - (r[1] + 3 + clamp(t, 0, 1) * (r[3] - 6)) / ATLAS_N];
 }
-/* Coordonnées de camouflage à l'échelle réelle : phys est la taille (m) de la zone ; s0, t0 décalent le patron. Une
-   pièce plus grande que la zone est coupée par une couture, comme un vêtement cousu de plusieurs pans. */
+/* Camouflage coordinates at real scale: phys is the size (m) of the zone; s0, t0 offset the pattern. A
+   piece larger than the zone is cut by a seam, like a garment sewn from several panels. */
 function camoUV(x, y, phys, s0 = 0, t0 = 0) {
   const s = x / phys + s0, t = y / phys + t0;
   return atlasUV('camo', s - Math.floor(s), t - Math.floor(t));
 }
 
-/* Toile de dessin raccordable : chaque forme est tracée aussi de l'autre côté des bords */
+/* Tileable drawing canvas: each shape is also drawn on the other side of the edges */
 function wrapShape(g, W, H, x, y, rad, fn) {
   for (const dx of [-W, 0, W]) for (const dy of [-H, 0, H]) {
     if (x + dx + rad < 0 || x + dx - rad > W || y + dy + rad < 0 || y + dy - rad > H) continue;
     fn(x + dx, y + dy);
   }
 }
-/* Forme organique : contour à lobes (somme de sinusoïdes) et bord déchiqueté (bruit par sommet), étirée et tournée */
+/* Organic shape: lobed outline (sum of sinusoids) and jagged edge (per-vertex noise), stretched and rotated */
 function camoShape(g, x, y, r, R, stretch, rot, rag = 0.25) {
   const n = 24, ph = [R() * TAU, R() * TAU, R() * TAU], am = [0.22 + R() * 0.2, 0.12 + R() * 0.1, 0.06 + R() * 0.05], pts = [];
   const c = Math.cos(rot), s = Math.sin(rot);
@@ -60,7 +60,7 @@ function camoShape(g, x, y, r, R, stretch, rot, rag = 0.25) {
   for (let k = 0; k < n; k++) { const e = m(pts[k], pts[(k + 1) % n]); g.quadraticCurveTo(pts[k][0], pts[k][1], e[0], e[1]); }
   g.closePath(); g.fill();
 }
-/* Branche : trait irrégulier surtout vertical, qui s'affine et se ramifie parfois */
+/* Branch: irregular, mostly vertical stroke, that thins and sometimes branches out */
 function camoBranch(g, x, y, len, w, R, depth = 0) {
   let a = Math.PI / 2 + (R() - 0.5) * 0.9, px = x, py = y, d = 0;
   const step = Math.max(1.5, len / 9);
@@ -73,8 +73,8 @@ function camoBranch(g, x, y, len, w, R, depth = 0) {
     px = nx; py = ny; d += step;
   }
 }
-/* Aplat anguleux (style « poly ») : polygone de 4 à 7 sommets aux angles vifs, étiré et tourné, comme une facette de modèle
-   à faces planes */
+/* Angular flat fill ("poly" style): polygon of 4 to 7 vertices with sharp angles, stretched and rotated, like a facet of a
+   flat-faced model */
 function camoFacet(g, x, y, r, R, stretch, rot) {
   const n = 4 + Math.floor(R() * 4), c = Math.cos(rot), s = Math.sin(rot), a0 = R() * TAU;
   g.beginPath();
@@ -84,19 +84,19 @@ function camoFacet(g, x, y, r, R, stretch, rot) {
   }
   g.closePath(); g.fill();
 }
-/* Feuille pointue (style « leaf ») : deux arcs qui se rejoignent aux pointes, longueur len, largeur relative wr */
+/* Pointed leaf ("leaf" style): two arcs meeting at the tips, length len, relative width wr */
 function camoLeaf(g, x, y, len, wr, rot) {
   const c = Math.cos(rot), s = Math.sin(rot), h = len / 2, w = len * wr;
   const P = (lx, ly) => [x + lx * c - ly * s, y + lx * s + ly * c], A = P(-h, 0), B = P(h, 0), U = P(0, w), D = P(0, -w);
   g.beginPath(); g.moveTo(A[0], A[1]); g.quadraticCurveTo(U[0], U[1], B[0], B[1]); g.quadraticCurveTo(D[0], D[1], A[0], A[1]); g.closePath(); g.fill();
 }
-/* Motif de camouflage de la tenue skin dans une toile de W px représentant phys mètres de tissu (ks : échelle du motif).
-   Trois styles (SKINS[skin].camo.style) : « blot » (taches organiques et branches sombres, façon multicam), « poly » (aplats
-   anguleux à facettes, celui des illustrations des tenues), « leaf » (feuilles pointues serrées, la toile d'une tenue ghillie). */
+/* Camouflage pattern of outfit skin in a canvas of W px representing phys meters of fabric (ks: pattern scale).
+   Three styles (SKINS[skin].camo.style): "blot" (organic blotches and dark branches, multicam-like), "poly" (angular
+   faceted flat fills, the one in the outfit illustrations), "leaf" (tight pointed leaves, the canvas of a ghillie outfit). */
 function drawCamo(g, skin, W, phys, ks = 1) {
   const S = SKINS[skin], P = S.camo, R = mulberry32(S.seed), pm = W / phys * ks, area = phys * phys / ks / ks;
   g.fillStyle = P.base; g.fillRect(0, 0, W, W);
-  // nappes de fond aux bords très doux : dessinées en basse résolution puis agrandies (raccord conservé)
+  // background layers with very soft edges: drawn at low resolution then enlarged (tiling preserved)
   const lo = document.createElement('canvas'), L = Math.max(16, Math.round(W / 8)); lo.width = lo.height = L;
   const gl = lo.getContext('2d'); gl.fillStyle = P.base; gl.fillRect(0, 0, L, L);
   const lpm = L / phys * ks;
@@ -109,7 +109,7 @@ function drawCamo(g, skin, W, phys, ks = 1) {
   for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) gb.drawImage(lo, i * W, j * W, W, W);
   g.drawImage(big, W, W, W, W, 0, 0, W, W);
   if (P.style === 'poly') {
-    // facettes : grandes puis moyennes, chaque couleur en aplats francs qui se chevauchent
+    // facets: large then medium, each color in solid overlapping fills
     P.mid.forEach((col, i) => {
       g.fillStyle = col;
       for (let k = 0, n = Math.round(area * (P.n ? P.n[i] : 40)); k < n; k++) { const x = R() * W, y = R() * W, r = (0.018 + R() * 0.038) * pm; wrapShape(g, W, W, x, y, r * 2.2, (a, b) => camoFacet(g, a, b, r, R, 1 + R() * 1.1, R() * TAU)); }
@@ -119,25 +119,25 @@ function drawCamo(g, skin, W, phys, ks = 1) {
       for (let k = 0, n = Math.round(area * 45); k < n; k++) { const x = R() * W, y = R() * W, r = (0.008 + R() * 0.016) * pm; wrapShape(g, W, W, x, y, r * 2.2, (a, b) => camoFacet(g, a, b, r, R, 1.2 + R() * 1.4, R() * TAU)); }
     });
   } else if (P.style === 'leaf') {
-    // feuilles serrées, de toutes les couleurs de la palette, surtout tombantes
+    // tight leaves, in all the palette colors, mostly drooping
     [...P.mid, ...P.branch].forEach((col, i) => {
       g.fillStyle = col;
       for (let k = 0, n = Math.round(area * (P.n ? P.n[i] || 260 : 260)); k < n; k++) { const x = R() * W, y = R() * W, len = (0.016 + R() * 0.03) * pm; wrapShape(g, W, W, x, y, len, (a, b) => camoLeaf(g, a, b, len, 0.18 + R() * 0.16, Math.PI / 2 + (R() - 0.5) * 1.6)); }
     });
   } else {
-    // formes moyennes : organiques, étirées, bords déchiquetés
+    // medium shapes: organic, stretched, jagged edges
     P.mid.forEach((col, i) => {
       g.fillStyle = col; g.globalAlpha = 0.9;
       for (let k = 0, n = Math.round(area * [95, 70, 30][i]); k < n; k++) { const x = R() * W, y = R() * W, r = (0.009 + R() * 0.02) * pm; wrapShape(g, W, W, x, y, r * 3, (a, b) => camoShape(g, a, b, r, R, 1 + R() * 1.4, (R() - 0.5) * 1.2 + (R() < 0.5 ? Math.PI / 2 : 0))); }
     });
     g.globalAlpha = 1;
-    // branches sombres (le trait caractéristique des motifs multicam)
+    // dark branches (the characteristic stroke of multicam patterns)
     P.branch.forEach((col, i) => {
       g.strokeStyle = col;
       for (let k = 0, n = Math.round(area * [150, 90][i]); k < n; k++) { const x = R() * W, y = R() * W, len = (0.022 + R() * 0.05) * pm, w = (0.0022 + R() * 0.0035) * pm; wrapShape(g, W, W, x, y, len * 1.3, (a, b) => camoBranch(g, a, b, len, w, mulberry32((k + 1) * 7919 + i * 13))); }
     });
   }
-  // entailles (tenues de défi : P.slash = { col, n, len, w, rot }) : longues facettes effilées en diagonale, d'une couleur vive
+  // slashes (challenge outfits: P.slash = { col, n, len, w, rot }): long tapered diagonal facets, in a vivid color
   if (P.slash) {
     const L = P.slash;
     L.col.forEach((col, i) => {
@@ -145,17 +145,17 @@ function drawCamo(g, skin, W, phys, ks = 1) {
       for (let k = 0, n = Math.round(area * L.n[i]); k < n; k++) {
         const x = R() * W, y = R() * W, len = (L.len[0] + R() * L.len[1]) * pm, w = (L.w[0] + R() * L.w[1]) * pm, rot = L.rot + (R() - 0.5) * 0.35, c = Math.cos(rot), sn = Math.sin(rot), sk = (R() - 0.5) * w * 1.5;
         wrapShape(g, W, W, x, y, len, (a, b2) => {
-          // parallélogramme pointu : deux pointes au bout de la longueur, la largeur au milieu (décalée : une facette, pas une ellipse)
+          // pointed parallelogram: two points at the end of the length, the width in the middle (offset: a facet, not an ellipse)
           const P4 = [[-len / 2, 0], [sk, -w / 2], [len / 2, 0], [-sk, w / 2]];
           g.beginPath(); P4.forEach(([lx, ly], j) => { const X = a + lx * c - ly * sn, Y = b2 + lx * sn + ly * c; if (j) g.lineTo(X, Y); else g.moveTo(X, Y); }); g.closePath(); g.fill();
         });
       }
     });
   }
-  // rehauts clairs, rares et petits
+  // light, rare and small highlights
   g.fillStyle = P.hi;
   for (let k = 0, n = Math.round(area * 120); k < n; k++) { const x = R() * W, y = R() * W, r = (0.002 + R() * 0.004) * pm; wrapShape(g, W, W, x, y, r * 3, (a, b) => camoShape(g, a, b, r, R, 1 + R(), R() * TAU, 0.5)); }
-  // délavé : grain fin (petite toile de bruit répétée) et larges variations de teinte, en lumière douce
+  // washed out: fine grain (small repeated noise canvas) and broad hue variations, in soft light
   const grain = document.createElement('canvas'); grain.width = grain.height = 128;
   const gg = grain.getContext('2d'), gi = gg.createImageData(128, 128), R2 = mulberry32(S.seed + 3);
   for (let i = 0; i < 128 * 128; i++) { const v = 128 + (R2() - 0.5) * 90; gi.data[i * 4] = gi.data[i * 4 + 1] = gi.data[i * 4 + 2] = v; gi.data[i * 4 + 3] = 255; }
@@ -167,17 +167,17 @@ function drawCamo(g, skin, W, phys, ks = 1) {
   g.globalAlpha = 0.45; g.imageSmoothingEnabled = true; g.drawImage(wash, 0, 0, W, W);
   g.restore();
 }
-/* Tête (zone face) en projection cylindrique : s fait le tour de la tête (0,5 devant, 0 et 1 derrière), t descend du
-   sommet (0) au menton (1). Peau, barbe de quelques jours, sourcils, lèvres, cheveux ras sur le crâne et la nuque. */
+/* Head (face zone) in cylindrical projection: s goes around the head (0.5 in front, 0 and 1 behind), t goes down from the
+   top (0) to the chin (1). Skin, few-day beard, eyebrows, lips, buzz-cut hair on the skull and nape. */
 function drawFace(g, x0, y0, S) {
   const R = mulberry32(71), im = g.getImageData(x0, y0, S, S), d = im.data, N = noise2(21);
   for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
     const i = (y * S + x) * 4, u = x / S - 0.5, v = y / S, au = Math.abs(u);
     let r = 176, gg = 132, b = 101;
-    // joues et nez plus rouges
+    // redder cheeks and nose
     const cheek = Math.exp(-(((au - 0.085) / 0.04) ** 2 + ((v - 0.56) / 0.07) ** 2)), nose = Math.exp(-((u / 0.022) ** 2 + ((v - 0.56) / 0.07) ** 2));
     r += 18 * cheek + 14 * nose; gg -= 5 * cheek; b -= 5 * cheek;
-    // barbe courte : mâchoire et moustache, bord irrégulier
+    // short beard: jaw and mustache, irregular edge
     const nz = N(x / S * 14, y / S * 14) * 0.08;
     const jaw = smoothstep(0.64, 0.72, v + nz - au * 0.25) * (1 - smoothstep(0.22, 0.27, au + nz));
     const must = Math.exp(-((u / 0.05) ** 2 + ((v - 0.675) / 0.018) ** 2));
@@ -185,10 +185,10 @@ function drawFace(g, x0, y0, S) {
     const beard = clamp(Math.max(jaw, must) * (0.6 + 0.4 * R()) * (1 - lips * 0.95), 0, 1);
     r = lerp(r, 58, beard * 0.85); gg = lerp(gg, 44, beard * 0.85); b = lerp(b, 34, beard * 0.85);
     r = lerp(r, 148, lips * 0.65); gg = lerp(gg, 88, lips * 0.65); b = lerp(b, 80, lips * 0.65);
-    // sourcils
+    // eyebrows
     const brow = Math.exp(-(((au - 0.045) / 0.026) ** 2 + ((v - 0.36 + au * 0.25) / 0.012) ** 2));
     r = lerp(r, 52, brow * 0.9); gg = lerp(gg, 40, brow * 0.9); b = lerp(b, 31, brow * 0.9);
-    // cheveux ras : crâne, tempes et nuque
+    // buzz-cut hair: skull, temples and nape
     const hair = Math.max(smoothstep(0.31, 0.27, v + nz * 0.5 - au * 0.08), smoothstep(0.17, 0.2, au + nz) * smoothstep(0.66, 0.6, v + nz) * smoothstep(0.26, 0.3, au + nz * 0.5 + (0.6 - v) * 0.15));
     r = lerp(r, 44, hair * 0.88); gg = lerp(gg, 34, hair * 0.88); b = lerp(b, 27, hair * 0.88);
     const n = N(x / S * 60, y / S * 60) * 14 + (R() - 0.5) * 6;
@@ -196,22 +196,22 @@ function drawFace(g, x0, y0, S) {
   }
   g.putImageData(im, x0, y0);
 }
-/* Scans de tissu (Poly Haven, CC0 : tools/build_tenues.py), livrés dans le socle de la page (build.py) : une toile, un tricot et un
-   cuir. Ils donnent aux zones toile, gant et cuir de l'atlas le relief et la rugosité d'un vrai tissu, et les nuances de sa teinte, à la
-   place de la trame calculée (trop régulière : la lumière glissait dessus comme sur du plastique). Décodés au démarrage (gearScanLoad,
-   attendu avant la préparation des soldats) ; absents (socle non chargé), l'atlas garde sa trame calculée. */
-const GEAR_SCAN = { n: null, t: null }; // images décodées : tissus (normale en rouge et vert, rugosité en bleu) et teinte (luminance)
-const GEAR_SCAN_K = { camo: 1.7, glove: 1.4, leath: 1.2 }; // force du relief scanné, par zone
-const GEAR_SCAN_R = { camo: 0.7, glove: 0.6, leath: 1.1 }; // part des écarts de rugosité du scan reportée sur la zone
+/* Fabric scans (Poly Haven, CC0: tools/build_outfits.py), shipped in the page base (build.py): a canvas, a knit and a
+   leather. They give the canvas, glove and leather zones of the atlas the relief and roughness of a real fabric, and the shades of its hue, in
+   place of the computed weave (too regular: the light slid over it like on plastic). Decoded at startup (gearScanLoad,
+   awaited before the soldiers are prepared); when absent (base not loaded), the atlas keeps its computed weave. */
+const GEAR_SCAN = { n: null, t: null }; // decoded images: fabrics (normal in red and green, roughness in blue) and hue (luminance)
+const GEAR_SCAN_K = { camo: 1.7, glove: 1.4, leath: 1.2 }; // strength of the scanned relief, per zone
+const GEAR_SCAN_R = { camo: 0.7, glove: 0.6, leath: 1.1 }; // share of the scan's roughness deviations carried over to the zone
 function gearScanLoad() {
-  const S = window.SOCLE || {};
-  if (!S.tissus || !S.teinte) return Promise.resolve();
+  const S = window.BASE_ASSETS || {};
+  if (!S.cloths || !S.tintScan) return Promise.resolve();
   const img = (src) => { const im = new Image(); im.src = src; return im.decode().then(() => im); };
-  return Promise.all([img(S.tissus), img(S.teinte)]).then(([n, t]) => { GEAR_SCAN.n = n; GEAR_SCAN.t = t; }).catch(() => {});
+  return Promise.all([img(S.cloths), img(S.tintScan)]).then(([n, t]) => { GEAR_SCAN.n = n; GEAR_SCAN.t = t; }).catch(() => {});
 }
-/* Une image du scan (k : son échelle, 1 pour tissus, 0,5 pour teinte) disposée comme l'atlas. La toile se répète un nombre entier
-   de fois dans la zone du camouflage, pour se raccorder à ses bords comme le motif : une fois en vue subjective (34 cm de tissu pour un
-   carreau de 27 cm), trois fois sur un soldat (70 cm). Le tricot et le cuir remplissent leur zone (14 et 20 cm de scan). */
+/* One scan image (k: its scale, 1 for fabrics, 0.5 for hue) laid out like the atlas. The canvas repeats a whole number
+   of times in the camouflage zone, to tile at its edges like the pattern: once in first person (34 cm of fabric for a
+   27 cm tile), three times on a soldier (70 cm). The knit and the leather fill their zone (14 and 20 cm of scan). */
 function gearScanLayout(img, k, fp) {
   const c = document.createElement('canvas'); c.width = c.height = ATLAS_N;
   const g = c.getContext('2d', { willReadFrequently: true }); g.imageSmoothingQuality = 'high';
@@ -224,34 +224,34 @@ function gearScanLayout(img, k, fp) {
   g.drawImage(img, 512 * k, 256 * k, 256 * k, 256 * k, L[0], L[1], L[2], L[3]);
   return c;
 }
-/* Hauteurs (relief) de l'atlas, en unités arbitraires ; converties en normales ensuite. Avec les scans, la toile, le gant et le cuir
-   ne gardent ici que leurs plis et le fil de renfort : la trame vient du scan (gearScanNormals) */
+/* Heights (relief) of the atlas, in arbitrary units; converted to normals afterward. With the scans, the canvas, glove and leather
+   keep only their folds and the reinforcing thread here: the weave comes from the scan (gearScanNormals) */
 function gearHeights(fp) {
   const H = new Float32Array(ATLAS_N * ATLAS_N), N = noise2(3), N2 = noise2(8), sc = GEAR_SCAN.n ? 0 : 1;
   const put = (reg, fn) => { const r = ATLAS_R[reg]; for (let y = 0; y < r[3]; y++) for (let x = 0; x < r[2]; x++) H[(r[1] + y) * ATLAS_N + r[0] + x] = fn(x, y, r[2], r[3]); };
-  // camouflage : toile croisée, fil de renfort ripstop tous les 5 mm environ, froissé léger
+  // camouflage: cross-woven canvas, ripstop reinforcing thread about every 5 mm, light wrinkling
   const phys = fp ? 0.34 : 0.7, pmm = 768 / (phys * 1000), rip = Math.max(3, Math.round(5 * pmm));
   put('camo', (x, y, W) => {
     const weave = Math.sin(x * 2.1) * Math.sin(y * 2.1) * 0.35 * sc;
-    const grid = ((x % rip < 1.2 ? 0.5 : 0) + (y % rip < 1.2 ? 0.5 : 0)) * (sc ? 1 : 0.25); // avec le scan, à peine marqué : régulier, il faisait grillage
+    const grid = ((x % rip < 1.2 ? 0.5 : 0) + (y % rip < 1.2 ? 0.5 : 0)) * (sc ? 1 : 0.25); // with the scan, barely marked: regular, it looked like a grid
     const wr = N(x / W * 6, y / W * 6, 6) * 5 + N2(x / W * 13, y / W * 13, 13) * 1.8;
     return weave + grid + wr;
   });
-  // gant : tricot fin et coutures
+  // glove: fine knit and seams
   put('glove', (x, y) => (Math.sin(x * 2.4 + Math.sin(y * 0.9) * 0.6) * 0.12 + Math.sin(y * 2.9) * 0.1 + N2(x / 5, y / 5) * 0.12) * sc + N(x / 14, y / 14) * 0.35);
-  // synthétique : grain fin et quelques plis
+  // synthetic: fine grain and a few folds
   put('leath', (x, y) => N(x / 2.2, y / 2.2) * 0.35 * sc + N2(x / 9, y / 9) * 0.5 + Math.sin(x * 0.21 + N(x / 30, y / 30) * 3) * 0.12);
-  // sangles MOLLE : bandes de 25 mm tous les 38 mm, piqûres, trame
+  // MOLLE straps: 25 mm bands every 38 mm, stitching, weave
   put('web', (x, y) => {
     const band = (y % 38) < 25 ? 1 : 0, edge = band && ((y % 38) < 2 || (y % 38) > 22) ? -0.4 : 0;
     const stitch = band && (x % 38 < 3) ? -0.8 : 0;
     return band * 1.2 + edge + stitch + Math.sin(x * 2.4) * 0.12 * band + Math.sin(y * 2.4) * 0.1;
   });
-  // peau : pores et micro-relief
+  // skin: pores and micro-relief
   put('face', (x, y, W) => N(x / W * 60, y / W * 60) * 0.5 + N2(x / W * 16, y / W * 16) * 0.7);
-  // emblèmes (capes, pans) : toile croisée plus lâche et quelques froissures
+  // emblems (capes, panels): looser cross-woven canvas and a few wrinkles
   put('art', (x, y, W) => Math.sin(x * 1.9) * Math.sin(y * 1.9) * 0.3 + N(x / W * 5, y / W * 5, 5) * 3.5 + N2(x / W * 11, y / W * 11, 11) * 1.2);
-  // caoutchouc : crampons en losanges (semelles, protège-phalanges)
+  // rubber: diamond studs (soles, knuckle guards)
   put('misc', (x, y) => ((Math.abs(((x + y) % 24) - 12) < 5) && (Math.abs(((x - y + 240) % 24) - 12) < 5) ? 1.4 : 0) + N(x / 30, y / 30) * 0.4);
   return H;
 }
@@ -267,7 +267,7 @@ function heightsToNormals(H, k, fp) {
   g.putImageData(im, 0, 0);
   return c;
 }
-/* Relief du scan superposé à celui des plis (mélange « whiteout » : pentes additionnées, hauteurs multipliées), zones toile, gant et cuir */
+/* Scan relief overlaid on that of the folds ("whiteout" blend: slopes added, heights multiplied), canvas, glove and leather zones */
 function gearScanNormals(d, fp) {
   const S = gearScanLayout(GEAR_SCAN.n, 1, fp).getContext('2d').getImageData(0, 0, ATLAS_N, ATLAS_N).data;
   for (const reg in GEAR_SCAN_K) {
@@ -280,19 +280,19 @@ function gearScanNormals(d, fp) {
     }
   }
 }
-/* Rugosité (vert) et métal (bleu) */
+/* Roughness (green) and metal (blue) */
 function gearRM() {
   const c = document.createElement('canvas'); c.width = c.height = ATLAS_N;
-  const g = c.getContext('2d', { willReadFrequently: true }), R = mulberry32(5); // toile en mémoire : relue pour la rugosité des scans
+  const g = c.getContext('2d', { willReadFrequently: true }), R = mulberry32(5); // canvas in memory: reread for the scans' roughness
   const reg = (name, r, m) => { const a = ATLAS_R[name]; g.fillStyle = `rgb(0,${Math.round(r * 255)},${Math.round(m * 255)})`; g.fillRect(a[0], a[1], a[2], a[3]); };
   reg('camo', 0.9, 0); reg('glove', 0.9, 0); reg('leath', 0.52, 0); reg('web', 0.84, 0); reg('face', 0.55, 0); reg('misc', 0.86, 0); reg('art', 0.88, 0);
-  // rouge : masque des bandes de reconnaissance (1) et des néons (0,5), lu par skinTagPatch
+  // red: mask of the recognition bands (1) and neons (0.5), read by skinTagPatch
   GEAR_TILES.forEach(([n, r, m], i) => { g.fillStyle = `rgb(${n === 'tag' ? 255 : n === 'glow' ? 128 : 0},${Math.round(r * 255)},${Math.round(m * 255)})`; g.fillRect(768 + (i % 4) * 64, Math.floor(i / 4) * 64, 64, 64); });
-  // un peu de variation dans la toile (usure, zones lustrées)
+  // a bit of variation in the canvas (wear, glossy areas)
   const a = ATLAS_R.camo; g.globalAlpha = 0.08;
   for (let i = 0; i < 400; i++) { g.fillStyle = R() < 0.5 ? '#00c000' : '#00ff00'; g.fillRect(a[0] + R() * a[2], a[1] + R() * a[3], 4 + R() * 30, 4 + R() * 30); }
   g.globalAlpha = 1;
-  // rugosité du scan : ses écarts à sa moyenne, autour de la valeur de la zone (disposition des soldats, commune aux deux vues)
+  // scan roughness: its deviations from its mean, around the zone's value (soldier layout, shared by both views)
   if (GEAR_SCAN.n) {
     const S = gearScanLayout(GEAR_SCAN.n, 1, false).getContext('2d').getImageData(0, 0, ATLAS_N, ATLAS_N).data;
     const im = g.getImageData(0, 0, ATLAS_N, ATLAS_N), d = im.data;
@@ -306,42 +306,42 @@ function gearRM() {
   }
   return c;
 }
-/* Couleur : camouflage de la tenue, zones claires modulées par les couleurs de sommets */
+/* Color: outfit camouflage, light zones modulated by the vertex colors */
 function gearAlbedo(skin, fp) {
   const c = document.createElement('canvas'); c.width = c.height = ATLAS_N;
-  const g = c.getContext('2d', { willReadFrequently: true }); // toile en mémoire : lectures de pixels rapides
+  const g = c.getContext('2d', { willReadFrequently: true }); // canvas in memory: fast pixel reads
   g.fillStyle = '#ffffff'; g.fillRect(0, 0, ATLAS_N, ATLAS_N);
   const cam = document.createElement('canvas'); cam.width = cam.height = 768;
   drawCamo(cam.getContext('2d', { willReadFrequently: true }), skin, 768, fp ? 0.34 : 0.7, fp ? 0.7 : 1);
   g.drawImage(cam, 0, 0);
-  // tissu de gant : blanc légèrement tramé (la couleur du gant vient des sommets)
+  // glove fabric: slightly textured white (the glove color comes from the vertices)
   const G = ATLAS_R.glove, R = mulberry32(12), LT = ATLAS_R.leath;
   g.fillStyle = 'rgb(222,222,222)'; g.fillRect(LT[0], LT[1], LT[2], LT[3]);
   for (let i = 0; i < 1400; i++) { g.fillStyle = `rgba(0,0,0,${0.03 + R() * 0.05})`; g.fillRect(G[0] + R() * G[2], G[1] + R() * G[3], 1 + R() * 3, 1); g.fillRect(LT[0] + R() * LT[2], LT[1] + R() * LT[3], 1, 1); }
-  // nuances du vrai tissu (fils plus ou moins teints, usure) : la luminance du scan en incrustation, neutre à mi-gris
+  // shades of the real fabric (threads more or less dyed, wear): the scan's luminance as an overlay, neutral at mid-gray
   if (GEAR_SCAN.t) {
     const T = gearScanLayout(GEAR_SCAN.t, 0.5, fp);
     g.save(); g.globalCompositeOperation = 'overlay';
     for (const [reg, al] of [['camo', 0.45], ['glove', 0.6], ['leath', 0.6]]) { const r = ATLAS_R[reg]; g.globalAlpha = al; g.drawImage(T, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]); }
     g.restore();
   }
-  // sangles : bandes claires, jours sombres entre les bandes, piqûres
+  // straps: light bands, dark gaps between the bands, stitching
   const Wb = ATLAS_R.web;
   for (let y = 0; y < Wb[3]; y++) { const inb = (y % 38) < 25; g.fillStyle = inb ? 'rgb(236,236,236)' : 'rgb(150,150,150)'; g.fillRect(Wb[0], Wb[1] + y, Wb[2], 1); }
   g.fillStyle = 'rgba(0,0,0,0.25)'; for (let y = 0; y < Wb[3]; y += 38) for (let x = 0; x < Wb[2]; x += 38) g.fillRect(Wb[0] + x, Wb[1] + y + 2, 3, 21);
-  // visage dessiné sur sa propre petite toile (lire les pixels de la grande toile forcerait tout son rendu différé)
+  // face drawn on its own small canvas (reading pixels from the large canvas would force its whole deferred rendering)
   const fc = document.createElement('canvas'); fc.width = fc.height = ATLAS_R.face[2];
   drawFace(fc.getContext('2d', { willReadFrequently: true }), 0, 0, ATLAS_R.face[2]); g.drawImage(fc, ATLAS_R.face[0], ATLAS_R.face[1]);
-  // caoutchouc : gris neutre
+  // rubber: neutral gray
   const M = ATLAS_R.misc; g.fillStyle = '#d8d8d8'; g.fillRect(M[0], M[1], M[2], M[3]);
-  // emblème de la tenue (cape, pans), dessiné sur sa propre toile ; blanc sinon
+  // outfit emblem (cape, panels), drawn on its own canvas; white otherwise
   const A = ATLAS_R.art, art = SKINS[skin].art;
   if (art) { const ac = document.createElement('canvas'); ac.width = A[2]; ac.height = A[3]; art(ac.getContext('2d'), A[2], A[3], skin); g.drawImage(ac, A[0], A[1]); }
   return c;
 }
 const GEAR = { maps: {} };
 const _gearTex = (canvas, srgb) => { const t = new THREE.CanvasTexture(canvas); if (srgb) t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; return t; };
-/* Textures d'une tenue (mises en cache) : fp = vue subjective (camouflage plus fin, au plus près de l'écran) */
+/* Textures of an outfit (cached): fp = first person (finer camouflage, closest to the screen) */
 function gearTextures(skin, fp) {
   const key = skin + (fp ? 'fp' : 'tp');
   if (GEAR.maps[key]) return GEAR.maps[key];
@@ -350,21 +350,21 @@ function gearTextures(skin, fp) {
   if (!GEAR.rm) GEAR.rm = _gearTex(gearRM(), false);
   return (GEAR.maps[key] = { map: _gearTex(gearAlbedo(skin, fp), true), normal: GEAR[nk], rm: GEAR.rm });
 }
-/* Texture couleur de la vue subjective d'une tenue qui n'est plus portée : libérée (une seule tenue à la fois dans les bras) */
+/* First-person color texture of an outfit no longer worn: freed (only one outfit at a time in the arms) */
 function gearFreeFp(skin) { const T = GEAR.maps[skin + 'fp']; if (T) { T.map.dispose(); delete GEAR.maps[skin + 'fp']; } }
-/* Bandes de reconnaissance : la tuile « tag » (canal rouge de la texture rugosité / métal à 1) prend la couleur uSkTag, allié ou
-   ennemi, quelle que soit la teinte de la tenue ; uSkGlow lui ajoute une légère lumière propre. Néons des tenues de défi : la
-   tuile « glow » (canal rouge à 0,5) éclaire de sa couleur de sommet (uSkNeon : intensité), allié comme ennemi (la couleur du
-   sommet, pas la teinte de la matière). Aucune texture de plus. */
+/* Recognition bands: the "tag" tile (red channel of the roughness / metal texture at 1) takes the uSkTag color, ally or
+   enemy, whatever the outfit's hue; uSkGlow adds a slight light of its own. Neons of the challenge outfits: the
+   "glow" tile (red channel at 0.5) lights with its vertex color (uSkNeon: intensity), ally as enemy (the vertex
+   color, not the material hue). No extra texture. */
 function skinTagPatch(s, U) {
   s.uniforms.uSkTag = U.tag; s.uniforms.uSkGlow = U.glow; s.uniforms.uSkNeon = U.neon;
   s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uSkTag; uniform float uSkGlow; uniform float uSkNeon;')
     .replace('#include <color_fragment>', '#include <color_fragment>\n  float skR = texture2D(roughnessMap, vUv).r, skTag = smoothstep(0.7, 0.9, skR), skNeon = smoothstep(0.3, 0.42, skR) - skTag;\n  diffuseColor.rgb = mix(diffuseColor.rgb, uSkTag, skTag);')
     .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n  totalEmissiveRadiance += uSkTag * skTag * uSkGlow + vColor * skNeon * uSkNeon;');
 }
-/* Matière d'une tenue : couleurs de sommets × atlas ; rugosité et métal lus dans l'atlas.
-   mode : 'fp' bras de la vue subjective (scène à part, réglée globalement), 'tp' soldat dans le décor (éclairage cuit,
-   bandes de reconnaissance), 'pv' aperçu des menus (bandes, sans volume d'éclairage : aucune carte n'est chargée) */
+/* Outfit material: vertex colors × atlas; roughness and metal read from the atlas.
+   mode: 'fp' first-person arms (separate scene, tuned globally), 'tp' soldier in the scenery (baked lighting,
+   recognition bands), 'pv' menu preview (bands, no lighting volume: no map is loaded) */
 function gearMaterial(skin, mode) {
   const fp = mode === 'fp', T = gearTextures(skin, fp);
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, map: T.map, normalMap: T.normal, normalScale: new THREE.Vector2(fp ? 0.65 : 0.36, fp ? 0.65 : 0.36), roughnessMap: T.rm, metalnessMap: T.rm, roughness: 1, metalness: 1, envMapIntensity: fp ? 0.9 : 0.7 });
@@ -379,15 +379,15 @@ function gearMaterial(skin, mode) {
   m.onBeforeCompile = m.userData.patch;
   return m;
 }
-/* Reflet propre au tissu (« sheen » de three.js : la lumière rasante accroche le duvet des fibres) : il éclaire doucement le bord des
-   manches, des jambes et des épaules, ce qui fait lire une toile plutôt qu'un plastique mat. Seules les zones textiles le prennent :
-   rugosité haute et pas de métal (toile, tricot, sangles, tuiles de tissu et de nylon ; ni le cuir, ni la peau, ni les verres, ni le
-   métal). Teinté par la couleur du tissu. Aucune texture de plus, un seul programme pour toutes les tenues ; à l'abri du ciel, le volume
-   d'éclairage cuit l'éteint comme le reste de la lumière indirecte (VL_AO, 02c-materials.js). */
-/* Occlusion cuite des soldats (attribut aoc, soldierBakeAO dans 06g-body.js) : là où une pièce en couvre une autre, elle éteint la lumière
-   indirecte et le reflet du tissu, et un peu le soleil (une ombre de quelques millimètres que les cartes d'ombre ne voient pas). Posée
-   avant la retouche du volume d'éclairage cuit (volumeLit) : celle-ci garde l'inclusion de aomap_fragment en tête de son propre code, qui
-   s'insère donc avant celui-ci. */
+/* Fabric's own sheen (three.js "sheen": grazing light catches the fiber fuzz): it softly lights the edge of the
+   sleeves, legs and shoulders, which makes it read as canvas rather than matte plastic. Only textile zones take it:
+   high roughness and no metal (canvas, knit, straps, fabric and nylon tiles; not leather, skin, glass or
+   metal). Tinted by the fabric color. No extra texture, a single program for all outfits; sheltered from the sky, the baked
+   lighting volume turns it off like the rest of the indirect light (VL_AO, 02c-materials.js). */
+/* Baked occlusion of the soldiers (aoc attribute, soldierBakeAO in 06g-body.js): where one piece covers another, it cuts the indirect light
+   and the fabric sheen, and slightly the sun (a shadow of a few millimeters that the shadow maps do not see). Placed
+   before the baked lighting volume patch (volumeLit): the latter keeps the aomap_fragment include at the head of its own code, which
+   is therefore inserted before this one. */
 function skAoPatch(s) {
   s.vertexShader = s.vertexShader.replace('#include <common>', '#include <common>\nattribute float aoc; varying float vSkAo;').replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSkAo = aoc;');
   s.fragmentShader = s.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vSkAo;').replace('#include <aomap_fragment>', `#include <aomap_fragment>

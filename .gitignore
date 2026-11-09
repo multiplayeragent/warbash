@@ -2,25 +2,25 @@ assets_src/
 __pycache__/
 *.png
 !docs/*.png
-# icône du jeu : sources et fichiers publiés, à versionner (sinon absents en production)
+# game icon: sources and published files, to be versioned (otherwise missing in production)
 !assets/icon/*.png
 !dist/icons/*.png
-# images du raccourci Steam (version Steam Deck)
+# Steam shortcut images (Steam Deck version)
 !assets/deck/*.png
 !dist/deck/*.png
 .DS_Store
 node_modules/
 package/
 
-# banc de test des salons (tools/nettest)
+# lobby test bench (tools/nettest)
 tools/nettest/harness*.html
 .wrangler/
 audio-out/
 
-# pack d'animations Mixamo (licence : pas de fichiers bruts dans le dépôt ; seules les données cuites partent avec le jeu)
+# Mixamo animation pack (license: no raw files in the repo; only the baked data ships with the game)
 /anim-source/
 
-# secrets locaux (vercel env pull, wrangler) : jamais dans le dépôt
+# local secrets (vercel env pull, wrangler): never in the repo
 .env
 .env.*
 .vercel/
@@ -46,3 +46,6 @@ dist/
 # publisher details for the legal pages (build.py; legal.example.json shows the shape)
 legal.local.json
 /tools/music/.cache/
+
+# Claude Code agent worktrees and local settings
+/.claude/

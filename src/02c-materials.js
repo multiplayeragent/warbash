@@ -1,63 +1,63 @@
 /* ==========================================================================
-   MATIÈRES DU DÉCOR : MeshStandardMaterial complétées par un petit patch de shader (worldMat).
-   - Coordonnées de texture en mètres dans la géométrie ; chaque matière fixe sa taille de tuile (TEXSCALE).
-   - Variation à grande échelle (texture macro en coordonnées du monde) : casse la répétition des tuiles.
-   - Salissures au pied des murs et coulures verticales ; poussière de sable sur les surfaces tournées vers le ciel.
-   - Éclairage cuit (02e-light.js) : un volume 3D donne la part de ciel visible (occlusion ambiante à grande
-     échelle : ruelles, intérieurs, dessous d'auvents) et la lumière du soleil renvoyée par les surfaces
-     éclairées ; l'occlusion de contact par sommet (attribut aoc) s'y ajoute. Seule la lumière indirecte est
-     assombrie : le soleil direct reste géré par les ombres en cascade.
-   - Sol à mélange de matières (groundMat) : sable de base et trois couches (pavés, dalles, asphalte) pondérées par
-     une carte de répartition et par le relief de chaque couche (le sable remplit d'abord les joints).
-   - Neige (cartes d'hiver, uSnow) : couche blanche sur tout ce qui regarde le ciel (dessus des objets, toits, appuis,
-     branches) et petite congère au pied des murs, seulement à découvert (part de ciel visible à la verticale, lue dans
-     l'éclairage cuit : rien sous un toit ni dans une pièce, même largement vitrée). Coût nul quand la carte n'a pas de neige (branche sur uniforme).
-   - Relief par parallaxe (WM_POM, équivalent web de la tessellation, absente de WebGL) : sur les surfaces proches,
-     le rayon de vue est suivi dans la carte de hauteur (map.a) pour décaler les textures ; les pavés, briques et
-     moellons prennent de l'épaisseur et projettent leur propre ombre au soleil. Coût réglé par le profil de qualité
-     (QUALITY.pom : pas de recherche, distance d'extinction, ombre propre) ; absent en qualité Basse.
-   Les variantes passent par des defines (les programmes sont partagés entre matières identiques).
+   SCENERY MATERIALS: MeshStandardMaterial completed by a small shader patch (worldMat).
+   - Texture coordinates in meters in the geometry; each material sets its tile size (TEXSCALE).
+   - Large-scale variation (macro texture in world coordinates): breaks up tile repetition.
+   - Dirt at the foot of walls and vertical streaks; sand dust on surfaces facing the sky.
+   - Baked lighting (02e-light.js): a 3D volume gives the visible share of sky (large-scale
+     ambient occlusion: alleys, interiors, undersides of awnings) and the sunlight bounced by lit
+     surfaces; per-vertex contact occlusion (aoc attribute) is added to it. Only indirect light is
+     darkened: direct sun is still handled by the cascaded shadows.
+   - Blended-material ground (groundMat): base sand and three layers (cobblestones, slabs, asphalt) weighted by
+     a distribution map and by each layer's relief (sand fills the joints first).
+   - Snow (winter maps, uSnow): white layer on everything that faces the sky (tops of objects, roofs, sills,
+     branches) and a small drift at the foot of walls, only in the open (visible share of sky vertically, read from
+     the baked lighting: nothing under a roof or in a room, even a largely glazed one). Zero cost when the map has no snow (branch on a uniform).
+   - Parallax relief (WM_POM, the web equivalent of tessellation, absent from WebGL): on nearby surfaces,
+     the view ray is followed in the height map (map.a) to offset the textures; cobblestones, bricks and
+     rubble gain thickness and cast their own shadow in the sun. Cost set by the quality profile
+     (QUALITY.pom: search steps, fade-out distance, self-shadow); absent at Low quality.
+   Variants go through defines (programs are shared between identical materials).
    ========================================================================== */
 const WMU = {
   tMacro: { value: null }, tVol: { value: null }, uVolMin: { value: new V3(-50, 0, -64) }, uVolInv: { value: new V3(0.01, 0.05, 0.01) },
   uBounce: { value: new THREE.Color(0, 0, 0) }, uAOFloor: { value: 0.3 }, uDustCol: { value: new THREE.Color().setRGB(sl(0.8), sl(0.68), sl(0.54)) },
-  // relief : pas de recherche maximum, début et fin d'extinction (m), force de l'ombre propre ; direction du soleil
+  // relief: maximum search steps, start and end of fade-out (m), self-shadow strength; sun direction
   uPom: { value: new THREE.Vector4(0, 0, 1, 0) }, uSunW: { value: SUN_DIR },
-  // neige : couverture du dessus des objets, congère au pied des murs, seuils de ciel visible (0 à 1) ; couleur
+  // snow: coverage of the tops of objects, drift at the foot of walls, visible-sky thresholds (0 to 1); color
   uSnow: { value: new THREE.Vector4(0, 0, 0.3, 0.55) }, uSnowCol: { value: new THREE.Color(1, 1, 1) },
-  // 1 : hors du volume d'éclairage cuit, le décor est à ciel ouvert (sinon il prend la valeur du bord du volume)
+  // 1: outside the baked lighting volume, the scenery is in the open (otherwise it takes the volume's edge value)
   uVolOpen: { value: 0 },
-  // décalage (m) du point où le décor lit le volume cuit, le long de sa normale : une cellule touchée par une collision est pleine jusqu'à 0,85 cellule
-  // au-delà de la face ; à 0,32 m, un mur de Simoun (cellules de 0,75 m) lisait souvent sa propre cellule pleine (taches sombres) ; voir lightFinish
+  // offset (m) of the point where the scenery reads the baked volume, along its normal: a cell touched by a collision is full up to 0.85 cell
+  // beyond the face; at 0.32 m, a Sirocco wall (0.75 m cells) often read its own full cell (dark spots); see lightFinish
   uVolNo: { value: 0.32 },
-  // contraste intérieur/extérieur (atmo.interior) : pente de la courbe du ciel visible, part du plancher gardée, ciel vu à la caméra (après la courbe),
-  // part du soleil renvoyé gardée à l'abri
+  // indoor/outdoor contrast (atmo.interior): slope of the visible-sky curve, share of the floor kept, sky seen at the camera (after the curve),
+  // share of bounced sun kept in shelter
   uSkyC: { value: new THREE.Vector4(1, 1, 1, 1) },
-  // hauteur du sol d'une carte en relief (reliefGroundTex, 02-relief.js) : la crasse et la poussière du pied des murs se comptent depuis le sable ;
-  // bornes de la grille (x0, z0, 1 / largeur, 1 / profondeur), 0 sans relief
+  // ground height of a map with relief (reliefGroundTex, 02-relief.js): the grime and dust at the foot of walls are counted from the sand;
+  // grid bounds (x0, z0, 1 / width, 1 / depth), 0 without relief
   tGround: { value: null }, uGroundB: { value: new THREE.Vector4(0, 0, 0, 0) },
-  // couches des lampes empilées au-dessus du volume (02e-light.js) : force (0 : aucune lampe), hauteur du volume, des couches des lampes,
-  // et du tout (en cellules) ; VOL_Q et VOL_L donnent les coordonnées de lecture
+  // lamp layers stacked above the volume (02e-light.js): strength (0: no lamp), height of the volume, of the lamp layers,
+  // and of the whole (in cells); VOL_Q and VOL_L give the read coordinates
   uVolL: { value: new THREE.Vector4(0, 1, 0, 1) },
 };
-/* Courbe du ciel visible (part de ciel du volume cuit, 0 à 1) : en S autour de 0,5, elle assombrit les lieux couverts (souk, maisons, passages)
-   et éclaircit les rues dégagées ; uSkyC.x = 1 la laisse telle quelle. Même courbe sur le processeur : skyCurve (01-core.js n'en dépend pas). */
+/* Visible-sky curve (sky share of the baked volume, 0 to 1): S-shaped around 0.5, it darkens covered places (souk, houses, passages)
+   and brightens open streets; uSkyC.x = 1 leaves it as is. Same curve on the processor: skyCurve (01-core.js does not depend on it). */
 const SKY_CURVE = `float skyCurve(float s) { float a = pow(s, uSkyC.x), b = pow(1.0 - s, uSkyC.x); return a / max(a + b, 1e-4); }`;
 function skyCurve(s, k = WMU.uSkyC.value.x) { const a = Math.pow(s, k), b = Math.pow(1 - s, k); return a / Math.max(a + b, 1e-4); }
-/* Lecture du volume cuit au point q (coordonnées du volume, 0 à 1) : la hauteur est bornée sous les couches des lampes */
+/* Read of the baked volume at point q (volume coordinates, 0 to 1): the height is clamped below the lamp layers */
 const VOL_Q = '#define VOL_Q(q) vec3((q).x, (q).z, min((q).y * uVolL.y, uVolL.y - 0.5) / uVolL.w)';
-/* Lumière des lampes au point q : éclairement (même échelle que la lumière indirecte de three.js), racine gardée dans la texture */
+/* Lamp light at point q: illuminance (same scale as three.js's indirect light), root kept in the texture */
 const VOL_L = `vec3 volLamp(vec3 q) {
   if (uVolL.x <= 0.0) return vec3(0.0);
   vec3 e = texture(tVol, vec3(q.x, q.z, (uVolL.y + clamp(q.y * uVolL.y, 0.5, uVolL.z - 0.5)) / uVolL.w)).rgb;
   return e * e * uVolL.x;
 }`;
-/* Relief compilé si le profil de départ n'est pas Basse (un passage en Basse en cours de partie l'éteint par uniforme) */
+/* Relief compiled if the starting profile is not Low (a switch to Low during a match turns it off by uniform) */
 const POM = { on: false };
 {
   const t = new THREE.Data3DTexture(new Uint8Array([255, 0, 255, 255]), 1, 1, 1);
   t.format = THREE.RGBAFormat; t.needsUpdate = true; WMU.tVol.value = t;
-  const g = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); g.needsUpdate = true; WMU.tGround.value = WMU.tGround.zero = g; // sans relief
+  const g = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1); g.needsUpdate = true; WMU.tGround.value = WMU.tGround.zero = g; // no relief
 }
 const WM_VERT_HEAD = `#include <common>
 varying vec3 vWPos; varying vec3 vWNor; attribute float aoc; varying float vAoc; uniform float uWMs;`;
@@ -74,7 +74,7 @@ uniform sampler2D tMacro; uniform highp sampler3D tVol; uniform vec3 uVolMin, uV
 ${VOL_Q}
 ${VOL_L}
 ${SKY_CURVE}
-// brume des lieux couverts : la lumière qu'elle renvoie vient du ciel, elle s'assombrit à l'abri (fog_fragment, 01-core.js ; réglée par WM_AO)
+// haze in covered places: the light it sends back comes from the sky, it darkens in shelter (fog_fragment, 01-core.js; set by WM_AO)
 float wmFogK = 1.0;
 #define FOG_K wmFogK
 uniform vec4 uWM; uniform float uWMa, uWMn, uWMr; uniform vec4 uSnow; uniform vec3 uSnowCol; uniform float uVolOpen;
@@ -95,18 +95,18 @@ uniform vec4 uPom; uniform vec3 uSunW; uniform float uPomD; uniform vec4 uPomG;
 #elif defined( WM_WIN )
 uniform vec3 uSunW;
 #endif
-/* lectures des textures de la matière : aux coordonnées décalées par le relief, avec les dérivées d'origine
-   (le décalage change brusquement au bord des reliefs : les dérivées implicites y choisiraient un mauvais mipmap) */
+/* material texture reads: at the coordinates offset by the relief, with the original derivatives
+   (the offset changes abruptly at relief edges: implicit derivatives would pick the wrong mipmap there) */
 #if defined( WM_POM ) && ! defined( WM_SPLAT )
 #define WM_T(t) textureGrad(t, wmUv, wmDx, wmDy)
 #else
 #define WM_T(t) texture2D(t, vUv)
 #endif`;
-/* Fonctions de relief (après les déclarations de three.js : map y est connue) */
+/* Relief functions (after three.js's declarations: map is known there) */
 const WM_FUNCS = `#include <clipping_planes_pars_fragment>
 #ifdef WM_POM
 #ifdef WM_SPLAT
-/* profondeur du sol (m) sous le sommet des reliefs : couches pondérées par leur part et leur profondeur */
+/* ground depth (m) under the top of the reliefs: layers weighted by their share and their depth */
 float wmGD(vec2 g, vec4 wd, vec2 gx, vec2 gy) {
   float d = 0.0;
   if (wd.x > 1e-4) d += wd.x * (1.0 - textureGrad(map, g / uGS.x, gx / uGS.x, gy / uGS.x).a);
@@ -119,9 +119,9 @@ float wmGD(vec2 g, vec4 wd, vec2 gx, vec2 gy) {
 float wmD(vec2 p, vec2 dx, vec2 dy) { return 1.0 - textureGrad(map, p, dx, dy).a; }
 #endif
 #endif`;
-/* Relief par parallaxe, à la place de la lecture de la couleur (map_fragment). Recherche linéaire le long du rayon
-   de vue dans la carte de hauteur, interpolation entre les deux derniers pas, puis ombre propre : second trajet
-   vers le soleil depuis le point trouvé. Repère de la surface tiré des dérivées écran (position et uv). */
+/* Parallax relief, in place of the color read (map_fragment). Linear search along the view ray
+   in the height map, interpolation between the last two steps, then self-shadow: second path
+   toward the sun from the point found. Surface frame derived from screen derivatives (position and uv). */
 const WM_MAP = `float wmPS = 1.0, wmCav = 1.0;
 #ifdef WM_SPLAT
 vec2 wmGp = vec2(vWPos.x, -vWPos.z), wmGx = dFdx(wmGp), wmGy = dFdy(wmGp);
@@ -132,7 +132,7 @@ if (uPom.x > 0.5) {
   vec4 wd = vec4(max(0.0, 1.0 - wmSp.r - wmSp.g - wmSp.b), wmSp.rgb) * uPomG * (1.0 - smoothstep(uPom.y, uPom.z, dist));
   float dmax = wd.x + wd.y + wd.z + wd.w;
   if (dmax > 0.0015) {
-    // sol : repère fixe (x, -z, y) ; déplacement de gp par mètre de profondeur
+    // ground: fixed frame (x, -z, y); displacement of gp per meter of depth
     vec2 dir = -vec2(V.x, -V.z) / max(V.y, 0.12);
     float n = floor(mix(uPom.x, max(3.0, uPom.x * 0.3), V.y)), dl = dmax / n, lay = 0.0, pLay = 0.0;
     vec2 st = dir * dl, g = wmGp;
@@ -158,7 +158,7 @@ if (uPom.x > 0.5) {
   vec3 V = cameraPosition - vWPos; float dist = length(V); V /= dist;
   float depth = uPomD * (1.0 - smoothstep(uPom.y, uPom.z, dist));
   vec3 N = normalize(vWNor), q1p = cross(wmQ1, N), q0p = cross(N, wmQ0);
-  // gradients de u et v sur la surface (repère cotangent) : duv = (T, B) . déplacement / det
+  // gradients of u and v on the surface (cotangent frame): duv = (T, B) . displacement / det
   vec3 T = q1p * wmDx.x + q0p * wmDy.x, B = q1p * wmDx.y + q0p * wmDy.y;
   float det = dot(wmQ0, q1p), vn = dot(V, N);
   if (depth > 1e-4 && abs(det) > 1e-14 && vn > 0.02) {
@@ -185,7 +185,7 @@ vec4 sampledDiffuseColor = WM_T( map );
 diffuseColor *= sampledDiffuseColor;
 #endif
 #endif`;
-/* Couleur : variation macro, salissures, poussière (après les couleurs de sommets) */
+/* Color: macro variation, dirt, dust (after vertex colors) */
 const WM_COLOR = `#include <color_fragment>
 float wmA = 1.0;
 #if defined( USE_MAP ) && ! defined( WM_SPLAT )
@@ -200,7 +200,7 @@ vec3 wmN = vec3(0.0, 0.0, 1.0); float wmR = 1.0;
   vec2 gp = wmGp; vec4 sp = wmSp;
   vec4 c0 = WM_G(map, gp, uGS.x), c1 = WM_G(tL1, gp, uGS.y), c2 = WM_G(tL2, gp, uGS.z), c3 = WM_G(tL3, gp, uGS.w);
 #ifdef WM_LEAN
-  // peu d'unités de texture (13 sur un Pixel) : seule la normale du fond est lue, les trois couches restent plates
+  // few texture units (13 on a Pixel): only the base normal is read, the three layers stay flat
   vec4 n0 = WM_G(normalMap, gp, uGS.x), n1 = vec4(0.5, 0.5, 1.0, 0.85), n2 = n1, n3 = n1;
 #else
   vec4 n0 = WM_G(normalMap, gp, uGS.x), n1 = WM_G(tN1, gp, uGS.y), n2 = WM_G(tN2, gp, uGS.z), n3 = WM_G(tN3, gp, uGS.w);
@@ -211,7 +211,7 @@ vec3 wmN = vec3(0.0, 0.0, 1.0); float wmR = 1.0;
   vec4 bw = max(hh - hm, 0.0) * step(0.002, w); bw /= max(bw.x + bw.y + bw.z + bw.w, 1e-4);
   vec3 dirtC = c0.rgb * uGDirt;
   vec3 base = mix(c0.rgb, dirtC, sp.a);
-  // le grain du sable teinte aussi les autres couches (poussière déposée) ; uGMul : part de cette teinte
+  // the sand grain also tints the other layers (deposited dust); uGMul: share of this tint
   diffuseColor.rgb *= mix(vec3(1.0), c0.rgb, uGMul) * (base * bw.x + c1.rgb * bw.y + c2.rgb * bw.z + c3.rgb * bw.w);
   wmN = normalize((n0.xyz * 2.0 - 1.0) * bw.x + (n1.xyz * 2.0 - 1.0) * bw.y + (n2.xyz * 2.0 - 1.0) * bw.z + (n3.xyz * 2.0 - 1.0) * bw.w);
   wmR = n0.a * bw.x + n1.a * bw.y + n2.a * bw.z + n3.a * bw.w; wmR = mix(wmR, 1.0, sp.a * 0.5);
@@ -219,11 +219,11 @@ vec3 wmN = vec3(0.0, 0.0, 1.0); float wmR = 1.0;
 }
 #endif
 float wmDust = 0.0;
-// éclairage cuit, lu une fois (crasse des recoins, neige, lumière indirecte de WM_AO) : part de ciel, rebond, ciel au zénith, ombre cuite
-vec3 wmVq = (vWPos + vWNor * uVolNo - uVolMin) * uVolInv; // uVolNo : décalage le long de la normale, hors de la cellule pleine du mur
+// baked lighting, read once (nook grime, snow, indirect light of WM_AO): sky share, bounce, zenith sky, baked shadow
+vec3 wmVq = (vWPos + vWNor * uVolNo - uVolMin) * uVolInv; // uVolNo: offset along the normal, out of the wall's full cell
 vec4 wmVol = texture(tVol, VOL_Q(wmVq));
 float wmTa = 0.5, wmCr = 0.0, wmK = 0.0;
-// hauteur au-dessus du sol : bandeau de crasse, poussière et congère du pied (sur une carte en relief, le sable n'est pas en y = 0)
+// height above the ground: grime band, dust and drift at the foot (on a map with relief, the sand is not at y = 0)
 float wmY = vWPos.y;
 #ifndef WM_SPLAT
 if (uGroundB.z > 0.0) wmY -= texture2D(tGround, (vWPos.xz - uGroundB.xy) * uGroundB.zw).r;
@@ -234,7 +234,7 @@ if (uGroundB.z > 0.0) wmY -= texture2D(tGround, (vWPos.xz - uGroundB.xy) * uGrou
   diffuseColor.rgb *= 1.0 + ((m1.r - 0.5) * 0.9 + (m2.g - 0.5) * 0.5) * uWM.x;
   {
   float vert = 1.0 - abs(vWNor.y);
-  // coulures (scan de traînées verticales, canal a) : traînées sur les murs, et bandeau de crasse du pied qu'elles déchirent
+  // streaks (scan of vertical trails, channel a): trails on walls, and the foot grime band that they tear
   float st = texture2D(tMacro, vec2((vWPos.x + vWPos.z) * 0.5, vWPos.y * 0.11)).a;
   float g0 = (1.0 - smoothstep(0.0, uWM.z, wmY - 0.02 + (m2.g - 0.5) * 0.6)) * vert * step(0.01, uWM.z) * clamp(0.55 + (st - 0.5) * 1.8, 0.0, 1.0);
   float g1 = smoothstep(0.5, 0.8, st + (m1.r - 0.5) * 0.3) * vert * uWM.w;
@@ -242,8 +242,8 @@ if (uGroundB.z > 0.0) wmY -= texture2D(tGround, (vWPos.xz - uGroundB.xy) * uGrou
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.05, 0.9, 0.75), g0 * 0.6);
   }
 #ifndef WM_SPLAT
-  // couche d'usure (scans d'ambientCG, tools/build_usure.py), pour les matières qui prennent des salissures (grime) : taches sur la couleur
-  // (et la rugosité, WM_ROUGH), crasse des recoins là où le ciel se voit peu d'après l'éclairage cuit (sous les avancées, dans les angles)
+  // wear layer (ambientCG scans, tools/build_wear.py), for materials that take dirt (grime): stains on the color
+  // (and the roughness, WM_ROUGH), nook grime where little sky is visible according to the baked lighting (under overhangs, in corners)
   wmK = smoothstep(0.0, 0.5, uWM.z);
   if (wmK > 0.01) {
     wmTa = texture2D(tMacro, mp * 0.55 + 0.37).b;
@@ -261,16 +261,16 @@ if (uGroundB.z > 0.0) wmY -= texture2D(tGround, (vWPos.xz - uGroundB.xy) * uGrou
 float wmSnow = 0.0;
 #ifndef WM_SPLAT
 if (uSnow.x * uWMn > 0.0) {
-  // à découvert seulement : part de ciel visible à la verticale, d'après l'éclairage cuit (hors du volume : ciel ouvert)
+  // in the open only: visible share of sky vertically, according to the baked lighting (outside the volume: open sky)
   vec3 vq = wmVq;
   float inV = step(0.0, min(vq.x, vq.z)) * step(max(vq.x, vq.z), 1.0) * step(vq.y, 1.0);
   float open = mix(1.0, smoothstep(uSnow.z, uSnow.w, wmVol.b), inV);
   vec2 sp = vWPos.xz + vWPos.y * 0.37;
   float n1 = texture2D(tMacro, sp * 0.09).r, n2 = texture2D(tMacro, sp * 0.47 + 0.3).g;
-  // dessus des objets et pentes des toits : bord irrégulier, la neige glisse des pentes raides
+  // tops of objects and roof slopes: irregular edge, snow slides off steep slopes
   float up = smoothstep(0.3 + (n2 - 0.5) * 0.35, 0.68, vWNor.y);
   float cover = up * smoothstep(0.2, 0.42, n1 * 0.55 + n2 * 0.45 + uSnow.x * 0.35 - 0.15);
-  // petite congère au pied des murs et des objets
+  // small drift at the foot of walls and objects
   float foot = (1.0 - smoothstep(0.0, 0.12 + n2 * 0.4, wmY - 0.005)) * (1.0 - up) * uSnow.y;
   wmSnow = clamp(max(cover * uSnow.x, foot), 0.0, 1.0) * open * uWMn;
   diffuseColor.rgb = mix(diffuseColor.rgb, uSnowCol * (0.93 + n2 * 0.1), wmSnow);
@@ -286,7 +286,7 @@ roughnessFactor *= WM_T( normalMap ).a;
 #ifdef WM_SPLAT
 roughnessFactor *= wmR;
 #else
-roughnessFactor = clamp(roughnessFactor * (1.0 + (wmTa - 0.5) * 0.6 * wmK) + wmCr * 0.12, 0.03, 1.0); // couche d'usure : taches, crasse des recoins
+roughnessFactor = clamp(roughnessFactor * (1.0 + (wmTa - 0.5) * 0.6 * wmK) + wmCr * 0.12, 0.03, 1.0); // wear layer: stains, nook grime
 #endif
 roughnessFactor = mix(roughnessFactor, 0.95, wmDust);
 roughnessFactor = mix(roughnessFactor, 0.7, wmSnow);`;
@@ -302,8 +302,8 @@ const WM_NORMAL = `#ifdef WM_SPLAT
 #endif
 #ifndef WM_SPLAT
 if (uWMr > 0.0) {
-  // ondulations d'un enduit posé à la main (relief : uWMr m de creux pour une unité de bruit) : bosses de 0,5 à 2 m tirées du bruit macro
-  // (canal r), pente prise sur 15 cm (les octaves fines s'y effacent) ; invisibles de face, elles marquent la façade sous un soleil rasant
+  // undulations of a hand-applied plaster (relief: uWMr m of hollow per unit of noise): 0.5 to 2 m bumps drawn from the macro noise
+  // (channel r), slope taken over 15 cm (fine octaves fade out there); invisible head-on, they mark the facade under a low sun
   vec3 gN = normalize(vWNor);
   float wall = step(abs(gN.y), 0.6);
   vec2 rp = (wall > 0.5 ? vec2(vWPos.x + vWPos.z, vWPos.y) : vWPos.xz) * 0.12;
@@ -314,29 +314,29 @@ if (uWMr > 0.0) {
   normal = normalize(normal - uWMr * (viewMatrix * vec4(g, 0.0)).xyz);
 }
 #endif
-normal = normalize(mix(normal, geometryNormal, wmSnow * 0.85)); // la neige lisse le relief`;
-/* Lumière indirecte : part de ciel visible, rebond du soleil, occlusion de contact */
+normal = normalize(mix(normal, geometryNormal, wmSnow * 0.85)); // snow smooths the relief`;
+/* Indirect light: visible share of sky, sun bounce, contact occlusion */
 const WM_AO = `{
-  vec3 vq = wmVq; vec4 vol = wmVol; // lu par WM_COLOR
+  vec3 vq = wmVq; vec4 vol = wmVol; // read by WM_COLOR
   if (uVolOpen > 0.5) vol = mix(vec4(1.0, 0.55, 1.0, 1.0), vol, step(0.0, min(vq.x, vq.z)) * step(max(vq.x, vq.z), 1.0));
   float sc = skyCurve(vol.r);
   float sky = mix(uAOFloor * uSkyC.y, 1.0, sc) * vAoc * mix(0.62, 1.0, wmCav);
-  wmFogK = mix(0.35, 1.0, max(sc, uSkyC.z)); // brume claire si la caméra ou le point voient le ciel
+  wmFogK = mix(0.35, 1.0, max(sc, uSkyC.z)); // light haze if the camera or the point sees the sky
   reflectedLight.indirectDiffuse *= sky;
   reflectedLight.directDiffuse *= wmPS; reflectedLight.directSpecular *= wmPS;${NO_SHADOWS ? `
-  reflectedLight.directDiffuse *= vol.a; reflectedLight.directSpecular *= vol.a; // ombre du soleil cuite (sans carte d'ombre, NO_SHADOWS)` : ''}
+  reflectedLight.directDiffuse *= vol.a; reflectedLight.directSpecular *= vol.a; // baked sun shadow (without a shadow map, NO_SHADOWS)` : ''}
   reflectedLight.indirectDiffuse += uBounce * vol.g * BRDF_Lambert( material.diffuseColor ) * mix(0.55, 1.0, vAoc) * mix(uSkyC.w, 1.0, sc);
-  reflectedLight.indirectDiffuse += volLamp(vq) * material.diffuseColor * mix(0.55, 1.0, vAoc); // lampes du décor (02e-light.js)
+  reflectedLight.indirectDiffuse += volLamp(vq) * material.diffuseColor * mix(0.55, 1.0, vAoc); // scenery lamps (02e-light.js)
   float dNV = saturate( dot( geometry.normal, geometry.viewDir ) );
   reflectedLight.indirectSpecular *= computeSpecularOcclusion( dNV, sky, material.roughness );
 }`;
-/* Vitre d'une pièce (windowJoinery, 02d-archi.js) : un verre qui ne reflète que selon l'angle (Fresnel, celui de three.js : 4 % de face,
-   presque tout en rasant ; matière lisse, non métallique, sans couleur propre) et, derrière, la pièce dessinée dans le shader (« interior
-   mapping ») : le regard traverse la vitre et touche la boîte de la pièce (murs, sol, plafond, fond), qui glisse en parallaxe quand on
-   bouge, sans géométrie ni texture. Pièce tirée de la graine de la fenêtre : largeur, profondeur, couleur des murs, sol, armoire ou porte au
-   fond, tableau. Lumière : le jour entre par la fenêtre et s'éteint vers le fond (selon le ciel que voit la façade, éclairage cuit) ; une
-   lampe chaude au plafond dans les pièces allumées (atmo.winLit des cartes, glassLit à Val-Blanc). Les sommets portent les données de la
-   fenêtre à la place de la teinte : r, graine ; g, lampe ; b, rapport hauteur sur largeur / 8, + 0,5 pour une porte-fenêtre. */
+/* Room window (windowJoinery, 02d-archi.js): a glass that reflects only according to angle (Fresnel, three.js's own: 4% head-on,
+   almost everything at grazing; smooth, non-metallic material, no color of its own) and, behind it, the room drawn in the shader ("interior
+   mapping"): the gaze goes through the glass and hits the room's box (walls, floor, ceiling, back), which slides in parallax when you
+   move, with no geometry or texture. Room drawn from the window's seed: width, depth, wall color, floor, wardrobe or door at the
+   back, picture. Light: daylight comes in through the window and fades toward the back (according to the sky the facade sees, baked lighting); a
+   warm lamp on the ceiling in lit rooms (the maps' atmo.winLit, glassLit at Saint-Givre). Vertices carry the window data in place of
+   the tint: r, seed; g, lamp; b, height over width ratio / 8, + 0.5 for a French window. */
 const WIN_ROOM = `#include <emissivemap_fragment>
 {
   float wSeed = vColor.r, wLit = vColor.g, wDoor = step(0.5, vColor.b), wAsp = mod(vColor.b, 0.5) * 8.0;
@@ -354,7 +354,7 @@ const WIN_ROOM = `#include <emissivemap_fragment>
   vec3 c;
   if (t == tt.z) {
     c = wall;
-    // armoire ou porte sombre au fond, tableau au mur
+    // wardrobe or dark door at the back, picture on the wall
     float ax = mix(-rx + 0.1, 1.0 + rx - 0.8, fract(wSeed * 11.1)), aw = fract(wSeed * 2.3) < 0.5 ? 0.7 : 0.9;
     float box = step(ax, h.x) * step(h.x, ax + aw) * step(h.y, yF + 2.0);
     c = mix(c, fract(wSeed * 2.3) < 0.5 ? vec3(0.16, 0.1, 0.06) : vec3(0.05), box * step(0.25, fract(wSeed * 4.1)));
@@ -362,10 +362,10 @@ const WIN_ROOM = `#include <emissivemap_fragment>
     c = mix(c, vec3(0.3, 0.22, 0.14) + 0.3 * vec3(fract(wSeed * 23.0), fract(wSeed * 29.0), fract(wSeed * 31.0)), pic);
   } else if (t == tt.y) c = wd.y < 0.0 ? (fract(wSeed * 7.3) < 0.5 ? vec3(0.24, 0.15, 0.09) : vec3(0.42, 0.4, 0.36)) : vec3(0.82, 0.8, 0.76);
   else c = wall * 0.86;
-  // le jour entre par la fenêtre et s'éteint vers le fond, le plafond renvoie un peu de la lumière du sol
+  // daylight comes in through the window and fades toward the back, the ceiling sends back a little of the floor's light
   float wDepth = clamp(-h.z / D, 0.0, 1.0);
   vec3 wLight = vec3(mix(0.34, 0.05, sqrt(wDepth)) * (0.35 + 0.65 * wmVol.r) * (t == tt.y && wd.y > 0.0 ? 1.25 : 1.0));
-  // tache de soleil : le point de la pièce voit le soleil à travers l'ouverture (façade au soleil d'après l'éclairage cuit)
+  // sun patch: the room point sees the sun through the opening (facade in the sun according to the baked lighting)
   vec3 wS = vec3(dot(uSunW, wT), uSunW.y, dot(uSunW, wN));
   if (wS.z > 0.05 && wmVol.a > 0.02) {
     vec3 q = h - wS * (h.z / wS.z);
@@ -394,10 +394,10 @@ function wmPatch(shader, m) {
     .replace('#include <roughnessmap_fragment>', WM_ROUGH).replace('#include <metalnessmap_fragment>', WM_METAL)
     .replace('#include <normal_fragment_maps>', WM_NORMAL).replace('#include <aomap_fragment>', WM_AO);
 }
-/* Matière du décor. o : tex (surface de TEX), color (sRGB), rough, metal, env, scale (m par tuile, TEXSCALE par
-   défaut), macro, dust, grime (hauteur des salissures, m), streak, ma (map.a = masque de métal), cut (découpe alpha),
-   side, emissive, pom (profondeur du relief par parallaxe, m ; map.a doit être une hauteur), snow (part de neige
-   reçue sur les cartes d'hiver, 1 par défaut), relief (ondulations lentes d'un enduit, m de creux par unité de bruit) */
+/* Scenery material. o: tex (surface from TEX), color (sRGB), rough, metal, env, scale (m per tile, TEXSCALE by
+   default), macro, dust, grime (height of the dirt, m), streak, ma (map.a = metal mask), cut (alpha cutout),
+   side, emissive, pom (parallax relief depth, m; map.a must be a height), snow (share of snow
+   received on winter maps, 1 by default), relief (slow undulations of a plaster, m of hollow per unit of noise) */
 function worldMat(o = {}) {
   const tx = o.tex ? TEX[o.tex] : null;
   const m = new THREE.MeshStandardMaterial({
@@ -412,7 +412,7 @@ function worldMat(o = {}) {
   if (o.emissive) m.emissive = new THREE.Color().setRGB(...o.emissive);
   if (o.polyOff) { m.polygonOffset = true; m.polygonOffsetFactor = o.polyOff; m.polygonOffsetUnits = o.polyOff; }
   const scale = o.scale || (o.tex && ((tx && tx.asset && PHOTO_SCALE[o.tex]) || TEXSCALE[o.tex])) || 1;
-  // peu de variantes de programme : salissures, poussière et masque de métal sont réglés par uniformes
+  // few program variants: dirt, dust and metal mask are set by uniforms
   m.defines = { WM: '' };
   if (tx && tx.normal && !o.noNormal) m.defines.WM_NR = '';
   if (o.cut) m.defines.WM_CUT = '';
@@ -428,7 +428,7 @@ function worldMat(o = {}) {
   if (o.noShadow) m.userData.noShadow = true;
   return m;
 }
-/* Objets mobiles (soldats) : la même lumière indirecte que le décor, lue dans le volume cuit à leur position */
+/* Moving objects (soldiers): the same indirect light as the scenery, read from the baked volume at their position */
 const VL_VERT = `#include <common>
 varying vec3 vVlPos; varying vec3 vVlNor;`;
 const VL_POS = `#include <worldpos_vertex>
@@ -442,14 +442,14 @@ const VL_AO = `#include <aomap_fragment>
 {
   vec3 vq = (vVlPos + vVlNor * 0.3 - uVolMin) * uVolInv;
   vec4 vol = texture(tVol, VOL_Q(vq));
-  float sky = mix(uAOFloor, 1.0, skyCurve(vol.r)); // (plancher entier : un soldat à l'abri reste lisible)${NO_SHADOWS ? `
-  reflectedLight.directDiffuse *= vol.a; reflectedLight.directSpecular *= vol.a; // ombre du soleil cuite (sans carte d'ombre, NO_SHADOWS)` : ''}
+  float sky = mix(uAOFloor, 1.0, skyCurve(vol.r)); // (whole floor: a soldier in shelter stays readable)${NO_SHADOWS ? `
+  reflectedLight.directDiffuse *= vol.a; reflectedLight.directSpecular *= vol.a; // baked sun shadow (without a shadow map, NO_SHADOWS)` : ''}
   reflectedLight.indirectDiffuse *= sky;
   reflectedLight.indirectDiffuse += uBounce * vol.g * BRDF_Lambert( material.diffuseColor ) * 0.8;
-  reflectedLight.indirectDiffuse += volLamp(vq) * material.diffuseColor; // lampes du décor
+  reflectedLight.indirectDiffuse += volLamp(vq) * material.diffuseColor; // scenery lamps
   reflectedLight.indirectSpecular *= computeSpecularOcclusion( saturate( dot( geometry.normal, geometry.viewDir ) ), sky, material.roughness );
 #ifdef USE_SHEEN
-  sheenSpecular *= sky${NO_SHADOWS ? ' * mix(0.35, 1.0, vol.a)' : ''}; // reflet du tissu des tenues (06e-gear.js), éteint à l'abri du ciel
+  sheenSpecular *= sky${NO_SHADOWS ? ' * mix(0.35, 1.0, vol.a)' : ''}; // outfit fabric sheen (06e-gear.js), off when sheltered from the sky
 #endif
 }`;
 function volumeLit(m) {
@@ -461,75 +461,75 @@ function volumeLit(m) {
   m.onBeforeCompile = m.userData.patch;
   return m;
 }
-/* Sol à mélange : une surface de fond (map) et trois couches (répartition dans tSplat : r, g, b ; a = salissure).
-   L : { base, l1, l2, l3 (surfaces de TEX), pom (profondeur du relief de chaque couche, m), dirt (teinte de la
-   salissure, multipliée à la surface de fond), mul (part de la teinte du fond reportée sur les couches) }.
-   Par défaut, celui de Khamsin : sable, pavés, dalles, asphalte. */
-const GROUND_SABLE = { base: 'sand', l1: 'cobble', l2: 'pavers', l3: 'asphalt', pom: [0, 0.04, 0, 0], dirt: [0.84, 0.8, 0.76], mul: 1, env: 0.35 };
-function groundMat(splat, bounds, L = GROUND_SABLE) {
+/* Blended ground: a base surface (map) and three layers (distribution in tSplat: r, g, b; a = dirt).
+   L: { base, l1, l2, l3 (surfaces from TEX), pom (relief depth of each layer, m), dirt (tint of the
+   dirt, multiplied onto the base surface), mul (share of the base tint carried over to the layers) }.
+   By default, Chergui's: sand, cobblestones, slabs, asphalt. */
+const GROUND_CHERGUI = { base: 'sand', l1: 'cobble', l2: 'pavers', l3: 'asphalt', pom: [0, 0.04, 0, 0], dirt: [0.84, 0.8, 0.76], mul: 1, env: 0.35 };
+function groundMat(splat, bounds, L = GROUND_CHERGUI) {
   const m = worldMat({ tex: L.base, rough: 1, env: L.env, macro: 0.28 });
   m.defines.WM_SPLAT = '';
   if (POM.on) m.defines.WM_POM = '';
-  // sol : 16 unités de texture avec les normales des couches et l'environnement brillant, plus que les 13 d'un Pixel (TEX_LEAN, 01a-gpu.js) : sans les
-  // trois normales de couches et sans la cube map brillante, 12
+  // ground: 16 texture units with the layers' normals and the glossy environment, more than a Pixel's 13 (TEX_LEAN, 01a-gpu.js): without the
+  // three layer normals and without the glossy cube map, 12
   if (TEX_LEAN) { m.defines.WM_LEAN = ''; m.defines.WM_NOGLOSS = ''; }
   Object.assign(m.userData.wmU, {
     tSplat: { value: splat }, uSplatB: { value: new THREE.Vector4(bounds[0], bounds[1], 1 / bounds[2], 1 / bounds[3]) },
     tL1: { value: TEX[L.l1].map }, tL2: { value: TEX[L.l2].map }, tL3: { value: TEX[L.l3].map },
     ...(TEX_LEAN ? {} : { tN1: { value: TEX[L.l1].normal }, tN2: { value: TEX[L.l2].normal }, tN3: { value: TEX[L.l3].normal } }),
     uGS: { value: new THREE.Vector4(TEXSCALE[L.base], TEXSCALE[L.l1], TEXSCALE[L.l2], TEXSCALE[L.l3]) },
-    // profondeur du relief de chaque couche (m) : seuls les pavés en ont assez pour justifier le calcul
+    // relief depth of each layer (m): only the cobblestones have enough to justify the computation
     uPomG: { value: new THREE.Vector4(...L.pom) },
     uGDirt: { value: new V3(...L.dirt) }, uGMul: { value: L.mul },
   });
   m.userData.wmU.uWMs.value = 1 / TEXSCALE[L.base];
-  m.userData.own = [splat]; // propre à la carte : libérée avec la matière
+  m.userData.own = [splat]; // specific to the map: freed with the material
   return m;
 }
 
-/* ---------- Bibliothèque ---------- */
+/* ---------- Library ---------- */
 const TEX = {};
-/* Taille d'une tuile de texture (m) : surfaces photo CC0 puis surfaces procédurales */
+/* Size of a texture tile (m): CC0 photo surfaces then procedural surfaces */
 const TEXSCALE = {
   plaster: 3.0, plaster2: 3.2, stone: 2.2, brick: 2.6, cobble: 2.2, pavers: 2.6, asphalt: 4.5, rooftiles: 2.2, wood: 1.5, shutter: 1.3,
   sand: 4.0, dirt: 3.0, concrete: 2.5, corrugated: 2.0, paint: 1.5, steel: 1.0, charred: 2.0, cement_tiles: 1.6, canvas: 1.2, burlap: 0.6,
-  rubber: 0.5, timber: 1.2, crate: 1.2, plastic: 1.0, glass: 1.5, gravel: 2.0, farfacade: 1.0, rug: 1.2, linge: 0.45, laine: 0.7, paintwood: 1.2, ashlar: 2.4, rollshutter: 1.5, cardboard: 0.8, carpaint: 1.6, lattice: 0.8,
+  rubber: 0.5, timber: 1.2, crate: 1.2, plastic: 1.0, glass: 1.5, gravel: 2.0, farfacade: 1.0, rug: 1.2, linen: 0.45, woolen: 0.7, paintwood: 1.2, ashlar: 2.4, rollshutter: 1.5, cardboard: 0.8, carpaint: 1.6, lattice: 0.8,
 };
-/* Taille d'une tuile quand la photo remplace la surface procédurale de même nom et n'a pas sa taille (planches de caisse de 14 cm, de porte
-   de 13 cm, lames de rideau de 6 cm) */
+/* Tile size when the photo replaces the procedural surface of the same name and does not have its size (14 cm crate planks, 13 cm door
+   planks, 6 cm shutter slats) */
 const PHOTO_SCALE = { crate: 2.0, paintwood: 1.8, rollshutter: 1.8 };
 const MAT = {};
-/* Textures : photos CC0 réemballées, surfaces procédurales générées sur GPU (taille réduite en qualité Basse). Construites
-   au chargement d'une carte (le profil de qualité du moment décide de leur taille), libérées avec elle (freeMaterials). */
+/* Textures: repackaged CC0 photos, procedural surfaces generated on the GPU (reduced size at Low quality). Built
+   at map load (the quality profile at that moment decides their size), freed with it (freeMaterials). */
 function buildTextures(T) {
-  // qualité Basse : textures deux fois plus petites (quatre fois moins de mémoire graphique)
-  const small = (RQ.q.lean ? (GFX_SAFE || RQ.tier === 'ultra' ? 0.35 : 0.5) : 1) * GPUX.lean.tex; // GPUX.lean : adaptation apprise sur cet appareil (01a-gpu.js)
+  // Low quality: textures half the size (four times less graphics memory)
+  const small = (RQ.q.lean ? (GFX_SAFE || RQ.tier === 'ultra' ? 0.35 : 0.5) : 1) * GPUX.lean.tex; // GPUX.lean: adaptation learned on this device (01a-gpu.js)
   POM.on = !RQ.q.lean;
-  // surfaces photo à relief marqué : hauteur reconstruite depuis les normales (pour la parallaxe)
-  if (POM.on) for (const k of ['cobble', 'brick', 'stone', 'rooftiles', 'flagstone', 'drystone', 'ashlar', 'rock', 'galets', 'adobe', ...((CURMAP.def && CURMAP.def.texRelief) || [])]) if (T[k]) T[k].relief = true; // texRelief : relief demandé par la carte
-  // photos d'une matière à masque de métal (ma) : map.a porte le masque (canal bleu de leur rugosité, build_assets.py), pas le relief
+  // photo surfaces with pronounced relief: height reconstructed from the normals (for parallax)
+  if (POM.on) for (const k of ['cobble', 'brick', 'stone', 'rooftiles', 'flagstone', 'drystone', 'ashlar', 'rock', 'shingle', 'adobe', ...((CURMAP.def && CURMAP.def.texRelief) || [])]) if (T[k]) T[k].relief = true; // texRelief: relief requested by the map
+  // photos of a material with a metal mask (ma): map.a carries the mask (blue channel of their roughness, build_assets.py), not the relief
   for (const k of ['rust', 'rollshutter', 'steel']) if (T[k] && T[k].asset) { T[k].metal = true; T[k].relief = false; }
   for (const k of Object.keys(T)) if (T[k] && T[k].asset) TEX[k] = texLabPack(T[k], 1024 * small);
-  // surfaces du socle (grain des armes) : reprises telles quelles, jamais libérées avec la carte
+  // base surfaces (weapon grain): carried over as is, never freed with the map
   for (const k in GUNTEX.surf) if (!TEX[k]) TEX[k] = GUNTEX.surf[k];
-  // surfaces d'hiver (02i-hiver.js) : seulement pour une carte enneigée ; surfaces facultatives (kit portuaire, eau) :
-  // seulement pour une carte qui les demande (surfaces de sa définition)
+  // winter surfaces (02i-winter.js): only for a snowy map; optional surfaces (harbor kit, water):
+  // only for a map that asks for them (surfaces in its definition)
   const winter = !!(CURMAP.def && CURMAP.def.winter), want = new Set((CURMAP.def && CURMAP.def.surfaces) || []);
   for (const k of Object.keys(TEXLAB)) if (!TEX[k] && ((winter && !OPT_TEX.has(k)) || want.has(k) || (!WINTER_TEX.has(k) && !OPT_TEX.has(k)))) TEX[k] = texLabSurface(k, TEXLAB[k], small);
-  // repli : une surface photo absente est remplacée par une surface procédurale proche
+  // fallback: a missing photo surface is replaced by a similar procedural surface
   const alias = { plaster: 'concrete', plaster2: 'concrete', stone: 'ashlar', brick: 'ashlar', cobble: 'ashlar', pavers: 'concrete', asphalt: 'concrete', rooftiles: 'crate', wood: 'crate', shutter: 'paintwood' };
   for (const [k, a] of Object.entries(alias)) if (!TEX[k]) TEX[k] = TEX[a];
-  WMU.tMacro.value = texLabMacro(T.usure); if (T.usure) T.usure.dispose(); // couche d'usure scannée (02b-texlab.js)
+  WMU.tMacro.value = texLabMacro(T.wearMap); if (T.wearMap) T.wearMap.dispose(); // scanned wear layer (02b-texlab.js)
   TEX.foliage = foliageAtlas(); TEX.signs = signAtlas(); TEX.decals = decalAtlas();
-  if (winter) { TEX.conifer = coniferAtlas(); TEX.signs2 = winterSignAtlas(); TEX.decals2 = winterDecalAtlas(); } // 02i-hiver.js
-  if (CURMAP.def && CURMAP.def.kit) CURMAP.def.kit(); // atlas propres à la carte
+  if (winter) { TEX.conifer = coniferAtlas(); TEX.signs2 = winterSignAtlas(); TEX.decals2 = winterDecalAtlas(); } // 02i-winter.js
+  if (CURMAP.def && CURMAP.def.kit) CURMAP.def.kit(); // atlases specific to the map
 }
-/* Surfaces procédurales facultatives : générées seulement pour une carte qui les demande (surfaces de sa définition) */
+/* Optional procedural surfaces: generated only for a map that asks for them (surfaces in its definition) */
 const OPT_TEX = new Set();
 function makeMaterials() {
   const M = (k, o) => { MAT[k] = worldMat(o); };
-  windInit(CURMAP.def); // direction et force du vent de la carte (02md-vent.js)
-  // maçonnerie et enduits (teintés par les sommets)
+  windInit(CURMAP.def); // map wind direction and strength (02md-wind.js)
+  // masonry and plasters (tinted by vertices)
   M('plaster', { tex: 'plaster', grime: 1.1, streak: 0.9, dust: 0.5, macro: 0.4, relief: 0.25 });
   M('plaster2', { tex: 'plaster2', grime: 1.1, streak: 0.8, dust: 0.5, macro: 0.4, relief: 0.25 });
   M('stone', { tex: 'stone', grime: 0.6, dust: 0.6, macro: 0.3, pom: 0.045 });
@@ -545,81 +545,81 @@ function makeMaterials() {
   M('sand', { tex: 'sand', macro: 0.35 });
   M('dirt', { tex: 'dirt', macro: 0.35 });
   M('farfacade', { tex: 'farfacade', macro: 0.25, env: 0.3, noNormal: false });
-  // bois
+  // wood
   M('wood', { tex: 'wood', grime: 0.6, dust: 0.35, macro: 0.2 });
-  // bois massif des poteaux, poutres, lisses, planches seules et bois ronds (photo sans joints de planches) : le Maker y range d'office le
-  // bois mince (boîte de moins de 30 cm dans ses deux petites dimensions, cylindre de moins de 40 cm de rayon, tube, tour) ; sans sa photo,
-  // la surface du bois
+  // solid wood of posts, beams, rails, single planks and round wood (photo without plank joints): the Maker automatically puts the
+  // thin wood there (box under 30 cm in both small dimensions, cylinder under 40 cm radius, tube, lathe); without its photo,
+  // the wood surface
   M('timber', { tex: TEX.timber ? 'timber' : 'wood', grime: 0.6, dust: 0.35, macro: 0.2 });
-  M('palmbark', { tex: 'palmbark', rough: 0.95, dust: 0.12, macro: 0.3 }); // tronc de palmier (surface facultative `palmbark`, voir 02h-nature.js)
+  M('palmbark', { tex: 'palmbark', rough: 0.95, dust: 0.12, macro: 0.3 }); // palm trunk (optional `palmbark` surface, see 02h-nature.js)
   M('shutter', { tex: 'shutter', macro: 0.15, dust: 0.2 });
   M('paintwood', { tex: 'paintwood', macro: 0.15, dust: 0.25, grime: 0.5 });
   M('crate', { tex: 'crate', macro: 0.15, dust: 0.45 });
   M('cardboard', { tex: 'cardboard', macro: 0.15, dust: 0.3 });
   M('lattice', { tex: 'lattice', cut: 0.5, rough: 0.8, macro: 0.1, dust: 0.2 });
   M('rollshutter', { tex: 'rollshutter', metal: 0.5, ma: true, env: 0.7, grime: 0.8, streak: 0.5, macro: 0.2 });
-  // métaux
+  // metals
   M('corrugated', { tex: 'corrugated', metal: 0.8, ma: true, env: 0.9, grime: 1.2, streak: 0.6, dust: 0.35, macro: 0.25 });
   M('paint', { tex: 'paint', metal: 0.6, ma: true, env: 0.8, grime: 0.6, dust: 0.45, macro: 0.2 });
-  M('carpaint', { tex: 'carpaint', metal: 0.35, ma: true, env: 1.5, dust: 0.12, macro: 0.08 }); // vernis brillant (poussière légère : les voitures sales prennent paint)
+  M('carpaint', { tex: 'carpaint', metal: 0.35, ma: true, env: 1.5, dust: 0.12, macro: 0.08 }); // glossy clear coat (light dust: dirty cars take paint)
   M('steel', { tex: 'steel', metal: 0.9, ma: true, env: 1.0, dust: 0.3, macro: 0.15 });
   M('charred', { tex: 'charred', env: 0.4, dust: 0.5, macro: 0.3 });
-  // menus débris dispersés au sol (cailloux, briques, gravats, tessons, déchets) : une seule matière teintée par les sommets
+  // small debris scattered on the ground (pebbles, bricks, rubble, shards, trash): a single material tinted by vertices
   M('rubble', { tex: 'concrete', scale: 0.7, macro: 0.25, dust: 0.3 });
-  // matières souples
+  // soft materials
   M('canvas', { tex: 'canvas', macro: 0.2, dust: 0.35, side: THREE.DoubleSide });
-  M('cloth', { tex: 'canvas', macro: 0.2, dust: 0.35, side: THREE.DoubleSide }); makeCloth(MAT.cloth); // linge au vent (02mc-tissus.js)
-  M('linge', { tex: TEX.linge ? 'linge' : 'canvas', macro: 0.1, dust: 0.12, side: THREE.DoubleSide }); // linge simulé (coton photographié, sinon la toile)
-  M('laine', { tex: TEX.laine ? 'laine' : 'canvas', macro: 0.2, dust: 0.4, side: THREE.DoubleSide }); // laine tissée : tentes bédouines, tapis
+  M('cloth', { tex: 'canvas', macro: 0.2, dust: 0.35, side: THREE.DoubleSide }); makeCloth(MAT.cloth); // laundry in the wind (02mc-cloths.js)
+  M('linen', { tex: TEX.linen ? 'linen' : 'canvas', macro: 0.1, dust: 0.12, side: THREE.DoubleSide }); // simulated laundry (photographed cotton, otherwise the canvas)
+  M('woolen', { tex: TEX.woolen ? 'woolen' : 'canvas', macro: 0.2, dust: 0.4, side: THREE.DoubleSide }); // woven wool: Bedouin tents, rugs
   M('burlap', { tex: 'burlap', macro: 0.2, dust: 0.5 });
   M('rug', { tex: 'rug', macro: 0.15, side: THREE.DoubleSide });
   M('rubber', { tex: 'rubber', env: 0.3, macro: 0.1, dust: 0.4 });
   M('plastic', { tex: 'plastic', env: 0.6, macro: 0.1, dust: 0.3 });
   M('glass', { tex: 'glass', metal: 0.85, ma: true, env: 1.3, macro: 0.1, polyOff: -2 });
-  // vitre de véhicule (voitures, 4x4, cabines de camion) : verre teinté qu'on traverse du regard (l'habitacle se voit), reflet du ciel ; ni
-  // ombre ni occlusion, dessinée après le décor opaque, comme la verrière (glassT). carglassD : vitre poussiéreuse, plus opaque
+  // vehicle window (cars, 4x4s, truck cabs): tinted glass you see through (the cabin is visible), sky reflection; no
+  // shadow or occlusion, drawn after the opaque scenery, like the skylight (glassT). carglassD: dusty window, more opaque
   for (const [k, op] of [['carglass', 0.52], ['carglassD', 0.78]]) {
     const g = new THREE.MeshStandardMaterial({ vertexColors: true, transparent: true, opacity: op, depthWrite: false, roughness: 0.05, metalness: 0.1, envMapIntensity: 1.3, side: THREE.DoubleSide });
     g.userData.noShadow = true; g.userData.noAO = true; g.userData.noReceive = true; MAT[k] = g;
   }
-  M('window', { rough: 0.05, metal: 0, env: 1.0, macro: 0, snow: 0, polyOff: -2 }); windowMat(MAT.window); // vitre d'une pièce : la pièce derrière
+  M('window', { rough: 0.05, metal: 0, env: 1.0, macro: 0, snow: 0, polyOff: -2 }); windowMat(MAT.window); // window of a room: the room behind it
   M('dark', { color: [0.05, 0.05, 0.05], rough: 0.95, macro: 0 });
-  M('foliage', { tex: 'foliage', cut: 0.42, rough: 0.8, env: 0.35, macro: 0.3, scale: 1, noNormal: true }); makeWind(MAT.foliage, WIND_AMP.foliage, { leaf: true, cards: true }); // feuillage au vent (02md-vent.js)
-  M('stem', { tex: 'canvas', macro: 0.2, dust: 0.35, side: THREE.DoubleSide }); makeWind(MAT.stem, WIND_AMP.stem); // tiges de roseaux et nervures de palmes, au vent
+  M('foliage', { tex: 'foliage', cut: 0.42, rough: 0.8, env: 0.35, macro: 0.3, scale: 1, noNormal: true }); makeWind(MAT.foliage, WIND_AMP.foliage, { leaf: true, cards: true }); // foliage in the wind (02md-wind.js)
+  M('stem', { tex: 'canvas', macro: 0.2, dust: 0.35, side: THREE.DoubleSide }); makeWind(MAT.stem, WIND_AMP.stem); // reed stems and palm frond ribs, in the wind
   M('signs', { tex: 'signs', rough: 0.7, env: 0.4, macro: 0.1, scale: 1, noNormal: true });
-  // décalques (affiches, pochoirs, graffitis, coulures, taches au sol) : fondus sur les surfaces, sans ombre
+  // decals (posters, stencils, graffiti, streaks, ground stains): blended onto surfaces, no shadow
   M('decals', { tex: 'decals', rough: 0.85, env: 0.3, macro: 0.2, scale: 1, noNormal: true, polyOff: -4 });
   Object.assign(MAT.decals, { transparent: true, depthWrite: false }); MAT.decals.defines.WM_CUT = ''; MAT.decals.side = THREE.FrontSide;
   MAT.decals.userData.noShadow = true;
   MAT.lamp = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(3.2, 2.4, 1.4) });
   MAT.lamp.userData.noShadow = true;
-  MAT.lampCool = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(2.5, 2.8, 3.1) }); // néon, ampoule froide (PF.hangLamp)
+  MAT.lampCool = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(2.5, 2.8, 3.1) }); // neon, cold bulb (PF.hangLamp)
   MAT.lampCool.userData.noShadow = true;
-  // lampadaire éteint en plein jour : verre dépoli, à peine une lueur
+  // streetlight off in broad daylight: frosted glass, barely a glow
   M('lampOff', { color: [0.92, 0.9, 0.84], rough: 0.25, env: 1.1, macro: 0, emissive: [0.18, 0.14, 0.08] });
-  if (CURMAP.def && CURMAP.def.winter) makeWinterMaterials(M); // 02i-hiver.js
-  if (CURMAP.def && CURMAP.def.materials) CURMAP.def.materials(M); // matières propres à la carte
-  // compatibilité : anciennes clés
+  if (CURMAP.def && CURMAP.def.winter) makeWinterMaterials(M); // 02i-winter.js
+  if (CURMAP.def && CURMAP.def.materials) CURMAP.def.materials(M); // materials specific to the map
+  // compatibility: old keys
   MAT.metal = MAT.corrugated; MAT.fabric = MAT.burlap; MAT.trim = MAT.paintwood;
 }
-/* Ombres en cascade sur les matières du décor (une fois par matière ; le socle est préparé par setupShadows).
-   Chaque matière reçoit aussi un identifiant fixe, tiré de sa clé : three.js garde en cache, par identifiant de
-   matière et sans jamais le libérer, la matière d'ombre des matières à découpe alpha (feuillages, treillis). Avec un
-   identifiant neuf à chaque chargement de carte, ce cache grossirait d'une partie à l'autre ; ainsi il est réutilisé. */
+/* Cascaded shadows on the scenery materials (once per material; the base is prepared by setupShadows).
+   Each material also receives a fixed identifier, drawn from its key: three.js keeps in cache, by material
+   identifier and without ever freeing it, the shadow material of alpha-cutout materials (foliage, lattice). With a
+   new identifier on every map load, this cache would grow from one match to the next; this way it is reused. */
 function shadeMaterials() {
   for (const [k, m] of Object.entries(MAT)) {
     if (m.userData.csm) continue;
     m.userData.csm = true; m.uuid = 'decor-' + k; csmMaterial(m);
   }
-  propMatsSync(); // copies des matières pour les props physiques (02k-dynprops.js)
+  propMatsSync(); // copies of the materials for physics props (02k-dynprops.js)
 }
-/* Atlas dessiné : la toile ne sert plus une fois l'image envoyée à la carte graphique (jusqu'à 4 Mo chacune) */
+/* Drawn atlas: the canvas is no longer needed once the image is sent to the graphics card (up to 4 MB each) */
 function canvasOnce(t) {
   t.onUpdate = () => { t.image = { width: t.image.width, height: t.image.height }; t.onUpdate = null; };
   return t;
 }
-/* Libère la bibliothèque de matières au déchargement d'une carte : matières (et programmes de shaders qui ne servent
-   plus qu'à elles), textures qu'elles possèdent (m.userData.own), surfaces et atlas. Les surfaces du socle restent. */
+/* Frees the material library on map unload: materials (and shader programs only used
+   by them), textures they own (m.userData.own), surfaces and atlases. Base surfaces stay. */
 function freeMaterials() {
   const keep = new Set();
   for (const k in GUNTEX.surf) keep.add(GUNTEX.surf[k].map).add(GUNTEX.surf[k].normal);
@@ -635,19 +635,19 @@ function freeMaterials() {
   for (const k in TEX) delete TEX[k];
 }
 
-/* ---------- Atlas dessinés (feuillages, enseignes) ---------- */
-/* Feuillages (1024², alpha) : [0, 0.5]x[0, 1] palmes (verte à gauche du rachis, sèche à droite, voir foliagePalms) ; [0.5, 1]x[0.5, 1] buisson ; [0.5, 1]x[0, 0.5] herbes et fleurs */
+/* ---------- Drawn atlases (foliage, signs) ---------- */
+/* Foliage (1024², alpha): [0, 0.5]x[0, 1] palm fronds (green on the left of the rachis, dry on the right, see foliagePalms); [0.5, 1]x[0.5, 1] bush; [0.5, 1]x[0, 0.5] grasses and flowers */
 const FOL = { palm: [0, 0, 0.5, 1], bush: [0.5, 0.5, 0.5, 0.5], grass: [0.5, 0, 0.25, 0.5], flower: [0.75, 0, 0.25, 0.5] };
-/* Sprites de palme du feuillage (région FOL.palm : moitié gauche de l'atlas, deux demi-palmes de 256 x 1024 qui se rejoignent sur le rachis) :
-   à gauche la palme verte (folioles vers la gauche), à droite la palme sèche (vers la droite). Base en bas, bout en haut ; les folioles
-   partent du rachis vers le bout, serrées au pied (masse pleine qui garde la palme à distance, quand la découpe alpha s'efface),
-   de plus en plus écartées vers l'extérieur (bord plumeux, on voit le ciel entre les pointes). */
+/* Foliage palm frond sprites (region FOL.palm: left half of the atlas, two half-fronds of 256 x 1024 that join on the rachis):
+   on the left the green frond (leaflets toward the left), on the right the dry frond (toward the right). Base at the bottom, tip at the top; the leaflets
+   leave the rachis toward the tip, tight at the foot (solid mass that keeps the frond visible at a distance, when the alpha cutout fades),
+   increasingly spread toward the outside (feathery edge, the sky shows between the tips). */
 function foliagePalms(g, S, R) {
   const H = S, X0 = S * 0.25, N = 128;
   const hsl = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
   for (const dry of [false, true]) {
     const dir = dry ? 1 : -1;
-    // folioles, de la base (en bas) au bout (en haut) ; les plus longues vers le tiers, raccourcies près du bout
+    // leaflets, from the base (bottom) to the tip (top); the longest around the third, shortened near the tip
     for (let i = 0; i < N; i++) {
       const t = i / (N - 1), y = H * (1 - 0.012 - 0.975 * t);
       const ang = (R() - 0.5) * 0.16, reach = (230 + R() * 20) * (0.5 + 0.5 * Math.min(1, t / 0.07)) * (1 - 0.5 * Math.pow(Math.max(0, (t - 0.8) / 0.2), 1.3)), fwd = reach * (0.66 + ang + R() * 0.16) * (1 - 0.22 * t);
@@ -662,7 +662,7 @@ function foliagePalms(g, S, R) {
       g.quadraticCurveTo(mid[0], mid[1] - w, X0, y - 3.5); g.closePath(); g.fill();
       if (!dry || R() < 0.7) { g.strokeStyle = dry ? hsl(44, 52, 72, 0.4) : hsl(70 + jh, 55, 62, 0.4); g.lineWidth = 1.1; g.beginPath(); g.moveTo(X0, y); g.quadraticCurveTo(mid[0], mid[1], tip[0], tip[1]); g.stroke(); }
     }
-    // rachis : clair, épais au pied, fin au bout, de part et d'autre de la jonction des deux demi-palmes
+    // rachis: light, thick at the foot, thin at the tip, on either side of the junction of the two half-fronds
     g.lineCap = 'round';
     for (let k = 0; k < 24; k++) {
       const t0 = k / 24, t1 = (k + 1) / 24, w = 20 - 15 * t0;
@@ -675,8 +675,8 @@ function foliageAtlas() {
   const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
   const R = rngOf(77);
   const col = (h, s, l, a = 1) => `hsla(${h},${s}%,${l}%,${a})`;
-  foliagePalms(g, S, rngOf(78)); // palmes verte et sèche (moitié gauche de l'atlas)
-  // buisson : amas de petites feuilles
+  foliagePalms(g, S, rngOf(78)); // green and dry fronds (left half of the atlas)
+  // bush: cluster of small leaves
   {
     const cx = S * 0.75, cy = S * 0.25, r = S * 0.22;
     for (let i = 0; i < 1400; i++) {
@@ -686,7 +686,7 @@ function foliageAtlas() {
       g.save(); g.translate(x, y); g.rotate(R() * TAU); g.beginPath(); g.ellipse(0, 0, 9 + R() * 6, 4 + R() * 2.5, 0, 0, TAU); g.fill(); g.restore();
     }
   }
-  // touffe d'herbes sèches
+  // tuft of dry grasses
   {
     const x0 = S * 0.625, yb = S;
     for (let i = 0; i < 160; i++) {
@@ -695,7 +695,7 @@ function foliageAtlas() {
       g.beginPath(); g.moveTo(x, yb); g.quadraticCurveTo(x + bend * 0.3, yb - hgt * 0.6, x + bend, yb - hgt); g.stroke();
     }
   }
-  // bougainvillier : feuilles et bractées magenta
+  // bougainvillea: magenta leaves and bracts
   {
     const cx = S * 0.875, cy = S * 0.75, r = S * 0.11;
     for (let i = 0; i < 900; i++) {
@@ -708,7 +708,7 @@ function foliageAtlas() {
   const t = canvasOnce(new THREE.CanvasTexture(c)); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; t.flipY = false;
   return { map: t, normal: null };
 }
-/* Enseignes (1024 x 1024, 8 panneaux de 512 x 256) : noms de boutiques peints, affiches */
+/* Signs (1024 x 1024, 8 panels of 512 x 256): painted shop names, posters */
 const SIGNS = ['ÉPICERIE', 'PHARMACIE', 'CAFÉ DU SOUK', 'BOULANGERIE', 'GARAGE', 'HÔTEL', 'TAILLEUR', 'TÉLÉPHONE'];
 function signAtlas() {
   const c = document.createElement('canvas'); c.width = c.height = 1024; const g = c.getContext('2d');
@@ -718,7 +718,7 @@ function signAtlas() {
   for (let i = 0; i < 8; i++) {
     const x = (i % 2) * 512, y = Math.floor(i / 2) * 256;
     g.fillStyle = bgs[i]; g.fillRect(x, y, 512, 256);
-    // cadre, lettres, usure
+    // frame, letters, wear
     g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 10; g.strokeRect(x + 10, y + 10, 492, 236);
     g.fillStyle = fgs[i]; g.font = `bold ${SIGNS[i].length > 9 ? 62 : 84}px Georgia, 'Times New Roman', serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
     g.fillText(SIGNS[i], x + 256, y + 132);
@@ -732,8 +732,8 @@ function signAtlas() {
   const t = canvasOnce(new THREE.CanvasTexture(c)); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; t.flipY = false;
   return { map: t, normal: null };
 }
-/* Décalques (1024², grille 4 x 4, alpha) : 0 à 3 affiches, 4 et 5 pochoirs, 6 et 7 graffitis, 8 coulure,
-   9 salissure, 10 fissure, 11 impacts, 12 tache d'huile, 13 traces de pneus, 14 flaque sèche, 15 marquage */
+/* Decals (1024², 4 x 4 grid, alpha): 0 to 3 posters, 4 and 5 stencils, 6 and 7 graffiti, 8 streak,
+   9 dirt, 10 crack, 11 impacts, 12 oil stain, 13 tire tracks, 14 dry puddle, 15 marking */
 function decalAtlas() {
   const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), R = rngOf(4321), T = S / 4;
   const cell = (i, fn) => { g.save(); g.translate((i % 4) * T, Math.floor(i / 4) * T); g.beginPath(); g.rect(0, 0, T, T); g.clip(); fn(); g.restore(); };
@@ -744,7 +744,7 @@ function decalAtlas() {
     g.fillStyle = fg; g.font = 'bold 30px Georgia, serif'; g.textAlign = 'center';
     txt.split('\n').forEach((l, k) => g.fillText(l, x + w / 2, y + 60 + k * 36));
     for (let k = 0; k < 6; k++) { g.fillStyle = `rgba(0,0,0,${0.15 + R() * 0.2})`; g.fillRect(x + 20, y + 120 + k * 14, w - 40 - R() * 60, 6); }
-    // déchirures, délavage
+    // tears, fading
     g.globalCompositeOperation = 'destination-out';
     for (let k = 0; k < 9; k++) { g.beginPath(); const ex = x + (R() < 0.5 ? 0 : w), ey = y + R() * h; g.moveTo(ex, ey); for (let j = 0; j < 5; j++) g.lineTo(ex + (R() - 0.5) * 60, ey + (R() - 0.5) * 60); g.fill(); }
     g.globalCompositeOperation = 'source-over';
@@ -777,7 +777,7 @@ function decalAtlas() {
   const t = canvasOnce(new THREE.CanvasTexture(c)); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; t.flipY = false;
   return { map: t, normal: null };
 }
-/* Décalque i de l'atlas : quadrilatère (points [x,y,z] du repère courant) légèrement décollé de la surface */
+/* Decal i of the atlas: quad (points [x,y,z] of the current frame) slightly lifted off the surface */
 function decalQuad(M, i, p0, p1, p2, p3, n) {
   const u0 = (i % 4) * 0.25, v0 = Math.floor(i / 4) * 0.25, B = M.buf('decals', (p0[0] + p2[0]) / 2, (p0[1] + p2[1]) / 2, (p0[2] + p2[2]) / 2);
   M.save(); M.cls = 1;
@@ -785,12 +785,12 @@ function decalQuad(M, i, p0, p1, p2, p3, n) {
   M.quadI(B, ids[0], ids[1], ids[2], ids[3]);
   M.restore();
 }
-/* Décalque sur un mur (repère de façade : x le long, y en haut, z vers l'extérieur) */
+/* Decal on a wall (facade frame: x along, y up, z outward) */
 function wallDecal(M, i, xc, y, w, h) { decalQuad(M, i, [xc - w / 2, y, 0.008], [xc + w / 2, y, 0.008], [xc + w / 2, y + h, 0.008], [xc - w / 2, y + h, 0.008], [0, 0, 1]); }
-/* Décalque au sol (monde) : centre, taille, rotation */
+/* Decal on the ground (world): center, size, rotation */
 function groundDecal(i, x, z, w, d, rot = 0) {
   const c = Math.cos(rot), s = Math.sin(rot), P = (a, b) => [x + a * c - b * s, 0.012, z + a * s + b * c];
   decalQuad(DECOR, i, P(-w / 2, d / 2), P(w / 2, d / 2), P(w / 2, -d / 2), P(-w / 2, -d / 2), [0, 1, 0]);
 }
-/* Coordonnées (u0, v0, du, dv) d'une enseigne de l'atlas */
+/* Coordinates (u0, v0, du, dv) of a sign in the atlas */
 function signUV(i) { i = ((i % 8) + 8) % 8; return [(i % 2) * 0.5, Math.floor(i / 2) * 0.25, 0.5, 0.25]; }

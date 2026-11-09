@@ -1,7 +1,7 @@
 {
   "name": "war-bash-anim",
   "private": true,
-  "description": "Soldier animation pipeline: Mixamo FBX to GLB (convert.mjs), then baked clips (cuire.mjs). Setup: npm --prefix tools/dev/anim install",
+  "description": "Soldier animation pipeline: Mixamo FBX to GLB (convert.mjs), then baked clips (bake.mjs). Setup: npm --prefix tools/dev/anim install",
   "dependencies": {
     "fbx2gltf": "0.9.7-p1",
     "three": "0.147.0"

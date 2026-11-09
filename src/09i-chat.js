@@ -1,14 +1,14 @@
 /* ==========================================================================
-   DISCUSSION EN LIGNE
-   Un message écrit avec la touche T, au salon comme en partie. L'hôte reçoit les messages des invités, les nettoie
-   (longueur, caractères de contrôle, cadence, mots refusés masqués par api/_lib/filtre.js) et les rediffuse à tout le monde avec
-   l'identifiant, le pseudo et l'équipe de l'auteur ; chacun les nettoie encore à l'arrivée. Un joueur masqué dans l'onglet Joueurs du
-   salon (NET.muted) n'apparaît plus dans la discussion de celui qui l'a masqué.
-   En partie, les derniers messages s'affichent quelques secondes en bas à gauche ; au salon, tout l'historique se lit.
+   ONLINE CHAT
+   A message typed with the T key, in the lobby as in a match. The host receives the guests' messages, cleans them
+   (length, control characters, rate, banned words masked by api/_lib/textFilter.js) and rebroadcasts them to everyone with
+   the author's identifier, nickname and team; everyone cleans them again on arrival. A player muted in the lobby's Players
+   tab (NET.muted) no longer appears in the chat of whoever muted them.
+   In a match, the latest messages show for a few seconds at the bottom left; in the lobby, the whole history can be read.
    ========================================================================== */
 const CHAT = { log: [], open: false, keep: 60, show: 8, len: 120, gap: 400, unread: 0 };
-/* Message reçu ou envoyé : caractères de contrôle ôtés, longueur bornée, mots refusés masqués (api/_lib/filtre.js), chez l'hôte comme chez chacun */
-function chatClean(x) { return filtreTexte(String(x == null ? '' : x).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT.len)); }
+/* Message received or sent: control characters removed, length capped, banned words masked (api/_lib/textFilter.js), on the host as on everyone else */
+function chatClean(x) { return filterText(String(x == null ? '' : x).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, CHAT.len)); }
 function chatMyTeam() { const me = NET.players.get(NET.me); return NET.on ? PL.ent.team : me ? me.t : 0; }
 function chatLine(m, mine) {
   const el = document.createElement('div'); el.className = 'cm';
@@ -16,14 +16,14 @@ function chatLine(m, mine) {
   el.append(n, ' ' + m.x);
   return el;
 }
-/* Redessine les deux listes (salon et partie) ; les lignes de la partie s'estompent avec l'âge, sauf pendant la saisie */
+/* Redraws both lists (lobby and match); match lines fade with age, except while typing */
 function chatRender() {
-  const mine = chatMyTeam(), lobby = $('netChatLog'), game = $('chatLog'), log = CHAT.log.filter((m) => !(m.id && NET.muted.has(m.id))); // masqué après coup : ses messages partent aussi
+  const mine = chatMyTeam(), lobby = $('netChatLog'), game = $('chatLog'), log = CHAT.log.filter((m) => !(m.id && NET.muted.has(m.id))); // muted after the fact: their messages go too
   if (lobby) {
     const end = lobby.scrollTop + lobby.clientHeight >= lobby.scrollHeight - 30;
     lobby.textContent = '';
     for (const m of log) lobby.appendChild(chatLine(m, mine));
-    if (!log.length) { const e = document.createElement('div'); e.className = 'cm empty'; e.textContent = TOUCH.on || PAD.drive ? _t('Aucun message pour l\u0027instant.') : _t('Aucun message. Appuyez sur T pour écrire.'); lobby.appendChild(e); }
+    if (!log.length) { const e = document.createElement('div'); e.className = 'cm empty'; e.textContent = TOUCH.on || PAD.drive ? _t('No messages yet.') : _t('No messages. Press T to write.'); lobby.appendChild(e); }
     if (end) lobby.scrollTop = lobby.scrollHeight;
   }
   if (game) { game.textContent = ''; for (const m of log.slice(-6)) { const el = chatLine(m, mine); el.dataset.at = m.at; game.appendChild(el); } chatFade(); }
@@ -34,18 +34,18 @@ function chatFade() {
   for (const el of game.children) el.classList.toggle('old', !CHAT.open && now - +el.dataset.at > CHAT.show * 1000);
 }
 function chatPush(m) {
-  if (m.id && NET.muted.has(m.id)) return; // joueur masqué (salon, onglet Joueurs)
+  if (m.id && NET.muted.has(m.id)) return; // muted player (lobby, Players tab)
   CHAT.log.push({ id: m.id || '', n: m.n, t: m.t === 1 ? 1 : 0, x: m.x, at: performance.now() });
   if (CHAT.log.length > CHAT.keep) CHAT.log.splice(0, CHAT.log.length - CHAT.keep);
-  if (netInLobby() && !netChatOpen()) { CHAT.unread = (CHAT.unread || 0) + 1; chatUnread(); } // salon : la discussion est un sous-menu du salon
+  if (netInLobby() && !netChatOpen()) { CHAT.unread = (CHAT.unread || 0) + 1; chatUnread(); } // lobby: chat is a submenu of the lobby
   chatRender();
 }
-/* Messages non lus du salon, sur la rangée Discussion */
+/* Unread lobby messages, on the Chat row */
 function chatUnread() { const L = LM.scr.multi; if (L && netInLobby() && UI.screen === 'multi') lmRender(L); }
 function chatClear() { CHAT.log.length = 0; CHAT.unread = 0; chatUnread(); chatRender(); }
 
-/* Envoi : l'hôte diffuse lui-même, l'invité passe par l'hôte (il voit son message quand l'hôte le lui renvoie) ; au salon public, hors
-   partie, le message passe par le serveur de jeu (src/09cb-serveurs.js), qui le renvoie à tous */
+/* Sending: the host broadcasts itself, the guest goes through the host (sees their message when the host sends it back); in the public lobby, outside
+   a match, the message goes through the game server (src/09cb-servers.js), which sends it back to all */
 function chatSend(text) {
   const x = chatClean(text); if (!x) return;
   if (SRV.on && !NET.on) { srvSend({ t: 'chat', x }); return; }
@@ -60,7 +60,7 @@ function chatHostRelay(id, text) {
   netBroadcast(m);
   if (NET.muted.has(id)) return;
   chatPush({ id, n: m.n, t: m.tm, x });
-  if (id !== NET.me) sfxUi('notify'); // message d'un autre joueur : petit signal
+  if (id !== NET.me) sfxUi('notify'); // message from another player: small signal
 }
 function chatIn(m) {
   const x = chatClean(m.x), id = typeof m.id === 'string' ? m.id : '';
@@ -69,7 +69,7 @@ function chatIn(m) {
   if (id ? id !== NET.me : netClean(m.n) !== netClean(NET.nick)) sfxUi('notify');
 }
 
-/* Saisie en partie : T ouvre, Entrée envoie, Échap annule. Les touches de jeu sont suspendues pendant la saisie. */
+/* In-match typing: T opens, Enter sends, Esc cancels. Game keys are suspended while typing. */
 function chatOpen() {
   if (CHAT.open || !NET.on || KS.map.open) return;
   CHAT.open = true; $('chatBox').classList.add('open');
@@ -82,7 +82,7 @@ function chatClose() {
 }
 function chatInit() {
   const bind = (el, onEnter) => el.addEventListener('keydown', (e) => {
-    e.stopPropagation(); // ni les touches de jeu ni les raccourcis des menus ne doivent voir la frappe
+    e.stopPropagation(); // neither game keys nor menu shortcuts must see the keystrokes
     if (e.key === 'Enter') { e.preventDefault(); onEnter(el.value); el.value = ''; }
     else if (e.key === 'Escape') { el.blur(); chatClose(); }
   });

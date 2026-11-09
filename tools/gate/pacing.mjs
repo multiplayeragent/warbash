@@ -72,7 +72,7 @@ const tBoot = Date.now();
 await page.goto(url, { waitUntil: 'load', timeout: 180000 });
 await page.waitForFunction(() => typeof MATCH !== 'undefined' && MATCH.state === 'menu', null, { timeout: 300000, polling: 250 });
 const bootS = (Date.now() - tBoot) / 1000;
-const setup = await page.evaluate(async ([WARM]) => {
+const setup = await page.evaluate(async ([WARM, MAPID]) => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // display refresh, measured on the menu
   const refresh = await new Promise((done) => {
@@ -81,6 +81,7 @@ const setup = await page.evaluate(async ([WARM]) => {
     requestAnimationFrame(f);
   });
   const tMap = performance.now();
+  if (MAPID) Settings.map = MAPID;
   await mapEnsure(Settings.map); LOCK.fallback = true; startMatch({});
   while (MATCH.state !== 'playing') await sleep(100);
   const mapS = (performance.now() - tMap) / 1000;
@@ -101,7 +102,7 @@ const setup = await page.evaluate(async ([WARM]) => {
   await sleep(WARM * 1000);
   window.__stopDrive = () => { driving = false; };
   return { refresh, mapS };
-}, [WARM]);
+}, [WARM, process.env.MAP || '']); // MAP=<id>: measure another map (default: the settings map, Chergui)
 await page.bringToFront();
 const p0 = await procSnap();
 const smp = sampler(SECS);

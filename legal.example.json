@@ -1,6 +1,6 @@
 {
   "name": "Example Games LLC",
-  "address": {"fr": "1 rue de l'Exemple, 75000 Paris, France", "en": "1 Example Street, 75000 Paris, France"},
+  "address": "1 Example Street, 75000 Paris, France",
   "email": "contact@example.com",
-  "host": {"fr": "Nom de l'hébergeur, adresse", "en": "Hosting provider name, address"}
+  "host": "Hosting provider name, address"
 }

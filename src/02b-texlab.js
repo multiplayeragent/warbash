@@ -1,11 +1,11 @@
 /* ==========================================================================
-   LABORATOIRE DE TEXTURES : surfaces PBR procédurales calculées sur la carte graphique au chargement.
-   Chaque surface est une fonction GLSL surf(uv, albédo, relief, rugosité, canal alpha) sur une tuile
-   raccordable (uv de 0 à 1, bruits périodiques). Trois passes par surface : relief (flottant), couleur
-   (sRGB, alpha = relief ou masque de métal ou opacité), puis normales + rugosité (alpha). Rien n'est
-   téléchargé : quelques millisecondes de GPU remplacent des mégaoctets d'images.
-   Convention des textures du décor (voir worldMat) : map.rgb = albédo, map.a = relief (ou métal, ou
-   opacité selon la surface) ; normalMap.rgb = normale, normalMap.a = rugosité.
+   TEXTURE LAB: procedural PBR surfaces computed on the graphics card at load.
+   Each surface is a GLSL function surf(uv, albedo, relief, roughness, alpha channel) on a seamless
+   tile (uv from 0 to 1, periodic noise). Three passes per surface: relief (float), color
+   (sRGB, alpha = relief or metal mask or opacity), then normals + roughness (alpha). Nothing is
+   downloaded: a few milliseconds of GPU replace megabytes of images.
+   Scenery texture convention (see worldMat): map.rgb = albedo, map.a = relief (or metal, or
+   opacity depending on the surface); normalMap.rgb = normal, normalMap.a = roughness.
    ========================================================================== */
 const TEXLAB_LIB = `
 precision highp float; precision highp int;
@@ -15,12 +15,12 @@ float hs(vec2 i, float k) { return float(_hu(uvec3(uint(i.x + 8192.0), uint(i.y 
 vec2 hs2(vec2 i, float k) { return vec2(hs(i, k), hs(i, k + 17.0)); }
 vec3 srgb(vec3 c) { return pow(c, vec3(2.2)); }
 float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
-/* bruit de valeur périodique : p en cellules, per : période (cellules) */
+/* periodic value noise: p in cells, per: period (cells) */
 float vn(vec2 p, vec2 per, float k) {
   vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f), i0 = mod(i, per), i1 = mod(i + 1.0, per);
   return mix(mix(hs(i0, k), hs(vec2(i1.x, i0.y), k), u.x), mix(hs(vec2(i0.x, i1.y), k), hs(i1, k), u.x), u.y);
 }
-/* bruit de gradient périodique, environ -1 à 1 */
+/* periodic gradient noise, roughly -1 to 1 */
 float gn(vec2 p, vec2 per, float k) {
   vec2 i = floor(p), f = fract(p), u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
   vec2 i0 = mod(i, per), i1 = mod(i + 1.0, per);
@@ -29,7 +29,7 @@ float gn(vec2 p, vec2 per, float k) {
   float v2 = dot(vec2(cos(a2), sin(a2)), f - vec2(0.0, 1.0)), v3 = dot(vec2(cos(a3), sin(a3)), f - vec2(1.0));
   return mix(mix(v0, v1, u.x), mix(v2, v3, u.x), u.y) * 1.414;
 }
-/* fbm périodique sur la tuile : f0 = fréquence de base (entière), oct octaves ; résultat 0 à 1 */
+/* periodic fbm over the tile: f0 = base frequency (integer), oct octaves; result 0 to 1 */
 float fbm(vec2 uv, vec2 f0, int oct, float k) {
   float s = 0.0, a = 0.5, t = 0.0; vec2 f = f0;
   for (int o = 0; o < 8; o++) { if (o >= oct) break; s += a * vn(uv * f, f, k + float(o) * 3.0); t += a; a *= 0.5; f *= 2.0; }
@@ -40,10 +40,10 @@ float gfbm(vec2 uv, vec2 f0, int oct, float k) {
   for (int o = 0; o < 8; o++) { if (o >= oct) break; s += a * gn(uv * f, f, k + float(o) * 3.0); t += a; a *= 0.5; f *= 2.0; }
   return s / t * 0.5 + 0.5;
 }
-/* crêtes (fissures, veines) : 1 sur les crêtes */
+/* ridges (cracks, veins): 1 on the ridges */
 float ridge(vec2 uv, vec2 f0, int oct, float k) { return 1.0 - abs(gfbm(uv, f0, oct, k) * 2.0 - 1.0); }
-/* Voronoï périodique : x = distance au germe le plus proche, y = au second, z = identifiant de la cellule (0 à 1),
-   w = distance au bord de la cellule */
+/* periodic Voronoi: x = distance to the nearest seed, y = to the second, z = cell identifier (0 to 1),
+   w = distance to the cell edge */
 vec4 vor(vec2 uv, vec2 cells, float k, float jit) {
   vec2 p = uv * cells, i = floor(p), f = fract(p);
   float d1 = 9.0, d2 = 9.0, id = 0.0; vec2 m1 = vec2(0.0), c1 = vec2(0.0);
@@ -59,7 +59,7 @@ vec4 vor(vec2 uv, vec2 cells, float k, float jit) {
   }
   return vec4(sqrt(d1), sqrt(d2), id, be);
 }
-/* grille de briques / planches : x, y = position dans l'élément (0 à 1), z = identifiant, w = distance au bord (en fraction) */
+/* brick / plank grid: x, y = position within the element (0 to 1), z = identifier, w = distance to the edge (as a fraction) */
 vec4 tiles(vec2 uv, vec2 n, float stagger) {
   vec2 p = uv * n; float row = floor(p.y); p.x += mod(row, 2.0) * stagger;
   vec2 i = floor(p), f = fract(p);
@@ -67,9 +67,9 @@ vec4 tiles(vec2 uv, vec2 n, float stagger) {
 }
 `;
 
-/* Surfaces : [taille (px), graine, relief (force des normales), code GLSL de surf] */
+/* Surfaces: [size (px), seed, relief (normal strength), GLSL code of surf] */
 const TEXLAB = {
-  /* sable rouge du désert : rides de vent, grains, gravillons */
+  /* red desert sand: wind ripples, grains, gravel */
   sand: [1024, 3, 1.1, `
     float w = gfbm(uv, vec2(3.0), 4, 1.0);
     float rp = sin((uv.y * 22.0 + uv.x * 4.0 + w * 3.0) * 6.2831853) * 0.5 + 0.5; rp = rp * rp;
@@ -82,7 +82,7 @@ const TEXLAB = {
     a = mix(c2, c1, smoothstep(0.25, 0.75, big)); a = mix(a, c0, rp * rm * 0.3); a *= 0.9 + gr * 0.18 + (mid - 0.5) * 0.2;
     a = mix(a, srgb(vec3(0.6, 0.52, 0.44)) * (0.8 + v.z * 0.4), peb * 0.6);
     r = 0.94 - peb * 0.15 + gr * 0.04; x = h;`],
-  /* terre battue : taches, fissures fines, cailloux */
+  /* packed earth: stains, fine cracks, pebbles */
   dirt: [512, 5, 2.5, `
     float big = gfbm(uv, vec2(3.0), 5, 1.0), mid = gfbm(uv, vec2(16.0), 4, 2.0), gr = vn(uv * 256.0, vec2(256.0), 3.0);
     vec4 cr = vor(uv, vec2(7.0), 4.0, 1.0); float crack = (1.0 - smoothstep(0.0, 0.035, cr.w)) * smoothstep(0.45, 0.7, gfbm(uv, vec2(4.0), 3, 9.0));
@@ -91,7 +91,7 @@ const TEXLAB = {
     a = mix(srgb(vec3(0.46, 0.34, 0.24)), srgb(vec3(0.66, 0.51, 0.37)), smoothstep(0.2, 0.8, big)) * (0.88 + mid * 0.2 + gr * 0.12);
     a *= 1.0 - crack * 0.45; a = mix(a, srgb(vec3(0.52, 0.48, 0.43)) * (0.7 + st.z * 0.5), stn);
     r = 0.95 - stn * 0.12; x = h;`],
-  /* béton coulé : pores, nuages, reprises de coffrage */
+  /* poured concrete: pores, clouds, formwork joints */
   concrete: [512, 7, 1.6, `
     float big = gfbm(uv, vec2(3.0), 5, 1.0), mid = gfbm(uv, vec2(12.0), 4, 2.0), gr = vn(uv * 256.0, vec2(256.0), 3.0);
     vec4 po = vor(uv, vec2(128.0), 4.0, 1.0); float pore = (1.0 - smoothstep(0.04, 0.12, po.x)) * step(0.78, po.z) * 0.6;
@@ -100,7 +100,7 @@ const TEXLAB = {
     a = srgb(vec3(0.66, 0.64, 0.6)) * (0.82 + big * 0.25 + mid * 0.1 + gr * 0.08);
     a *= 1.0 - pore * 0.35 - seam * 0.1; a = mix(a, a * vec3(1.03, 0.98, 0.9), smoothstep(0.5, 0.8, big));
     r = 0.88 - mid * 0.08; x = h;`],
-  /* tôle ondulée galvanisée : ondes, paillettes de zinc, coulures de rouille */
+  /* galvanized corrugated sheet metal: waves, zinc spangles, rust streaks */
   corrugated: [512, 9, 3.0, `
     float wv = sin(uv.x * 26.0 * 6.2831853) * 0.5 + 0.5;
     float big = gfbm(uv, vec2(3.0), 4, 1.0), sp = vor(uv, vec2(40.0, 40.0), 3.0, 1.0).z;
@@ -112,7 +112,7 @@ const TEXLAB = {
     vec3 rc = mix(srgb(vec3(0.42, 0.2, 0.1)), srgb(vec3(0.62, 0.34, 0.16)), gfbm(uv, vec2(32.0), 3, 8.0));
     a = mix(zinc, rc, rust); a *= 0.85 + wv * 0.15;
     r = mix(0.42 + sp * 0.15, 0.9, rust); x = mix(0.85, 0.1, rust);`],
-  /* tôle peinte (teintée par les sommets) : fines écaillures, rayures, coulures de rouille, crasse */
+  /* painted sheet metal (tinted by vertices): fine flaking, scratches, rust streaks, grime */
   paint: [512, 11, 1.6, `
     float big = gfbm(uv, vec2(3.0), 5, 1.0), mid = gfbm(uv, vec2(14.0), 3, 2.0);
     float chip = smoothstep(0.79, 0.81, gfbm(uv, vec2(20.0), 4, 3.0) + (big - 0.5) * 0.12);
@@ -125,15 +125,15 @@ const TEXLAB = {
     a = mix(a, srgb(vec3(0.55, 0.36, 0.22)), rust * 0.45);
     a = mix(a, srgb(vec3(0.5, 0.42, 0.36)), chip * 0.7); a = mix(a, vec3(0.62), sc * 0.4);
     r = mix(0.42 + big * 0.1 + grime * 0.3, 0.8, max(chip, rust)); x = sc * 0.8 + chip * 0.3;`],
-  /* peinture de carrosserie (teintée) : vernis lisse et brillant (5.1, le ciel s'y reflète), rares voiles de poussière, micro-rayures */
+  /* car body paint (tinted): smooth glossy clear coat (5.1, the sky reflects in it), rare dust veils, micro-scratches */
   carpaint: [512, 47, 0.4, `
     float big = gfbm(uv, vec2(2.0), 4, 1.0), peel = gfbm(uv, vec2(48.0), 2, 2.0);
     float dust = smoothstep(0.6, 0.95, gfbm(uv, vec2(4.0), 5, 3.0) + (1.0 - uv.y) * 0.1);
     float sc = smoothstep(0.96, 0.995, ridge(vec2(uv.x + uv.y * 0.3, uv.y), vec2(6.0, 18.0), 3, 5.0)) * step(0.55, big);
-    h = peel * 0.012 - sc * 0.015; // (vernis presque lisse : un relief plus fort scintille sous le soleil)
+    h = peel * 0.012 - sc * 0.015; // (almost smooth clear coat: a stronger relief sparkles in the sun)
     a = vec3(0.86) * (0.96 + big * 0.05); a = mix(a, srgb(vec3(0.72, 0.62, 0.5)), dust * 0.35); a = mix(a, vec3(0.9), sc * 0.15);
     r = mix(0.07, 0.6, dust) + sc * 0.05; x = 1.0 - dust * 0.8;`],
-  /* treillis de moucharabieh (bois tourné) : alpha = opacité */
+  /* mashrabiya lattice (turned wood): alpha = opacity */
   lattice: [256, 49, 1.4, `
     vec2 p = fract(uv * 8.0) - 0.5; float d = min(abs(p.x), abs(p.y)), dd = abs(abs(p.x) - abs(p.y));
     float bar = 1.0 - smoothstep(0.06, 0.09, d), dia = 1.0 - smoothstep(0.05, 0.08, dd) * step(length(p), 0.42);
@@ -142,7 +142,7 @@ const TEXLAB = {
     float grain = gfbm(uv, vec2(4.0, 32.0), 4, 2.0);
     h = solid * (0.6 + knob * 0.3); a = srgb(vec3(0.42, 0.28, 0.18)) * (0.8 + grain * 0.3);
     r = 0.8; x = solid;`],
-  /* carton ondulé : fibres, ruban adhésif, taches */
+  /* corrugated cardboard: fibers, adhesive tape, stains */
   cardboard: [256, 45, 0.8, `
     float fib = vn(uv * vec2(256.0, 40.0), vec2(256.0, 40.0), 1.0), big = gfbm(uv, vec2(3.0), 4, 2.0);
     float stain = smoothstep(0.6, 0.8, gfbm(uv, vec2(4.0), 5, 3.0));
@@ -150,13 +150,13 @@ const TEXLAB = {
     h = flute * 0.15 + fib * 0.1;
     a = srgb(vec3(0.72, 0.56, 0.38)) * (0.88 + fib * 0.1 + big * 0.1) * (1.0 - stain * 0.2);
     r = 0.92; x = h;`],
-  /* acier brossé ou galvanisé */
+  /* brushed or galvanized steel */
   steel: [512, 13, 0.8, `
     float br = vn(vec2(uv.x * 512.0, uv.y * 6.0), vec2(512.0, 6.0), 1.0), big = gfbm(uv, vec2(3.0), 4, 2.0);
     float spot = smoothstep(0.7, 0.85, gfbm(uv, vec2(8.0), 5, 3.0));
     h = br * 0.2; a = vec3(0.56, 0.57, 0.58) * (0.85 + br * 0.15 + big * 0.12) * (1.0 - spot * 0.3);
     r = 0.34 + br * 0.1 + spot * 0.3 + big * 0.1; x = 1.0 - spot * 0.6;`],
-  /* métal brûlé et rouillé (épaves) */
+  /* burnt and rusted metal (wrecks) */
   charred: [512, 15, 2.2, `
     float big = gfbm(uv, vec2(3.0), 5, 1.0), mid = gfbm(uv, vec2(16.0), 4, 2.0), fl = vor(uv, vec2(18.0), 5.0, 1.0).w;
     float rust = smoothstep(0.4, 0.75, big + mid * 0.3);
@@ -164,7 +164,7 @@ const TEXLAB = {
     vec3 soot = srgb(vec3(0.12, 0.11, 0.1)) * (0.7 + mid * 0.6), rc = mix(srgb(vec3(0.36, 0.17, 0.08)), srgb(vec3(0.58, 0.3, 0.13)), mid);
     a = mix(soot, rc, rust) * (0.85 + smoothstep(0.0, 0.1, fl) * 0.2);
     r = mix(0.8, 0.95, rust); x = 0.15;`],
-  /* carreaux de ciment du souk : motif à quatre lobes, émail usé, joints */
+  /* souk cement tiles: four-lobed pattern, worn enamel, joints */
   cement_tiles: [1024, 17, 1.5, `
     vec2 p = uv * 8.0, i = floor(p), f = fract(p) - 0.5;
     float g = min(0.5 - abs(f.x), 0.5 - abs(f.y)), joint = 1.0 - smoothstep(0.006, 0.014, g);
@@ -182,7 +182,7 @@ const TEXLAB = {
     a = mix(c, c * 0.75 + srgb(vec3(0.5, 0.45, 0.38)) * 0.2, wear) * (0.88 + tv * 0.14) * (0.85 + dirt * 0.2);
     a = mix(a, srgb(vec3(0.3, 0.28, 0.25)), joint);
     h = (1.0 - joint) * 0.6 - wear * 0.05; r = mix(mix(0.32, 0.7, wear), 0.95, joint); x = h;`],
-  /* toile d'auvent (teintée) : tissage, plis, salissures */
+  /* awning canvas (tinted): weave, folds, dirt */
   canvas: [512, 19, 1.2, `
     float wx = sin(uv.x * 220.0 * 6.2831853) * 0.5 + 0.5, wy = sin(uv.y * 220.0 * 6.2831853) * 0.5 + 0.5;
     float weave = mix(wx, wy, step(0.5, fract(uv.x * 110.0 + floor(uv.y * 220.0) * 0.5)));
@@ -191,7 +191,7 @@ const TEXLAB = {
     h = weave * 0.25 + fold * 0.5;
     a = vec3(0.86, 0.84, 0.8) * (0.85 + weave * 0.1 + big * 0.12) * (1.0 - stain * 0.3) * (0.9 + fold * 0.15);
     r = 0.9; x = h;`],
-  /* toile de jute des sacs de sable */
+  /* burlap of the sandbags */
   burlap: [512, 21, 2.4, `
     vec2 p = uv * vec2(96.0);
     float tx = sin(p.x * 6.2831853) * 0.5 + 0.5, ty = sin(p.y * 6.2831853) * 0.5 + 0.5;
@@ -203,14 +203,14 @@ const TEXLAB = {
     a = srgb(vec3(0.66, 0.56, 0.4)) * (0.72 + weave * 0.35 + fib * 0.1) * (0.9 + big * 0.15);
     a = mix(a, srgb(vec3(0.45, 0.36, 0.26)), dirt * 0.5);
     r = 0.97; x = h;`],
-  /* caoutchouc de pneu : sculptures en blocs */
+  /* tire rubber: block treads */
   rubber: [256, 23, 2.0, `
     vec4 t = tiles(uv, vec2(4.0, 8.0), 0.5);
     float groove = 1.0 - smoothstep(0.04, 0.09, t.w), mid = gfbm(uv, vec2(8.0), 4, 2.0);
     h = (1.0 - groove) * 0.8 + mid * 0.1;
     a = srgb(vec3(0.075, 0.072, 0.07)) * (0.85 + mid * 0.3) * (1.0 - groove * 0.4) + srgb(vec3(0.25, 0.2, 0.15)) * smoothstep(0.6, 0.9, mid) * 0.15;
     r = 0.88 + groove * 0.08; x = h;`],
-  /* planches de caisse (pin) : fil du bois, clous, jointures */
+  /* crate planks (pine): wood grain, nails, joints */
   crate: [512, 25, 2.0, `
     float n = 4.0; float pv = uv.y * n, pi = floor(pv), fv = fract(pv);
     float gap = 1.0 - smoothstep(0.015, 0.04, min(fv, 1.0 - fv));
@@ -224,24 +224,24 @@ const TEXLAB = {
     a = srgb(mix(vec3(0.62, 0.47, 0.3), vec3(0.8, 0.66, 0.46), id * 0.6 + ring * 0.3)) * (0.82 + grain * 0.25) * (0.85 + dirt * 0.25);
     a = mix(a, srgb(vec3(0.38, 0.26, 0.15)), knot * 0.8); a = mix(a, srgb(vec3(0.12, 0.09, 0.06)), gap); a = mix(a, vec3(0.08), clamp(nail, 0.0, 1.0));
     r = 0.82 + gap * 0.15 - nail * 0.3; x = h;`],
-  /* plastique moulé (teinté) */
+  /* molded plastic (tinted) */
   plastic: [256, 27, 0.6, `
     float big = gfbm(uv, vec2(3.0), 4, 1.0), sc = smoothstep(0.9, 0.98, ridge(uv, vec2(6.0), 3, 5.0));
     h = sc * -0.2; a = vec3(0.8) * (0.93 + big * 0.1) * (1.0 - sc * 0.15); r = 0.42 + big * 0.12 + sc * 0.2; x = 0.0;`],
-  /* verre de fenêtre sale */
+  /* dirty window glass */
   glass: [256, 29, 0.3, `
     float big = gfbm(uv, vec2(2.0), 4, 1.0), st = gfbm(vec2(uv.x, uv.y * 0.15), vec2(16.0, 1.0), 4, 2.0);
     float dirt = smoothstep(0.45, 0.8, big * 0.6 + st * 0.5 + (1.0 - uv.y) * 0.15);
     h = 0.0; a = mix(vec3(0.03, 0.035, 0.04), srgb(vec3(0.42, 0.36, 0.3)), dirt * 0.5);
     r = mix(0.05, 0.55, dirt); x = 1.0 - dirt * 0.7;`],
-  /* gravier de toit terrasse */
+  /* flat-roof gravel */
   gravel: [512, 31, 3.0, `
     vec4 v = vor(uv, vec2(36.0), 1.0, 1.0), v2 = vor(uv + 0.5, vec2(58.0), 2.0, 1.0);
     float st = smoothstep(0.0, 0.18, v.w), st2 = smoothstep(0.0, 0.14, v2.w);
     h = max(st * (0.6 + v.z * 0.4), st2 * 0.7);
     vec3 c = mix(srgb(vec3(0.55, 0.52, 0.48)), srgb(vec3(0.75, 0.7, 0.62)), v.z) * (0.75 + st * 0.3);
     a = mix(srgb(vec3(0.26, 0.24, 0.21)), c, max(st, st2 * 0.8)); r = 0.9; x = h;`],
-  /* façade lointaine : une travée d'un étage (fenêtre, volets, bandeau) pour les silhouettes d'arrière-plan */
+  /* distant facade: a one-story bay (window, shutters, band) for background silhouettes */
   farfacade: [512, 33, 1.5, `
     vec2 p = uv; float big = gfbm(uv, vec2(2.0), 4, 1.0);
     float win = step(abs(p.x - 0.5), 0.17) * step(abs(p.y - 0.5), 0.24);
@@ -253,7 +253,7 @@ const TEXLAB = {
     a = mix(a, srgb(vec3(0.06, 0.06, 0.07)) + srgb(vec3(0.2, 0.18, 0.15)) * step(0.62, p.y) * 0.3, win);
     a = mix(a, srgb(vec3(0.5, 0.44, 0.36)), frame); a = mix(a, srgb(vec3(0.3, 0.42, 0.36)), sh); a = mix(a, srgb(vec3(0.9, 0.86, 0.78)), band * 0.6);
     r = mix(0.9, 0.2, win); x = h;`],
-  /* tapis tissé (kilim) des étals */
+  /* woven rug (kilim) for the stalls */
   rug: [512, 35, 1.0, `
     vec2 p = uv * vec2(1.0, 2.0); float wv = sin(uv.x * 300.0 * 6.2831853) * 0.5 + 0.5;
     float band = floor(fract(p.y) * 9.0), bd = abs(fract(fract(p.y) * 9.0) - 0.5);
@@ -263,7 +263,7 @@ const TEXLAB = {
     float edge = step(0.46, abs(uv.x - 0.5)); c = mix(c, cr * 0.8, edge);
     float dirt = gfbm(uv, vec2(3.0), 4, 2.0);
     a = c * (0.8 + wv * 0.2) * (0.8 + dirt * 0.3); h = wv * 0.4; r = 0.95; x = h;`],
-  /* bois peint des portes et volets (teinté) : planches verticales, peinture écaillée */
+  /* painted wood of doors and shutters (tinted): vertical planks, flaking paint */
   paintwood: [512, 37, 2.2, `
     float n = 5.0, pu = uv.x * n, pi = floor(pu), fu = fract(pu);
     float gap = 1.0 - smoothstep(0.02, 0.05, min(fu, 1.0 - fu)), id = hs(vec2(pi, 1.0), 3.0);
@@ -274,7 +274,7 @@ const TEXLAB = {
     vec3 wood = srgb(vec3(0.45, 0.33, 0.22)) * (0.7 + grain * 0.5);
     a = mix(vec3(0.8) * (0.92 + id * 0.1), wood, chip) * (1.0 - grime * 0.4); a = mix(a, vec3(0.05), gap * 0.8);
     r = mix(0.62, 0.85, chip); x = h;`],
-  /* rideau métallique de boutique (teinté) : lames horizontales, rouille, crasse */
+  /* shop roller shutter (tinted): horizontal slats, rust, grime */
   rollshutter: [512, 43, 2.6, `
     float pv = uv.y * 24.0, fv = fract(pv), id = hs(vec2(floor(pv), 1.0), 2.0);
     float groove = 1.0 - smoothstep(0.0, 0.1, min(fv, 1.0 - fv));
@@ -285,7 +285,7 @@ const TEXLAB = {
     a = vec3(0.8) * (0.86 + big * 0.12 + id * 0.05) * (1.0 - grime * 0.35);
     a = mix(a, srgb(vec3(0.45, 0.24, 0.12)), rust * 0.75); a *= 1.0 - groove * 0.55;
     r = mix(0.5, 0.88, max(rust, grime * 0.5)); x = mix(0.55, 0.05, rust);`],
-  /* moellons de pierre sèche (murets, soubassements, pierre de taille) */
+  /* dry-stone rubble (low walls, plinths, ashlar) */
   ashlar: [1024, 39, 2.4, `
     vec2 p = uv * vec2(4.0, 8.0); float row = floor(p.y); p.x += hs(vec2(row, 1.0), 2.0) * 0.8;
     vec2 i = floor(p), f = fract(p); float id = hs(mod(i, vec2(4.0, 8.0)), 4.0);
@@ -299,7 +299,7 @@ const TEXLAB = {
     r = mix(0.82, 0.95, mortar); x = h;`],
 };
 
-/* ---------- Exécution sur GPU ---------- */
+/* ---------- Execution on the GPU ---------- */
 const TLAB = { quad: null, tmp: null };
 function _tlQuad(frag, uniforms) {
   const m = new THREE.ShaderMaterial({
@@ -315,17 +315,17 @@ function _tlTarget(size, srgb, float) {
     minFilter: float ? THREE.LinearFilter : THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: !float,
     encoding: srgb ? THREE.sRGBEncoding : THREE.LinearEncoding, anisotropy: 8,
   });
-  rt.texture.userData.rt = rt; // libérée avec sa cible (freeTexture)
+  rt.texture.userData.rt = rt; // freed with its target (freeTexture)
   return rt;
 }
-/* Libère une texture du GPU, avec sa cible de rendu si elle en a une (sinon le framebuffer resterait alloué) */
+/* Frees a texture from the GPU, with its render target if it has one (otherwise the framebuffer would stay allocated) */
 function freeTexture(t) { if (t) { if (t.userData.rt) t.userData.rt.dispose(); else t.dispose(); } }
 function _tlRender(quad, rt, seed) {
   const prev = renderer.getRenderTarget(), m = quad.material;
   m.uniforms.uSeed.value = seed; m.uniforms.uRes.value.set(rt.width, rt.height);
   renderer.setRenderTarget(rt); quad.render(renderer); renderer.setRenderTarget(prev);
 }
-/* Génère une surface : { map, normal } (textures de cibles de rendu, raccordables, avec mipmaps) */
+/* Generates a surface: { map, normal } (render target textures, seamless, with mipmaps) */
 function texLabSurface(key, def, sizeScale = 1) {
   const [size0, seed, bump, code] = def, size = Math.max(64, Math.round(size0 * sizeScale));
   const surf = `${TEXLAB_LIB}\nvoid surf(vec2 uv, out vec3 a, out float h, out float r, out float x) { a = vec3(0.5); h = 0.0; r = 0.9; x = 0.0; ${code} }\nvarying vec2 vUv;\n`;
@@ -341,15 +341,15 @@ function texLabSurface(key, def, sizeScale = 1) {
   _tlRender(qH, tmp, seed); _tlRender(qA, map, seed);
   qN.material.uniforms.tH.value = tmp.texture; qN.material.uniforms.uBump.value = bump * size / 32;
   _tlRender(qN, nor, seed);
-  for (const q of [qH, qA, qN]) q.material.dispose(); // pas q.dispose() : la géométrie du quad est partagée par tous
+  for (const q of [qH, qA, qN]) q.material.dispose(); // not q.dispose(): the quad geometry is shared by everyone
   tmp.dispose();
   map.texture.name = key + '.map'; nor.texture.name = key + '.normal';
   return { map: map.texture, normal: nor.texture, rt: [map, nor], size };
 }
-/* Texture de variation à grande échelle (anti-répétition) : r, g = nuages à deux échelles, b = taches, a = coulures verticales */
-/* Texture macro du décor (512 px, raccordable) : r, variation de grande échelle (bruit) ; g, b, a, la couche d'usure : grain de crasse,
-   taches, coulures, recopiés des scans (assets/fx/usure.webp, tools/build_usure.py : trois cases de 512 px côte à côte, paquet fx_usure
-   chargé avec les textures de la carte, usureLoad). Sans eux (réseau coupé), du bruit procédural : bruit fin, taches de Voronoï, traînées. */
+/* Large-scale variation texture (anti-repetition): r, g = clouds at two scales, b = stains, a = vertical streaks */
+/* Scenery macro texture (512 px, seamless): r, large-scale variation (noise); g, b, a, the wear layer: dirt grain,
+   stains, streaks, copied from scans (assets/fx/wearMap.webp, tools/build_wear.py: three 512 px cells side by side, package fx_wearMap
+   loaded with the map's textures, wearLoad). Without them (network cut), procedural noise: fine noise, Voronoi stains, trails. */
 function texLabMacro(scan) {
   const q = _tlQuad(`${TEXLAB_LIB}\nuniform sampler2D tScan; uniform float uScan; varying vec2 vUv; void main(){ vec2 uv = vUv;
     float a = gfbm(uv, vec2(4.0), 5, 1.0), b = gfbm(uv, vec2(16.0), 4, 2.0);
@@ -360,17 +360,17 @@ function texLabMacro(scan) {
   const rt = _tlTarget(512, false); _tlRender(q, rt, 41); q.material.dispose();
   return rt.texture;
 }
-/* Scans de la couche d'usure (paquet fx_usure) : null s'ils manquent */
-function usureLoad() {
-  return fetchTexPack('fx_usure').then((d) => d && new Promise((res) => new THREE.TextureLoader().load(d.map, (t) => {
+/* Scans of the wear layer (pack fx_wearMap): null if missing */
+function wearLoad() {
+  return fetchTexPack('fx_wearMap').then((d) => d && new Promise((res) => new THREE.TextureLoader().load(d.map, (t) => {
     t.generateMipmaps = false; t.minFilter = t.magFilter = THREE.NearestFilter; res(t);
   }, undefined, () => res(null))));
 }
-/* Relief d'une surface photo retrouvé à partir de sa carte de normales. Les pentes (-n.x / n.z, -n.y / n.z) sont
-   intégrées en résolvant l'équation de Poisson par relaxation de Jacobi, de la résolution la plus grossière à la plus
-   fine (chaque niveau part du résultat agrandi du précédent : quelques dizaines de passes suffisent). La tuile reste
-   raccordable (bords bouclés). Sortie : cible flottante r = relief sans ondulations lointaines, g = r², avec mipmaps
-   (le dernier niveau donne l'écart type, qui sert à normaliser). */
+/* Relief of a photo surface recovered from its normal map. The slopes (-n.x / n.z, -n.y / n.z) are
+   integrated by solving the Poisson equation with Jacobi relaxation, from the coarsest resolution to the
+   finest (each level starts from the enlarged result of the previous one: a few dozen passes suffice). The tile stays
+   seamless (wrapped edges). Output: float target r = relief without distant undulations, g = r², with mipmaps
+   (the last level gives the standard deviation, used to normalize). */
 function texLabHeight(nor, size) {
   const rt = (s, mip) => new THREE.WebGLRenderTarget(s, s, {
     type: THREE.HalfFloatType, depthBuffer: false, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping,
@@ -380,7 +380,7 @@ function texLabHeight(nor, size) {
   const qG = _tlQuad(`uniform sampler2D tN; varying vec2 vUv; void main(){ vec3 n = texture2D(tN, vUv).xyz * 2.0 - 1.0;
     gl_FragColor = vec4(clamp(-n.xy / max(n.z, 0.3), -2.5, 2.5), 0.0, 1.0); }`, { tN: { value: nor } });
   _tlRender(qG, G, 0);
-  // relaxation amortie (0,8) : h = moyenne des voisins corrigée de la divergence des pentes (unités : texels fins)
+  // damped relaxation (0.8): h = average of the neighbors corrected by the divergence of the slopes (units: fine texels)
   const qJ = _tlQuad(`uniform sampler2D tH, tG; uniform float uR, uLod, uS; varying vec2 vUv; void main(){
     vec2 dx = vec2(1.0 / uR, 0.0), dy = vec2(0.0, 1.0 / uR);
     float s = texture2D(tH, vUv + dx).r + texture2D(tH, vUv - dx).r + texture2D(tH, vUv + dy).r + texture2D(tH, vUv - dy).r;
@@ -388,7 +388,7 @@ function texLabHeight(nor, size) {
     gl_FragColor = vec4(mix(texture2D(tH, vUv).r, (s - dv * uS * 0.5) * 0.25, 0.8), 0.0, 0.0, 1.0); }`,
   { tH: { value: null }, tG: { value: G.texture }, uR: { value: 0 }, uLod: { value: 0 }, uS: { value: 0 } });
   const U = qJ.material.uniforms;
-  // chaque niveau part du précédent agrandi (lecture bilinéaire de la petite cible), le premier de zéro
+  // each level starts from the previous one enlarged (bilinear read of the small target), the first from zero
   let prev = null; const zero = new THREE.DataTexture(new Uint8Array(4), 1, 1); zero.needsUpdate = true;
   for (let R = 8; R <= size; R *= 2) {
     const n = R >= 512 ? 14 : R >= 256 ? 20 : R >= 128 ? 30 : 40;
@@ -400,7 +400,7 @@ function texLabHeight(nor, size) {
     nxt.dispose(); prev = cur;
   }
   zero.dispose(); const src = prev;
-  // relief sans ondulations lointaines (écart à la moyenne sur un quart de tuile), puis carré pour l'écart type
+  // relief without distant undulations (deviation from the mean over a quarter tile), then squared for the standard deviation
   const HM = rt(size, true), V = rt(size, true);
   const qC = _tlQuad('uniform sampler2D tH; varying vec2 vUv; void main(){ gl_FragColor = vec4(texture2D(tH, vUv).r, 0.0, 0.0, 1.0); }', { tH: { value: src.texture } });
   _tlRender(qC, HM, 0);
@@ -411,9 +411,9 @@ function texLabHeight(nor, size) {
   for (const t of [G, src, HM]) t.dispose();
   return { rt: V, top };
 }
-/* Réemballe une surface photo (map, normal, rough séparées) au format du décor : map.a = relief (intégré depuis les
-   normales si T.relief, sinon estimé d'après la luminance : il ne sert alors qu'aux mélanges de sol), ou masque de métal
-   (T.metal : canal bleu de la rugosité, pour une matière à masque, ma), normal.a = rugosité. Les textures d'origine sont libérées. */
+/* Repackages a photo surface (map, normal, rough separate) into the scenery format: map.a = relief (integrated from the
+   normals if T.relief, otherwise estimated from luminance: it then serves only for ground blends), or metal mask
+   (T.metal: blue channel of the roughness, for a masked material, ma), normal.a = roughness. The original textures are freed. */
 function texLabPack(T, maxSize = 1024) {
   const size = Math.min(maxSize, T.map.image.width || 1024);
   const H = T.relief ? texLabHeight(T.normal, Math.min(512, size)) : null;

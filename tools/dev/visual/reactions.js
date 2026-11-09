@@ -1,31 +1,31 @@
-/* Réactions des bots, trois mesures (README « IA des bots ») : node reactions.js [carte=sable] [secondes=150]   (PAGE=autre version, DIFF=0 à 2,
-   N=essais de cachette, 24 par défaut ; TRACE=1 : un essai par ligne)
-   - sauts : partie accélérée entre bots (le joueur, invulnérable, reste dans sa base), chaque saut rangé selon sa cause : lien de saut du
-     chemin (`leap`), sortie de blocage (`unstick`), autre ; et leur nombre par minute et par bot vivant. Le saut-esquive en combat (`hop`, dont
-     `hopLibre` : sans être sous le feu) a été retiré après la 4.15 : il ne se compte que sur une version d'avant (PAGE=) ;
-   - retournement : un bot ennemi, seul en jeu, tourne le dos au joueur à 14 m (il marche, ou un essai sur deux il tient une position) et prend
-     une balle ; médianes, en secondes après l'impact, du début de la rotation, du moment où il fait face (à 0,25 rad près), où il le repère et
-     de son premier tir ;
-   - cachette : le même bot voit le joueur, à découvert à côté d'un haut couvert, 1,5 s ; le joueur passe derrière le couvert et n'en bouge
-     plus. Part des essais où le bot le retrouve en 10 s, en 20 s, délai médian, part des bots qui abandonnent avant (retour à la promenade).
-   Les positions des essais sont tirées à part du jeu (graine fixe) : deux versions passent les mêmes essais. Le bot des essais n'a pas de fusil
-   de précision (le tireur d'élite ne poursuit pas, voulu). Les résultats bougent d'une partie à l'autre : comparer sur plusieurs cartes. */
+/* Bot reactions, three measurements (README "Bot AI"): node reactions.js [map=chergui] [seconds=150]   (PAGE=other version, DIFF=0 to 2,
+   N=hiding trials, 24 by default; TRACE=1: one trial per line)
+   - jumps: accelerated match between bots (the player, invulnerable, stays in their base), each jump sorted by cause: path jump link
+     (`leap`), unstick (`unstick`), other; and their count per minute and per living bot. The dodge-hop in combat (`hop`, including
+     `hopFree`: without being under fire) was removed after 4.15: it can only be counted on an earlier version (PAGE=);
+   - turnaround: an enemy bot, alone in the game, turns its back to the player at 14 m (it walks, or every other trial it holds a position) and takes
+     a bullet; medians, in seconds after impact, of the start of the rotation, of the moment it faces (within 0.25 rad), when it spots them, and
+     of its first shot;
+   - hiding: the same bot sees the player, in the open next to a tall cover, for 1.5 s; the player goes behind the cover and does not move
+     again. Share of trials where the bot finds them within 10 s, within 20 s, median delay, share of bots that give up before (back to wandering).
+   Trial positions are drawn separately from the game (fixed seed): two versions run the same trials. The trial bot has no sniper
+   rifle (the sniper does not chase, by design). Results vary from one match to the next: compare across several maps. */
 const { openGame } = require('./common');
 (async () => {
-  const map = process.argv[2] || 'sable', secs = +(process.argv[3] || 150);
+  const map = process.argv[2] || 'chergui', secs = +(process.argv[3] || 150);
   const { browser, page, logs } = await openGame({ page: process.env.PAGE, w: 480, h: 270, settings: { quality: 'low', difficulty: +(process.env.DIFF || 2), map, mode: 'tdm' }, noHdri: true });
   const r = await page.evaluate(([secs, nCache, trace]) => {
     LOCK.fallback = true; startMatch({});
-    let seed = 12345; // tirage des essais, à part de celui du jeu
+    let seed = 12345; // trial draw, separate from the game's
     const R = () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
     const dt = 1 / 30, bots = entities.filter((e) => !e.isPlayer), lines = [];
     const step = (list) => { MATCH.time += dt; MATCH.timeLeft -= dt; PL.ent.health = 1e9; for (const e of list) { if (e.protT > 0) e.protT -= dt; updateBot(e, dt, MATCH.time); } updateNades(dt); };
     const med = (arr) => { const v = arr.filter((x) => x !== null).sort((p, q) => p - q); return v.length ? +v[Math.floor(v.length / 2)].toFixed(2) : null; };
     const pct = (k, n) => Math.round(k / (n || 1) * 100) + ' %';
 
-    /* ---------- sauts ---------- */
+    /* ---------- jumps ---------- */
     PL.ent.pos.set(SPAWNS[0][0][0], 0, VOID.on ? SPAWNS[0][0][1] + 4 : MAP.z1 - 0.5);
-    const J = { hop: 0, hopLibre: 0, leap: 0, unstick: 0, autre: 0 }, ground = new Map(bots.map((e) => [e, true]));
+    const J = { hop: 0, hopFree: 0, leap: 0, unstick: 0, other: 0 }, ground = new Map(bots.map((e) => [e, true]));
     let alive = 0;
     for (let i = 0; i < secs * 30; i++) {
       MATCH.time += dt; MATCH.timeLeft -= dt; PL.ent.health = 1e9;
@@ -37,18 +37,18 @@ const { openGame } = require('./common');
         if (!e.alive) { ground.set(e, true); continue; }
         alive += dt;
         if (ground.get(e) && !e.onGround && e.vy > 1) {
-          if (e.tactic === 'fight' && MATCH.time - e.hopAt < 0.01) { J.hop++; if (!fire) J.hopLibre++; }
+          if (e.tactic === 'fight' && MATCH.time - e.hopAt < 0.01) { J.hop++; if (!fire) J.hopFree++; }
           else if (MATCH.time - e.unstickAt < 0.6) J.unstick++;
           else if ((lp && lp.jump) || (e.path && e.path[e.pathI] && e.path[e.pathI].jump)) J.leap++;
-          else J.autre++;
+          else J.other++;
         }
         ground.set(e, e.onGround);
       }
       updateNades(dt);
     }
-    J.parMinuteParBot = +((J.hop + J.leap + J.unstick + J.autre) / (alive / 60)).toFixed(2);
+    J.perMinutePerBot = +((J.hop + J.leap + J.unstick + J.other) / (alive / 60)).toFixed(2);
 
-    /* ---------- un seul bot ennemi en jeu pour les essais ---------- */
+    /* ---------- a single enemy bot in the game for the trials ---------- */
     const foe = bots.find((e) => e.team !== PL.ent.team && !e.weapon.ai.sniper);
     for (const e of bots) { e.off = e !== foe; if (e.off) e.alive = false; }
     NADES.length = 0; soundEvents.length = 0;
@@ -64,7 +64,7 @@ const { openGame } = require('./common');
     const yawTo = (a, b) => Math.atan2(-(b.x - a.x), -(b.z - a.z));
     const putPlayer = (p) => { PL.ent.pos.copy(p); PL.ent.vel.set(0, 0, 0); PL.ent.crouch = false; };
 
-    /* ---------- retournement ---------- */
+    /* ---------- turnaround ---------- */
     const turn = [];
     for (let tr = 0, tries = 0; tr < 20 && tries < 400; tries++) {
       const id = Math.floor(R() * NAV.count); if (NAV.comp[id] !== NAV.mainComp) continue;
@@ -86,23 +86,23 @@ const { openGame } = require('./common');
         if (foe.arms.shots > shots0) { T.shot = t; break; }
       }
       turn.push(T); tr++;
-      if (trace) lines.push('retournement ' + (hold ? 'posté ' : 'en marche ') + ['start', 'face', 'see', 'shot'].map((k) => T[k] === null ? '-' : T[k].toFixed(2)).join(' '));
+      if (trace) lines.push('turnaround ' + (hold ? 'holding ' : 'walking ') + ['start', 'face', 'see', 'shot'].map((k) => T[k] === null ? '-' : T[k].toFixed(2)).join(' '));
     }
-    const B = { essais: turn.length, debutRotation: med(turn.map((t) => t.start)), face: med(turn.map((t) => t.face)), repere: med(turn.map((t) => t.see)), premierTir: med(turn.map((t) => t.shot)) };
+    const B = { trials: turn.length, debutRotation: med(turn.map((t) => t.start)), face: med(turn.map((t) => t.face)), landmark: med(turn.map((t) => t.see)), firstShot: med(turn.map((t) => t.shot)) };
 
-    /* ---------- cachette ---------- */
+    /* ---------- hiding spot ---------- */
     const hid = [], highs = COVERS.filter((c) => !c.low);
     for (let tr = 0, tries = 0; tr < nCache && tries < 6000 && highs.length; tries++) {
       const c = highs[Math.floor(R() * highs.length)], D = 12 + R() * 8, bp = nodeAt(c.x + c.nx * D, c.y, c.z + c.nz * D, 2); if (!bp) continue;
       const hp = new V3(c.x, c.y, c.z); if (sees(bp, hp)) continue;
-      let ep = null; // à découvert, à côté du couvert, en vue du bot
+      let ep = null; // in the open, next to the cover, in the bot's view
       for (const s of [2.5, -2.5, 3.5, -3.5]) { const q = nodeAt(c.x - c.nz * s, c.y, c.z + c.nx * s, 0.8); if (q && sees(bp, q)) { ep = q; break; } }
       if (!ep || !findPath(bp, hp, -1)) continue;
       putPlayer(ep); place(bp, yawTo(bp, ep));
       let ok = false;
       for (let i = 0; i < 4 * 30; i++) { step([foe]); if (foe.visible && foe.target === PL.ent) { ok = true; break; } }
       if (!ok) continue;
-      for (let i = 0; i < 45; i++) step([foe]); // 1,5 s d'échange
+      for (let i = 0; i < 45; i++) step([foe]); // 1.5 s of exchange
       putPlayer(hp);
       const t0 = MATCH.time, steps = []; let found = null, quit = null, last = '';
       for (let i = 0; i < 25 * 30; i++) {
@@ -113,11 +113,11 @@ const { openGame } = require('./common');
         if (quit === null && foe.tactic === 'roam' && t > 0.5) quit = t;
       }
       hid.push({ found, quit }); tr++;
-      if (trace) lines.push('cachette ' + (found === null ? 'non trouvé ' : 'trouvé en ' + found.toFixed(1) + ' s ') + steps.join(' '));
+      if (trace) lines.push('hiding spot ' + (found === null ? 'not found ' : 'found in ' + found.toFixed(1) + ' s ') + steps.join(' '));
     }
-    const C = { essais: hid.length, trouveEn10s: pct(hid.filter((h) => h.found !== null && h.found < 10).length, hid.length), trouveEn20s: pct(hid.filter((h) => h.found !== null && h.found < 20).length, hid.length),
-      delaiMedian: med(hid.map((h) => h.found)), abandon: pct(hid.filter((h) => h.quit !== null && (h.found === null || h.quit < h.found)).length, hid.length) };
-    return { carte: CURMAP.id, sauts: J, retournement: B, cachette: C, lines };
+    const C = { trials: hid.length, foundIn10s: pct(hid.filter((h) => h.found !== null && h.found < 10).length, hid.length), foundIn20s: pct(hid.filter((h) => h.found !== null && h.found < 20).length, hid.length),
+      medianDelay: med(hid.map((h) => h.found)), abandon: pct(hid.filter((h) => h.quit !== null && (h.found === null || h.quit < h.found)).length, hid.length) };
+    return { mapKey: CURMAP.id, jumps: J, turnaround: B, hidingSpot: C, lines };
   }, [secs, +(process.env.N || 24), !!process.env.TRACE]);
   const lines = r.lines; delete r.lines;
   console.log(JSON.stringify(r));

@@ -1,15 +1,15 @@
-/* Endurance : une partie jouée par les bots (le joueur, protégé, reste à son point d'apparition), chaque image passant par la vraie
-   boucle frame() ; toutes les 20 s de jeu, rendu de trois vues fixes chronométré (synchronisé avec le GPU, médiane de quatre) et
-   relevé de ce qui grossit : ressources GPU (textures, géométries, programmes), maillages de la scène, armes au sol, props en
-   mouvement, champs simulés, tas JavaScript. Une partie qui ne se dégrade pas garde des vues fixes au même coût d'un relevé à l'autre ;
-   puis une seconde partie sur la même carte, pour comparer son début à celui de la première. Entre deux relevés, la logique du jeu tourne sans rendu
-   (« frame » : temps processeur moyen d'une image, rendu coupé). Chaque vue est aussi rendue sans les soldats (« Decor ») : ce qui y monte s'accumule
-   dans le décor (marques, armes au sol, débris), alors que la vue complète dépend aussi de l'endroit où sont les soldats à cet instant.
-   node tools/dev/visual/endurance.js [minutes=3] ; MAP=floreal (Hortus, par défaut) ; PAGE=autre/version.html ; Q=medium. */
+/* Endurance: a match played by the bots (the player, protected, stays at their spawn point), each frame going through the real
+   frame() loop; every 20 s of play, a timed render of three fixed views (synchronized with the GPU, median of four) and
+   a reading of what grows: GPU resources (textures, geometries, programs), scene meshes, weapons on the ground, moving
+   props, simulated fields, JavaScript heap. A match that does not degrade keeps fixed views at the same cost from one reading to the next;
+   then a second match on the same map, to compare its start with that of the first. Between two readings, the game logic runs without rendering
+   ("frame": average CPU time of a frame, rendering off). Each view is also rendered without the soldiers ("Decor"): what rises there accumulates
+   in the scenery (marks, weapons on the ground, debris), whereas the full view also depends on where the soldiers are at that moment.
+   node tools/dev/visual/endurance.js [minutes=3] ; MAP=floralia (Floralia, default) ; PAGE=other/version.html ; Q=medium. */
 const { openGame } = require('./common');
 const MIN = +(process.argv[2] || 3);
 (async () => {
-  const { browser, page, logs } = await openGame({ page: process.env.PAGE, w: 640, h: 360, settings: { quality: process.env.Q || 'low', dynres: false, difficulty: 1, map: process.env.MAP || 'floreal', lang: 'fr' }, noHdri: true });
+  const { browser, page, logs } = await openGame({ page: process.env.PAGE, w: 640, h: 360, settings: { quality: process.env.Q || 'low', dynres: false, difficulty: 1, map: process.env.MAP || 'floralia' }, noHdri: true });
   await page.evaluate(() => {
     const gl = renderer.getContext(), fb = gl.createFramebuffer(), tex = gl.createTexture(), px = new Uint8Array(4);
     gl.bindTexture(gl.TEXTURE_2D, tex); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
@@ -17,18 +17,18 @@ const MIN = +(process.argv[2] || 3);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); renderer.state.reset();
     window.__sync = () => { const prev = gl.getParameter(gl.READ_FRAMEBUFFER_BINDING); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fb); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); gl.bindFramebuffer(gl.READ_FRAMEBUFFER, prev); };
     window.__T = performance.now();
-    // vues fixes : survol du centre, sol au centre, sol depuis la base Alpha vers le centre
+    // fixed views: flyover of the center, ground at the center, ground from the Alpha base toward the center
     const cx = (MAP.x0 + MAP.x1) / 2, cz = (MAP.z0 + MAP.z1) / 2, s = SPAWNS[0][0] || [cx, MAP.z1 - 4];
     window.__V = [
-      ['survol', [cx + 20, 26, cz + 30], [cx, 0, cz]],
+      ['flyover', [cx + 20, 26, cz + 30], [cx, 0, cz]],
       ['centre', [cx, 1.7, cz], [cx + 20, 1.5, cz + 5]],
       ['base', [s[0], 1.7, s[1]], [cx, 1.5, cz]],
     ];
     window.__match = () => { LOCK.fallback = true; startMatch({}); PL.ent.protT = 1e9; };
-    // une tranche de jeu : n images de 1/30 s par la boucle réelle (le joueur reste protégé)
-    // la logique seule (rendu coupé, mesuré à part par __probe) : le rendu logiciel d'une image prend près d'une seconde
+    // a slice of play: n frames of 1/30 s through the real loop (the player stays protected)
+    // logic only (rendering off, measured separately by __probe): software rendering of one frame takes nearly a second
     window.__play = (n) => {
-      // frame() se réinscrit à chaque appel (requestAnimationFrame) : sans cette coupure, les 600 appels s'exécuteraient tous, avec rendu, à la prochaine image
+      // frame() re-registers itself on each call (requestAnimationFrame): without this cut, the 600 calls would all run, with rendering, on the next frame
       let ms = 0; const cr = composer.render, raf = window.requestAnimationFrame; composer.render = () => {}; window.requestAnimationFrame = () => 0;
       for (let i = 0; i < n; i++) {
         PL.ent.protT = 1e9; PL.ent.health = 100;
@@ -38,7 +38,7 @@ const MIN = +(process.argv[2] || 3);
       composer.render = cr; window.requestAnimationFrame = raf;
       return +(ms / n).toFixed(2);
     };
-    // relevé : chaque vue rendue quatre fois (médiane), plus les compteurs
+    // reading: each view rendered four times (median), plus the counters
     window.__probe = () => {
       const cam = { p: camera.position.clone(), q: camera.quaternion.clone() }, out = {};
       for (const [name, p, t] of __V) {
@@ -50,7 +50,7 @@ const MIN = +(process.argv[2] || 3);
         }
         ts.sort((a, b) => a - b); out[name] = Math.round((ts[1] + ts[2]) / 2);
         out[name + 'Calls'] = renderer.info.render.calls; out[name + 'Ktri'] = Math.round(renderer.info.render.triangles / 1000);
-        // la même vue sans les soldats (vivants ou à terre) : ce qui reste, c'est le décor et ce qui s'y accumule (marques, armes au sol, débris)
+        // the same view without the soldiers (alive or down): what remains is the scenery and what accumulates in it (marks, weapons on the ground, debris)
         const vis = entities.map((e) => e.model.root.visible); for (const e of entities) e.model.root.visible = false;
         const ts2 = [];
         for (let i = 0; i < 6; i++) {
@@ -74,7 +74,7 @@ const MIN = +(process.argv[2] || 3);
   const rows = [];
   for (const m of [1, 2]) {
     await page.evaluate(() => __match());
-    const n = m === 1 ? Math.round(MIN * 3) : 3; // seconde partie : sa première minute
+    const n = m === 1 ? Math.round(MIN * 3) : 3; // second match: its first minute
     rows.push(Object.assign({ m, frame: 0 }, await page.evaluate(() => __probe())));
     console.log(JSON.stringify(rows[rows.length - 1]));
     for (let k = 0; k < n; k++) {

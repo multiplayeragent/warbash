@@ -1,22 +1,22 @@
 /* ==========================================================================
-   VÉHICULES : voitures (berline, citadine, 4x4) et camions (militaire à capot, porteur à cabine avancée, fourgon et frigo), chacun en
-   plusieurs versions (propre, poussiéreux, épave calcinée ; bâché, plateau, chargé) ; vélo, mobylette, bus incendié.
-   Repère : longueur le long de z, avant en -z, roues posées sur y = 0. Les collisions d'un modèle sont décrites à côté de lui (vehCols,
-   gardées sur le prefab : pf.vcols) et posées par la carte (vehicle) : des boîtes simples qui suivent la caisse, l'habitacle, la cabine et
-   le plateau, sans dépasser de ce qu'on voit.
+   VEHICLES: cars (sedan, city car, 4x4) and trucks (military hooded, cab-forward rigid, van and refrigerated), each in
+   several versions (clean, dusty, burnt-out wreck; tarped, flatbed, loaded); bicycle, moped, burnt bus.
+   Frame: length along z, front at -z, wheels set on y = 0. A model's collisions are described next to it (vehCols,
+   kept on the prefab: pf.vcols) and placed by the map (vehicle): simple boxes that follow the body, the cabin, the cab and
+   the flatbed, without exceeding what is seen.
    ========================================================================== */
 const G_SPH = new THREE.SphereGeometry(1, 6, 4);
-/* Quadrilatère dont la normale est calculée sur ses sommets, tournée du côté de out ([x, y, z]) */
+/* Quad whose normal is computed from its vertices, turned toward the side of out ([x, y, z]) */
 function vQuad(M, mat, a, b, c, d, out) {
   const ux = c[0] - a[0], uy = c[1] - a[1], uz = c[2] - a[2], vx = d[0] - b[0], vy = d[1] - b[1], vz = d[2] - b[2];
   let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = hyp3(nx, ny, nz) || 1;
   nx /= l; ny /= l; nz /= l; if (nx * out[0] + ny * out[1] + nz * out[2] < 0) { nx = -nx; ny = -ny; nz = -nz; }
   M.quad(mat, a, b, c, d, [nx, ny, nz]);
 }
-/* Roue : pneu (profil de révolution) et jante ; axe le long de x, centre en (0, r, 0). o.side : +1 si la face extérieure regarde +x ;
-   o.rim : teinte de la jante ; o.hub : 'disc' (enjoliveur plein percé), 'steel' (jante tôle, écrous), 'army' (jante creuse, gros moyeu,
-   cercle de boulons) ; o.tread : nombre de pavés sur le tour (pneu tout-terrain, le relief se voit sur la silhouette) ; o.tire : teinte du
-   pneu (poussière) ; o.noTire : jante seule (épave) */
+/* Wheel: tire (revolution profile) and rim; axis along x, center at (0, r, 0). o.side: +1 if the outer face looks toward +x;
+   o.rim: rim tint; o.hub: 'disc' (solid pierced hubcap), 'steel' (steel rim, lug nuts), 'army' (hollow rim, big hub,
+   bolt circle); o.tread: number of lugs around the circumference (off-road tire, the relief shows on the silhouette); o.tire: tire
+   tint (dust); o.noTire: rim alone (wreck) */
 function wheel(M, r, w, o = {}) {
   const hw = w / 2, s = -(o.side || 1), k = r / 0.33;
   M.save().move(0, r, 0).rotZ(Math.PI / 2);
@@ -24,7 +24,7 @@ function wheel(M, r, w, o = {}) {
     M.color(o.tire || [1, 1, 1]); M.uvS = 1;
     const prof = [[r * 0.62, -hw], [r * 0.93, -hw - 0.006], [r, -hw * 0.5], [r, hw * 0.5], [r * 0.93, hw + 0.006], [r * 0.62, hw]];
     if (o.tread) {
-      // pavés : la bande de roulement se creuse en chevrons (deux sommets par pavé, déphasés vers les bords)
+      // lugs: the tread is hollowed into chevrons (two vertices per lug, out of phase toward the edges)
       const nb = o.tread, d = 0.03 * k, rows = prof.length - 1;
       M.surf('rubber', nb * 2, rows, (u, v) => {
         const f = v * rows, j = Math.min(rows - 1, Math.floor(f)), t = f - j, a = prof[j], b = prof[j + 1], ax = lerp(a[1], b[1], t);
@@ -34,9 +34,9 @@ function wheel(M, r, w, o = {}) {
     } else M.lathe('rubber', prof, 16, { sharp: 0.45, uR: r * 1.4 });
   }
   M.color(o.rim || [0.6, 0.6, 0.6]);
-  // face extérieure de la jante du côté o.side ; après la rotation, +y local pointe vers -x
+  // outer face of the rim on the o.side side; after the rotation, local +y points toward -x
   M.lathe('steel', [[0, -s * (hw - 0.03)], [r * 0.62, -s * (hw - 0.03)], [r * 0.62, s * (hw - 0.03)], [r * 0.55, s * (hw - 0.05)], [r * 0.35, s * (hw - 0.02)], [0, s * (hw - 0.025)]], 12, { sharp: 0.5 });
-  const face = (y) => { M.save().move(0, s * y, 0); if (s < 0) M.rotX(Math.PI); }; // repère posé sur la face, +y vers l'extérieur
+  const face = (y) => { M.save().move(0, s * y, 0); if (s < 0) M.rotX(Math.PI); }; // frame set on the face, +y outward
   if (o.hub === 'disc') {
     face(hw - 0.035); M.cyl('steel', r * 0.5, 0.012, 12, { caps: 't' }); M.color([0.08, 0.08, 0.08]); M.cls = 2;
     for (let i = 0; i < 8; i++) { const a = (i / 8) * TAU; M.save().move(Math.cos(a) * r * 0.42, 0.012, Math.sin(a) * r * 0.42).rotY(-a); M.boxB('dark', -0.012, 0.012, 0, 0.002, -0.035, 0.035); M.restore(); }
@@ -52,25 +52,25 @@ function wheel(M, r, w, o = {}) {
   M.restore();
 }
 
-/* ---------- Voitures ---------- */
-/* (5.1, retour du propriétaire, photos à l'appui : voitures trop anguleuses, vitres mal placées. La caisse est refaite en une surface continue
-   aux bords et aux coins arrondis, le vitrage en une seconde surface posée sur l'épaule de caisse, découpée en vitres de portes, montants et
-   pavillon ; peinture vernie, brillante) */
-/* Fiches des voitures (carBuild, carGeo). Caisse : bouts zf et zr, demi-largeur w, roues (rayon r, largeur tw, voie tx, essieux ax), passages
-   de roues (rayon ra), bas de caisse yb (yf sous le bouclier avant, yr sous l'arrière), ligne la plus large ym, ligne haute top ([z, y] :
-   bouclier, capot, ceinture de caisse, hayon ou malle ; lissée), carré des sections n (2 : ellipse, plus grand : plus carré), arrondis des
-   bouts [avant, arrière] : rc (coins vus de dessus), rt (lèvre haute), rb (lèvre basse).
-   gh, vitrage : pare-brise de wz0 à wz1, pavillon jusqu'à rz1 (haut y1 devant, y1r derrière), lunette jusqu'à bz ; ins (retrait du pied des
-   vitres sur l'épaule), b1 (demi-largeur du pavillon), rg (rayon des angles du pavillon), cr (bombé), win (vitres latérales [z0, z1] : la
-   première part du pied du montant avant et suit le pare-brise, celle qui passe derrière rz1 suit la lunette), noir (montants et entourages
-   noirs ; sinon montants couleur caisse et joints chromés), seat (dossiers des sièges avant et de la banquette, z).
-   Habillage posé sur la surface de la caisse : head, tail (optiques : demi-largeurs x0 à x1, hauteurs y0 à y1, enroulées sur les coins),
-   grille (calandre x, y0, y1, chrome), intake (prise d'air basse x, y0, y1), plate (bas des plaques [avant, arrière]), lip (lèvre noire au
-   bas des boucliers, hauteur), clad (baguette [bas, haut, teinte]), seams (joints de portes, z), handles (poignées, z ; à handleY), mirror
-   (z du rétroviseur), hub et rim (enjoliveur, teinte des jantes), chrome (joints de vitres et poignées chromés), flare (élargisseurs d'ailes
-   noirs, épaisseur), rails (barres de toit, teinte), skid (sabots gris), bumper (pare-chocs rapportés [bas, haut, saillie]) */
+/* ---------- Cars ---------- */
+/* (5.1, owner feedback, with photos: cars too angular, windows badly placed. The body is redone as a continuous surface
+   with rounded edges and corners, the glazing as a second surface set on the body shoulder, cut into door windows, pillars and
+   roof; glossy, varnished paint) */
+/* Car spec sheets (carBuild, carGeo). Body: ends zf and zr, half-width w, wheels (radius r, width tw, track tx, axles ax), wheel arches
+   (radius ra), body bottom yb (yf under the front bumper, yr under the rear), widest line ym, top line top ([z, y]:
+   bumper, hood, beltline, tailgate or trunk; smoothed), section squareness n (2: ellipse, larger: squarer), end roundings
+   [front, rear]: rc (corners seen from above), rt (upper lip), rb (lower lip).
+   gh, glazing: windshield from wz0 to wz1, roof up to rz1 (top y1 at the front, y1r at the rear), rear window up to bz; ins (setback of the foot of the
+   windows on the shoulder), b1 (half-width of the roof), rg (radius of the roof corners), cr (camber), win (side windows [z0, z1]: the
+   first starts from the foot of the front pillar and follows the windshield, the one that goes behind rz1 follows the rear window), noir (black pillars and
+   surrounds; otherwise body-colored pillars and chrome seals), seat (front seat and bench backs, z).
+   Trim placed on the body surface: head, tail (lights: half-widths x0 to x1, heights y0 to y1, wrapped around the corners),
+   grille (radiator grille x, y0, y1, chrome), intake (low air intake x, y0, y1), plate (bottom of the plates [front, rear]), lip (black lip at the
+   bottom of the bumpers, height), clad (molding [bottom, top, tint]), seams (door seams, z), handles (handles, z; at handleY), mirror
+   (mirror z), hub and rim (hubcap, rim tint), chrome (chrome window seals and handles), flare (black fender flares,
+   thickness), rails (roof rails, tint), skid (gray skid plates), bumper (add-on bumpers [bottom, top, projection]) */
 const CAR_SPECS = {
-  // berline des années 80 (4,4 m) : trois volumes, long capot plat, malle, montants couleur caisse, joints chromés, pare-chocs rapportés
+  // 80s sedan (4.4 m): three volumes, long flat hood, trunk, body-colored pillars, chrome seals, add-on bumpers
   sedan: {
     zf: -2.2, zr: 2.2, w: 0.88, r: 0.37, tw: 0.22, tx: 0.765, ax: [-1.4, 1.42], ra: 0.4, yb: 0.3, yf: 0.3, yr: 0.32, ym: 0.62, n: 5,
     top: [[-2.2, 0.76], [-1.95, 0.81], [-1.3, 0.85], [-0.9, 0.88], [0.2, 0.9], [1.4, 0.91], [2.0, 0.9], [2.2, 0.87]],
@@ -79,8 +79,8 @@ const CAR_SPECS = {
     bumper: [0.3, 0.5, 0.07], head: { x0: 0.34, x1: 0.78, y0: 0.58, y1: 0.73 }, grille: { x: 0.28, y0: 0.52, y1: 0.76, chrome: true },
     tail: { x0: 0.4, x1: 0.82, y0: 0.6, y1: 0.8 }, plate: [0.34, 0.62], clad: [0.36, 0.5, [0.3, 0.3, 0.3]], seams: [-0.86, 0.2, 1.16], handles: [-0.3, 0.86], mirror: -0.72, hub: 'disc', chrome: true,
   },
-  // citadine (3,9 m, d'après la Clio) : capot court et plongeant, pare-brise très incliné, ligne de vitres qui remonte vers l'arrière, montants
-  // noirs, gros montant arrière couleur caisse, optiques fines enroulées sur les coins, feux arrière hauts sur les ailes
+  // city car (3.9 m, after the Clio): short, plunging hood, steeply raked windshield, beltline that rises toward the rear, black
+  // pillars, big body-colored rear pillar, thin lights wrapped around the corners, high taillights on the fenders
   hatch: {
     zf: -1.95, zr: 1.95, w: 0.85, r: 0.34, tw: 0.21, tx: 0.74, ax: [-1.22, 1.3], ra: 0.375, yb: 0.28, yf: 0.22, yr: 0.3, ym: 0.62, n: 3.4,
     top: [[-1.95, 0.72], [-1.75, 0.82], [-1.35, 0.9], [-0.9, 0.95], [-0.5, 0.955], [0.6, 0.98], [1.05, 1.0], [1.3, 1.05], [1.72, 1.04], [1.95, 1.0]],
@@ -89,8 +89,8 @@ const CAR_SPECS = {
     head: { x0: 0.42, x1: 0.8, y0: 0.72, y1: 0.8 }, grille: { x: 0.36, y0: 0.5, y1: 0.68 }, intake: { x: 0.58, y0: 0.3, y1: 0.4 },
     tail: { x0: 0.46, x1: 0.84, y0: 0.86, y1: 0.97 }, plate: [0.36, 0.64], lip: 0.06, clad: [0.3, 0.37, [0.07, 0.07, 0.07]], seams: [-0.86, 0.15, 1.08], handles: [-0.22, 0.9], handleY: 0.86, mirror: -0.74, hub: 'disc', rim: [0.22, 0.22, 0.24],
   },
-  // petit SUV familial (4,3 m, d'après le Dacia Duster) : caisse haute, garde au sol, élargisseurs d'ailes et bas de caisse noirs, sabots gris,
-  // barres de toit, custode derrière la porte arrière, montant arrière couleur caisse, hayon presque droit, jantes tôle grises
+  // small family SUV (4.3 m, after the Dacia Duster): tall body, ground clearance, black fender flares and rocker panels, gray skid plates,
+  // roof rails, quarter window behind the rear door, body-colored rear pillar, almost vertical tailgate, gray steel rims
   suv: {
     zf: -2.16, zr: 2.16, w: 0.9, r: 0.39, tw: 0.24, tx: 0.77, ax: [-1.33, 1.34], ra: 0.43, yb: 0.44, yf: 0.4, yr: 0.44, ym: 0.78, n: 3.6,
     top: [[-2.16, 0.86], [-1.95, 0.97], [-1.55, 1.03], [-1.05, 1.07], [-0.6, 1.075], [1.0, 1.09], [1.95, 1.1], [2.16, 1.08]],
@@ -100,8 +100,8 @@ const CAR_SPECS = {
     tail: { x0: 0.58, x1: 0.88, y0: 0.92, y1: 1.05 }, plate: [0.66, 0.8], clad: [0.44, 0.62, [0.07, 0.07, 0.07]], seams: [-0.98, 0.36, 1.3], handles: [0.14, 1.06], handleY: 0.98,
     mirror: -0.96, hub: 'steel', rim: [0.7, 0.71, 0.72], flare: 0.05, rails: [0.1, 0.1, 0.1], skid: true,
   },
-  // monospace compact (4,4 m, d'après le Renault Scénic) : silhouette en un seul trait, capot court, pare-brise très incliné qui commence loin
-  // devant, petite vitre de custode avant, pavillon haut, hayon presque droit
+  // compact minivan (4.4 m, after the Renault Scénic): one-stroke silhouette, short hood, steeply raked windshield that starts far
+  // front, small front quarter window, high roof, nearly upright tailgate
   mpv: {
     zf: -2.18, zr: 2.18, w: 0.88, r: 0.37, tw: 0.23, tx: 0.76, ax: [-1.38, 1.36], ra: 0.41, yb: 0.34, yf: 0.28, yr: 0.32, ym: 0.7, n: 3.4,
     top: [[-2.18, 0.76], [-1.95, 0.86], [-1.65, 0.93], [-1.42, 0.96], [-0.5, 0.97], [1.2, 1.0], [1.95, 1.03], [2.18, 1.0]],
@@ -111,8 +111,8 @@ const CAR_SPECS = {
     tail: { x0: 0.6, x1: 0.86, y0: 0.84, y1: 0.97 }, plate: [0.5, 0.66], lip: 0.06, clad: [0.4, 0.48, [0.12, 0.12, 0.12]], seams: [-0.98, 0.3, 1.34], handles: [0.06, 1.08], handleY: 0.9,
     mirror: -1.12, hub: 'disc', chrome: true,
   },
-  // crossover familial (4,4 m, d'après la Peugeot 3008) : caisse haute et galbée, capot plongeant, ligne de vitres qui remonte, pavillon qui
-  // descend sur une lunette inclinée, petite custode, feux arrière hauts sur les ailes, bas de caisse noir, jantes alliage
+  // family crossover (4.4 m, after the Peugeot 3008): tall, curved body, plunging hood, rising beltline, roof that
+  // slopes down onto a raked rear window, small quarter window, high taillights on the fenders, black rocker panels, alloy rims
   cross: {
     zf: -2.2, zr: 2.2, w: 0.9, r: 0.39, tw: 0.24, tx: 0.77, ax: [-1.32, 1.33], ra: 0.42, yb: 0.4, yf: 0.32, yr: 0.38, ym: 0.76, n: 3.5,
     top: [[-2.2, 0.84], [-1.95, 0.93], [-1.55, 0.99], [-1.15, 1.02], [-0.4, 1.04], [0.9, 1.09], [1.5, 1.13], [1.98, 1.12], [2.2, 1.06]],
@@ -123,7 +123,7 @@ const CAR_SPECS = {
     mirror: -1.02, hub: 'disc', rim: [0.6, 0.61, 0.63], chrome: true,
   },
 };
-/* Ligne lissée (coins coupés, Chaikin), bouts gardés */
+/* Smoothed line (corners cut, Chaikin), endpoints kept */
 function carChaikin(P, it) {
   for (let k = 0; k < it; k++) {
     const Q = [P[0]];
@@ -132,22 +132,22 @@ function carChaikin(P, it) {
   }
   return P;
 }
-/* Hauteur d'une ligne [z, y] (z croissants) en z */
+/* Height of a line [z, y] (increasing z) at z */
 function carPoly(P, z) {
   if (z <= P[0][0]) return P[0][1];
   for (let i = 1; i < P.length; i++) if (z <= P[i][0]) { const a = P[i - 1], b = P[i]; return lerp(a[1], b[1], (z - a[0]) / (b[0] - a[0] || 1)); }
   return P[P.length - 1][1];
 }
-/* Section de caisse s (superellipse de carré s.n) : demi-largeur à la hauteur y, hauteur du dessus à l'abscisse x */
+/* Body section s (superellipse of squareness s.n): half-width at height y, height of the top at abscissa x */
 function carXAt(s, y) { const t = y >= s.ym ? (y - s.ym) / (s.yt - s.ym) : (s.ym - y) / (s.ym - s.yb); return t >= 1 ? 0 : s.w * Math.pow(1 - Math.pow(t, s.n), 1 / s.n); }
 function carYTop(s, x) { const t = Math.abs(x) / s.w; return t >= 1 ? s.ym : s.ym + (s.yt - s.ym) * Math.pow(1 - Math.pow(t, s.n), 1 / s.n); }
-/* Formes d'une voiture d'après sa fiche (gardées sur la fiche) : sec(z) section de la caisse (bouts arrondis, bas qui suit les passages de
-   roues), xAt et yTop, pied des vitres (b0, yBase), ligne de pavillon (yRoof), demi-profil du vitrage en z (gh : 6 points de côté, 3 d'angle,
-   4 de pavillon) */
+/* Shapes of a car from its spec sheet (kept on the sheet): sec(z) body section (rounded ends, underside following the wheel arches),
+   xAt and yTop, window base (b0, yBase), roofline (yRoof), half-profile of the glazing along z (gh: 6 side points, 3 corner points,
+   4 roof points) */
 function carGeo(S) {
   if (S._geo) return S._geo;
   const g = S.gh, cy = S.r + 0.02, top = carChaikin(S.top, 3);
-  const cut = (d, r) => (d >= r ? 0 : r - Math.sqrt(Math.max(0, r * r - (r - d) * (r - d)))); // retrait d'un quart de cercle de rayon r, à d du bout
+  const cut = (d, r) => (d >= r ? 0 : r - Math.sqrt(Math.max(0, r * r - (r - d) * (r - d)))); // quarter-circle setback of radius r, at d from the end
   const sec = (z) => {
     const k = z - S.zf < S.zr - z ? 0 : 1, d = Math.max(0, k ? S.zr - z : z - S.zf);
     let yb = (z < S.ax[0] ? S.yf : z > S.ax[1] ? S.yr : S.yb) + cut(d, S.rb[k]);
@@ -157,7 +157,7 @@ function carGeo(S) {
   };
   const xAt = (y, z) => carXAt(sec(z), y), yTop = (x, z) => carYTop(sec(z), x), b0 = (z) => sec(z).w - g.ins, yBase = (z) => yTop(b0(z), z) - 0.004;
   const roof = carChaikin([[g.wz0, sec(g.wz0).yt - 0.01], [g.wz1, g.y1], [g.rz1, g.y1r], [g.bz, sec(g.bz).yt - 0.01]], 3), yRoof = (z) => carPoly(roof, z);
-  const belt = yBase((g.wz1 + g.rz1) / 2), slope = (S.w - g.ins - g.b1) / (g.y1 - belt); // (rentrée des vitres par mètre de hauteur)
+  const belt = yBase((g.wz1 + g.rz1) / 2), slope = (S.w - g.ins - g.b1) / (g.y1 - belt); // (window inset per meter of height)
   const gh = (z) => {
     const yb = yBase(z), xb = b0(z), yT = Math.max(yb, yRoof(z) - g.cr), rc = Math.min(g.rg, yT - yb), L = yT - rc - yb, f = Math.min(1, L / 0.06), xT = xb - slope * L - rc;
     const P = [0, 0.02 * f, lerp(0.02 * f, L - 0.03 * f, 1 / 3), lerp(0.02 * f, L - 0.03 * f, 2 / 3), L - 0.03 * f, L].map((h) => [xb - slope * h, yb + h]);
@@ -167,9 +167,9 @@ function carGeo(S) {
   };
   return (S._geo = { sec, xAt, yTop, b0, yBase, yRoof, belt, gh, cy });
 }
-/* Boue projetée sur les flancs : une fine plaque de terre au bord haut déchiqueté, entre les passages de roues
-   (segs : [[z0, z1], ...]) ; de y0 au bord haut (vers y1), des deux côtés d'une caisse de demi-largeur w (2,2 cm au-dessus de la tôle :
-   les baguettes de protection en ont 1,4) */
+/* Mud splashed on the flanks: a thin plate of dirt with a jagged top edge, between the wheel arches
+   (segs: [[z0, z1], ...]); from y0 to the top edge (toward y1), on both sides of a body of half-width w (2.2 cm above the sheet metal:
+   the protective side moldings are 1.4) */
 function mudSkirt(M, w, segs, y0, y1, seed) {
   const R = rngOf(seed);
   M.save().color([0.5, 0.43, 0.35]); M.cls = 1;
@@ -180,24 +180,24 @@ function mudSkirt(M, w, segs, y0, y1, seed) {
   }
   M.restore();
 }
-/* Habitacle vu derrière les vitres (repère de la voiture, avant vers -z) : garnitures sombres à hauteur de ceinture (la caisse est pleine
-   en dessous), tableau de bord sous le pare-brise, volant à gauche (place du conducteur en France), sièges avant et banquette avec leurs
-   appuie-tête, à la hauteur du vitrage. o : x (demi-largeur intérieure), za et zb (bas du pare-brise et de la lunette), Y0(z) et Y1(z)
-   (ceinture et pavillon), zSeat (dossiers avant), zRear (dossier de la banquette), dash (profondeur du tableau de bord), noFloor (sans le
-   plancher plat : la voiture pose le sien sur son haut de caisse bombé) */
+/* Cabin seen behind the windows (car frame, front toward -z): dark trim at beltline height (the body is solid
+   below), dashboard under the windshield, steering wheel on the left (driver's seat in France), front seats and rear bench with their
+   headrests, at glazing height. o: x (interior half-width), za and zb (bottom of the windshield and rear window), Y0(z) and Y1(z)
+   (beltline and roof), zSeat (front seatbacks), zRear (rear bench backrest), dash (dashboard depth), noFloor (without the flat
+   floor: the car lays its own on its curved body top) */
 function carInterior(M, o) {
-  const { x, za, zb, Y0, Y1 } = o, fab = [0.075, 0.075, 0.08], trimI = [0.045, 0.045, 0.05]; // (sombres : l'habitacle est à l'ombre du pavillon)
+  const { x, za, zb, Y0, Y1 } = o, fab = [0.075, 0.075, 0.08], trimI = [0.045, 0.045, 0.05]; // (dark: the cabin is in the shade of the roof)
   M.save(); M.cls = 1;
-  // garnitures : un plancher sombre posé sur la caisse, de la planche de bord à la plage arrière (au-dessus du haut de caisse)
+  // trim: a dark floor laid on the body, from the dashboard to the rear shelf (above the body top)
   if (!o.noFloor) { M.color(trimI); vQuad(M, 'dark', [-x, Y0(za) + 0.03, za], [x, Y0(za) + 0.03, za], [x, Y0(zb) + 0.03, zb], [-x, Y0(zb) + 0.03, zb], [0, 1, 0]); }
-  // tableau de bord et volant
+  // dashboard and steering wheel
   const yd = Y0(za) + 0.03, hd = Math.min(0.16, (Y1(za + o.dash) - Y0(za)) * 0.3);
   M.color(trimI); M.boxB('plastic', -x + 0.02, x - 0.02, yd, yd + hd, za + 0.02, za + o.dash, { bevel: 0.03 });
-  // volant : centré juste au-dessus de la ceinture (sa moitié basse est sous les garnitures), incliné vers le conducteur (o.wheelR : rayon)
+  // steering wheel: centered just above the beltline (its lower half is under the trim), tilted toward the driver (o.wheelR: radius)
   { const cx = -x * 0.5, cy = yd + 0.05, cz = za + o.dash + 0.08, r = o.wheelR || 0.17, pts = [];
     for (let i = 0; i <= 16; i++) { const a = (i / 16) * TAU; pts.push([cx + Math.cos(a) * r, cy + Math.sin(a) * r * 0.9, cz + Math.sin(a) * r * 0.42]); }
     M.color([0.05, 0.05, 0.05]); M.tube('rubber', 0.018, pts, 5); M.tube('plastic', 0.02, [[cx, cy, cz], [cx, yd + hd * 0.5, za + o.dash - 0.04]], 5); M.save().move(cx, cy, cz).rotX(Math.PI / 2 - 0.4); M.cyl('plastic', 0.045, 0.03, 8); M.restore(); }
-  // sièges : dossier et appuie-tête, à la hauteur que laisse le pavillon
+  // seats: backrest and headrest, at the height the roof allows
   const seat = (sx, w, z) => {
     const y0 = Y0(z) + 0.03, room = Y1(z) - y0, hb = room * 0.48, hh = room * 0.72;
     M.color(fab); M.save().move(sx, y0 - 0.05, z).rotX(0.16); M.boxB('canvas', -w / 2, w / 2, 0, hb, -0.06, 0.06, { bevel: 0.04 }); M.restore();
@@ -207,11 +207,11 @@ function carInterior(M, o) {
   if (o.zRear > o.zSeat + 0.4) seat(0, x * 1.7, o.zRear);
   M.restore();
 }
-/* Habitacle évidé d'une cabine en bloc (4x4, camions ; repère du véhicule, avant vers -z) : parois minces de yb à yt sur le pourtour de
-   [-X, X] x [z0, z1], percées là où sont les vitres, pour que l'habitacle se voie derrière elles. wins : [face, a0, a1, y0, y1], face 'g' et
-   'd' (flancs en x = -X et +X, a le long de z), 'av' et 'ar' (faces en z0 et z1, a le long de x). Le dessous (ceinture) et le pavillon sont
-   ceux du véhicule ; rc : angles arrière arrondis (les flancs et la face arrière s'arrêtent à rc du coin, le véhicule pose ses arrondis).
-   Rend la demi-largeur intérieure */
+/* Hollowed cabin of a block-style cab (4x4, trucks; vehicle frame, front toward -z): thin walls from yb to yt around the perimeter of
+   [-X, X] x [z0, z1], pierced where the windows are, so the cabin shows behind them. wins: [face, a0, a1, y0, y1], face 'g' and
+   'd' (flanks at x = -X and +X, a along z), 'av' and 'ar' (faces at z0 and z1, a along x). The underside (beltline) and the roof are
+   the vehicle's; rc: rounded rear corners (the flanks and rear face stop at rc from the corner, the vehicle lays its own roundings).
+   Returns the interior half-width */
 function cabShell(M, mat, X, yb, yt, z0, z1, wins, th = 0.05, rc = 0) {
   const draw = (f, a0, a1, y0, y1) => {
     if (a1 - a0 < 0.005 || y1 - y0 < 0.005) return;
@@ -221,7 +221,7 @@ function cabShell(M, mat, X, yb, yt, z0, z1, wins, th = 0.05, rc = 0) {
   const face = (f, A0, A1) => {
     const W = wins.filter((w) => w[0] === f), uniq = (v) => [...new Set(v.map((a) => +a.toFixed(4)))].sort((p, q) => p - q);
     const as = uniq([A0, A1, ...W.flatMap((w) => [clamp(w[1], A0, A1), clamp(w[2], A0, A1)])]), ys = uniq([yb, yt, ...W.flatMap((w) => [clamp(w[3], yb, yt), clamp(w[4], yb, yt)])]);
-    for (let j = 0; j < ys.length - 1; j++) { // une rangée à la fois, les cases pleines voisines réunies en une seule paroi
+    for (let j = 0; j < ys.length - 1; j++) { // one row at a time, adjacent solid cells merged into a single wall
       const ym = (ys[j] + ys[j + 1]) / 2; let run = null;
       for (let i = 0; i < as.length - 1; i++) {
         const am = (as[i] + as[i + 1]) / 2, hole = W.some((w) => am > w[1] && am < w[2] && ym > w[3] && ym < w[4]);
@@ -233,15 +233,15 @@ function cabShell(M, mat, X, yb, yt, z0, z1, wins, th = 0.05, rc = 0) {
   face('g', z0, z1 - rc); face('d', z0, z1 - rc); face('av', -X + th, X - th); face('ar', -X + Math.max(th, rc), X - Math.max(th, rc));
   return X - th;
 }
-/* Caisse d'une voiture d'après sa fiche (carGeo). o.dust : peinture mate salie en bas (matière paint, boue au pied), vitres et pneus
-   poussiéreux ; o.wreck : épave calcinée (tôle brûlée, rouille, sans vitres ni pneus, affaissée sur ses jantes, habitacle vide et sièges nus) */
+/* Body of a car from its spec sheet (carGeo). o.dust: matte paint dirtied at the bottom (paint material, mud at the base), dusty windows
+   and tires; o.wreck: burnt-out wreck (burnt sheet metal, rust, no windows or tires, sagging on its rims, empty cabin and bare seats) */
 function carBuild(M, P, S, o) {
   const wreck = !!o.wreck, body = wreck || o.dust ? 'paint' : 'carpaint', lo = wreck ? -S.r * 0.38 : 0, g = S.gh, G = carGeo(S), { sec, cy } = G;
   const trim = wreck ? [0.16, 0.15, 0.14] : [0.035, 0.035, 0.04], chrome = wreck ? [0.26, 0.23, 0.2] : S.chrome ? [0.85, 0.85, 0.85] : trim;
   const glassC = o.dust ? [0.6, 0.57, 0.52] : [0.2, 0.23, 0.26], rust = [0.3, 0.2, 0.14], burnt = [0.19, 0.18, 0.17], one = wreck ? burnt : [1, 1, 1], trimI = [0.05, 0.05, 0.055];
   P.tintable = wreck ? null : [body];
   M.local(1); M.save().move(0, lo, 0);
-  // caisse : une surface continue, sections serrées aux bouts arrondis et autour des passages de roues
+  // body: one continuous surface, tight sections at the rounded ends and around the wheel arches
   const zs = [S.zr];
   for (let z = S.zf; z < S.zr; z += 0.25) zs.push(z);
   for (const [z0, d, k] of [[S.zf, 1, 0], [S.zr, -1, 1]]) { const R = Math.max(S.rc[k], S.rt[k], S.rb[k]); for (let i = 0; i <= 7; i++) zs.push(z0 + d * R * (1 - Math.cos((i / 7) * (Math.PI / 2)))); }
@@ -250,12 +250,12 @@ function carBuild(M, P, S, o) {
   M.aoFn = (x, y) => lerp(o.dust ? 0.45 : 0.55, 1, smoothstep(S.yb, S.ym + 0.25, y - lo));
   M.color(one); M.loft(body, Z.map(sec), 20);
   M.aoFn = null;
-  // fond des passages de roues (derrière le pneu) et soubassement
+  // bottom of the wheel arches (behind the tire) and underbody
   M.color([0.03, 0.03, 0.03]);
   for (const az of S.ax) M.boxB('dark', -S.w + 0.24, S.w - 0.24, S.yb - 0.06, cy + S.ra + 0.01, az - S.ra, az + S.ra);
   M.boxB('dark', -S.w + 0.15, S.w - 0.15, S.yb - 0.12, S.yb + 0.04, S.ax[0] + S.ra, S.ax[1] - S.ra);
-  // habillage collé à la caisse : bande de flanc (côté sd, de z0 à z1, entre les hauteurs y0(s, z) et y1(s, z)) et pièce d'un bout (d = -1 avant,
-  // +1 arrière ; de x0 à x1 et de y0 à y1), décollées de off le long de la normale
+  // trim glued to the body: flank strip (side sd, from z0 to z1, between heights y0(s, z) and y1(s, z)) and end piece (d = -1 front,
+  // +1 rear; from x0 to x1 and from y0 to y1), offset by off along the normal
   const sideSkin = (mat, sd, z0, z1, y0, y1, off, nu, nv) => M.surf(mat, nu, nv, (u, v) => {
     const z = lerp(z0, z1, u), s = sec(z), y = lerp(y0(s, z), y1(s, z), v), e = 0.004, x = carXAt(s, y);
     const hy = (carXAt(s, y + e) - carXAt(s, y - e)) / (2 * e), hz = (G.xAt(y, z + e) - G.xAt(y, z - e)) / (2 * e), l = hyp3(1, hy, hz);
@@ -273,15 +273,15 @@ function carBuild(M, P, S, o) {
     const fx = (zEnd(x + e, y, d) - zEnd(x - e, y, d)) / (2 * e), fy = (zEnd(x, y + e, d) - zEnd(x, y - e, d)) / (2 * e), nx = -d * fx, ny = -d * fy, l = hyp3(nx, ny, 1);
     return [x + (nx * off) / l, y + (ny * off) / l, z + (d * off) / l];
   }, { flipN: d < 0, uL: x1 - x0, vL: y1 - y0 });
-  const xEnd = (y, d) => carXAt(sec(d < 0 ? S.ax[0] - S.ra : S.ax[1] + S.ra), y) - 0.025; // (une pièce d'un bout s'arrête avant le flanc)
+  const xEnd = (y, d) => carXAt(sec(d < 0 ? S.ax[0] - S.ra : S.ax[1] + S.ra), y) - 0.025; // (an end piece stops before the flank)
   const pair = (mat, d, x0, x1, y0, y1, off, nu) => { const a = Math.min(x1, xEnd(y0, d), xEnd(y1, d)); if (a > x0) { endSkin(mat, d, x0, a, y0, y1, off, nu); endSkin(mat, d, -a, -x0, y0, y1, off, nu); } };
-  if (o.dust) { // boue au pied des flancs, bord haut déchiqueté
+  if (o.dust) { // mud at the base of the flanks, jagged top edge
     M.color([0.5, 0.43, 0.35]); M.cls = 1;
     for (const sd of [-1, 1]) for (const [z0, z1] of [[S.ax[0] + S.ra + 0.02, S.ax[1] - S.ra - 0.02]]) sideSkin('dirt', sd, z0, z1, (s) => s.yb + 0.01, (s, z) => s.yb + 0.1 + 0.12 * clamp(0.5 + 0.3 * Math.sin(z * 9 + sd) + 0.2 * Math.sin(z * 23), 0, 1), 0.008, Math.round((z1 - z0) / 0.07), 1);
     M.cls = 0;
   }
-  // vitrage : une surface posée sur l'épaule de caisse, du pied du pare-brise au pied de la lunette ; chaque case est vitre (transparente :
-  // l'habitacle se voit, carInterior), montant, joint ou tôle ; les montants ont une doublure intérieure sombre. L'épave n'a plus de vitres
+  // glazing: a surface laid on the body shoulder, from the windshield base to the rear window base; each cell is window (transparent:
+  // the cabin shows, carInterior), pillar, seal or sheet metal; the pillars have a dark inner lining. The wreck no longer has windows
   const cuts = [g.wz0, g.wz0 + 0.035, g.wz1 - 0.05, g.wz1, g.rz1, g.rz1 + 0.05, g.bz - 0.03, g.bz, ...g.win.flat()].filter((z) => z >= g.wz0 && z <= g.bz).sort((a, b) => a - b).filter((z, i, A) => i === 0 || z - A[i - 1] > 0.005);
   const Zg = [];
   for (let i = 0; i < cuts.length - 1; i++) { const n = Math.max(1, Math.ceil((cuts[i + 1] - cuts[i]) / 0.2)); for (let k = 0; k < n; k++) Zg.push(lerp(cuts[i], cuts[i + 1], k / n)); }
@@ -297,7 +297,7 @@ function carBuild(M, P, S, o) {
     return nx * p[0] + ny * (p[1] - G.belt + 0.4) < 0 ? [-nx, -ny, -nz] : [nx, ny, nz];
   }));
   const wsZ = (z) => z > g.wz0 + 0.035 && z < g.wz1 - 0.05, rgZ = (z) => z > g.rz1 + 0.05 && z < g.bz - 0.03, lastW = g.win[g.win.length - 1][1];
-  // s : rang sur le demi-profil (0 joint de ceinture, 1 à 3 vitre, 4 cadre haut, 5 à 7 angle du pavillon, 8 bord du pavillon, 9 à 11 pavillon)
+  // s: row on the half-profile (0 beltline seal, 1 to 3 window, 4 top frame, 5 to 7 roof corner, 8 roof edge, 9 to 11 roof)
   const kind = (s, z) => {
     const win = g.win.some(([a, b]) => z > a && z < b), pil = z < lastW && g.noir ? 'noir' : 'body';
     if (s === 0 || s === 4) return win ? 'joint' : pil;
@@ -308,7 +308,7 @@ function carBuild(M, P, S, o) {
   };
   const gm = o.dust ? 'carglassD' : 'carglass', look = {
     glass: [gm, glassC, 1], body: [body, wreck ? rust : one, 0], noir: [wreck ? 'charred' : 'glass', trim, 0], joint: S.chrome && !wreck ? ['steel', chrome, 0] : [wreck ? 'charred' : 'glass', trim, 0],
-  }; // (montants noir laqué : le verre lisse ; le plastique grenu y dessinait des motifs sous les reflets)
+  }; // (lacquered black pillars: smooth glass; the grainy plastic drew patterns under the reflections)
   const face = (mat, pts, ns, uvs, inner) => {
     const c = pts.map((p, k) => (inner ? [p[0] - ns[k][0] * 0.012, p[1] - ns[k][1] * 0.012, p[2] - ns[k][2] * 0.012] : p)), nn = inner ? ns.map((n) => [-n[0], -n[1], -n[2]]) : ns;
     const B = M.buf(mat, (c[0][0] + c[2][0]) / 2, (c[0][1] + c[2][1]) / 2, (c[0][2] + c[2][2]) / 2);
@@ -326,7 +326,7 @@ function carBuild(M, P, S, o) {
     if (k !== 'glass') { M.color(wreck ? burnt : trimI); M.cls = 1; face(wreck ? 'charred' : 'plastic', pts, ns, uvs, true); }
   }
   M.cls = 0;
-  // habitacle : garnitures sombres sur le haut de caisse, tableau de bord, volant, sièges ; l'épave : bac noirci, sièges nus
+  // cabin: dark trim on the body top, dashboard, steering wheel, seats; the wreck: blackened tub, bare seats
   const b0 = G.b0((g.wz1 + g.rz1) / 2), dash = Math.min(0.42, (g.wz1 - g.wz0) * 0.5);
   M.color(trimI); M.cls = 1;
   M.surf('dark', 8, Math.ceil((g.bz - g.wz0) / 0.15), (u, v) => { const z = lerp(g.wz0 + 0.03, g.bz - 0.03, v), x = lerp(-1, 1, u) * (G.b0(z) - 0.015); return [x, G.yTop(x, z) + 0.006, z]; }, { flipN: true });
@@ -338,14 +338,14 @@ function carBuild(M, P, S, o) {
     M.color([0.2, 0.19, 0.18]); M.boxB('charred', -b0 + 0.1, b0 - 0.1, sec(g.wz0).yt - 0.05, sec(g.wz0).yt + 0.08, g.wz0 + 0.04, g.wz0 + dash, { bevel: 0.02 });
     M.tube('steel', 0.016, Array.from({ length: 11 }, (_, i) => { const a = (i / 10) * TAU; return [-b0 * 0.5 + Math.cos(a) * 0.17, sec(g.wz0).yt + 0.12 + Math.sin(a) * 0.15, g.wz0 + dash + 0.08 + Math.sin(a) * 0.07]; }), 4);
   }
-  // auvent d'essuie-glaces (collé au capot), essuie-glaces couchés sur le pare-brise
+  // wiper cowl (glued to the hood), wipers laid on the windshield
   M.color(trim); M.surf('plastic', 10, 2, (u, v) => { const z = lerp(g.wz0 - 0.1, g.wz0 + 0.03, v), x = lerp(-1, 1, u) * (G.b0(z) - 0.01); return [x, G.yTop(x, z) + 0.007, z]; }, { flipN: true });
   if (!wreck) {
     const wa = Math.atan2(g.y1 - G.yRoof(g.wz0), g.wz1 - g.wz0); M.cls = 2;
     for (const x of [-0.36, 0.16]) { M.save().move(x, G.yRoof(g.wz0 + 0.04) + 0.012, g.wz0 + 0.04).rotY(0.25).rotX(-wa); M.boxB('dark', -0.006, 0.006, 0, 0.012, 0, 0.5); M.restore(); }
     M.cls = 0;
   }
-  // flancs : baguettes, joints de portes, poignées, rétroviseurs, élargisseurs d'ailes, barres de toit
+  // flanks: moldings, door seals, handles, mirrors, fender flares, roof rails
   for (const sd of [-1, 1]) {
     if (S.clad) { const [c0, c1, cc] = S.clad; M.color(wreck ? trim : cc); sideSkin('plastic', sd, S.ax[0] + S.ra + 0.03, S.ax[1] - S.ra - 0.03, (s) => Math.max(c0, s.yb + 0.004), () => c1, 0.006, 10, 2); }
     M.color([0.04, 0.04, 0.04]); M.cls = 2;
@@ -363,7 +363,7 @@ function carBuild(M, P, S, o) {
     }
     if (S.rails && !wreck) { const x = g.b1 - 0.1, dy = -g.cr * (x / g.b1) ** 2; M.color(S.rails); M.cls = 1; M.tube('steel', 0.022, [[sd * x, G.yRoof(g.wz1 + 0.12) + dy, g.wz1 + 0.12], [sd * x, G.yRoof(g.wz1 + 0.3) + dy + 0.06, g.wz1 + 0.3], [sd * x, G.yRoof(g.rz1 - 0.25) + dy + 0.06, g.rz1 - 0.25], [sd * x, G.yRoof(g.rz1 - 0.06) + dy, g.rz1 - 0.06]], 5); M.cls = 0; }
   }
-  // pare-chocs rapportés (berline) : un boudin qui épouse le bout de la caisse et revient sur les ailes
+  // add-on bumpers (sedan): a bead that hugs the end of the body and wraps back onto the fenders
   const [pb0, pb1, bs] = S.bumper || [0, 0, 0];
   if (S.bumper) {
     M.color(wreck ? burnt : trim);
@@ -374,7 +374,7 @@ function carBuild(M, P, S, o) {
     }
     if (S.chrome && !wreck) { M.color(chrome); M.cls = 1; for (const [zt, d] of [[S.zf, -1], [S.zr, 1]]) M.boxB('steel', -S.w + 0.2, S.w - 0.2, pb1 - 0.035, pb1 - 0.012, zt + d * bs - 0.004, zt + d * bs + 0.004); M.cls = 0; }
   }
-  // bouts : lèvres noires, sabots, calandre, prise d'air, optiques enroulées sur les coins, plaques ; l'épave a ses optiques crevées
+  // ends: black lips, skid plates, grille, air intake, lights wrapped around the corners, plates; the wreck has smashed lights
   if (S.lip) { M.color(wreck ? burnt : trim); endSkin('plastic', -1, -S.w + 0.15, S.w - 0.15, S.yf + 0.025, S.yf + S.lip, 0.004, 16, 1); endSkin('plastic', 1, -S.w + 0.15, S.w - 0.15, S.yr + 0.025, S.yr + S.lip, 0.004, 16, 1); }
   if (S.skid && !wreck) { M.color([0.62, 0.63, 0.64]); M.cls = 1; endSkin('plastic', -1, -0.44, 0.44, S.yf + 0.03, S.yf + 0.13, 0.007, 8, 1); endSkin('plastic', 1, -0.44, 0.44, S.yr + 0.03, S.yr + 0.12, 0.007, 8, 1); M.cls = 0; }
   const h = S.head, gr = S.grille, t = S.tail;
@@ -386,7 +386,7 @@ function carBuild(M, P, S, o) {
     if (gr.chrome) endSkin('steel', -1, -gr.x, gr.x, gr.y1 - 0.022, gr.y1, 0.011, 8, 1);
     M.cls = 1;
     M.color(trim); pair('plastic', -1, h.x0 - 0.012, h.x1 + 0.012, h.y0 - 0.012, h.y1 + 0.012, 0.005);
-    M.color([1, 1, 1]); pair('lampOff', -1, h.x0, h.x1 - 0.07, h.y0, h.y1, 0.009); // (verre clair, une lueur : un verre réfléchissant restait noir face au sol)
+    M.color([1, 1, 1]); pair('lampOff', -1, h.x0, h.x1 - 0.07, h.y0, h.y1, 0.009); // (clear glass, a glow: a reflective glass stayed black facing the ground)
     M.color([0.95, 0.55, 0.12]); pair('plastic', -1, h.x1 - 0.07, h.x1, h.y0, h.y1, 0.009, 4);
     M.color(trim); pair('plastic', 1, t.x0 - 0.012, t.x1 + 0.012, t.y0 - 0.012, t.y1 + 0.012, 0.005);
     M.color([0.7, 0.06, 0.04]); pair('plastic', 1, t.x0, t.x1, t.y0 + (t.y1 - t.y0) * 0.45, t.y1, 0.009);
@@ -397,33 +397,33 @@ function carBuild(M, P, S, o) {
   } else {
     M.color([0.03, 0.03, 0.03]); pair('dark', -1, h.x0, h.x1, h.y0, h.y1, 0.005); pair('dark', 1, t.x0, t.x1, t.y0, t.y1, 0.005);
   }
-  { const y = S.yr + 0.03, ze = zEnd(S.w * 0.55, y + 0.03, 1); M.color([0.25, 0.25, 0.25]); M.cls = 2; M.tube('steel', 0.028, [[S.w * 0.55, y, ze - 0.4], [S.w * 0.55, y, ze + 0.03]], 6); M.cls = 0; } // échappement, juste sorti du bouclier
+  { const y = S.yr + 0.03, ze = zEnd(S.w * 0.55, y + 0.03, 1); M.color([0.25, 0.25, 0.25]); M.cls = 2; M.tube('steel', 0.028, [[S.w * 0.55, y, ze - 0.4], [S.w * 0.55, y, ze + 0.03]], 6); M.cls = 0; } // exhaust, just out of the bumper
   M.restore();
-  // roues ; l'épave repose sur ses jantes, une manque
+  // wheels; the wreck rests on its rims, one is missing
   for (const az of S.ax) for (const sd of [-1, 1]) {
     if (wreck && az === S.ax[1] && sd > 0) continue;
     M.save().move(sd * S.tx, wreck ? lo : 0, az);
     wheel(M, S.r, S.tw, { noTire: wreck, side: sd, hub: wreck ? null : S.hub, rim: wreck ? [0.36, 0.3, 0.26] : S.rim || (S.hub === 'steel' ? [0.4, 0.4, 0.4] : [0.72, 0.72, 0.7]), tire: o.dust ? [0.78, 0.72, 0.64] : null });
     M.restore();
   }
-  if (wreck) { M.save().move(S.tx + 0.05, 0, S.ax[1]).rotZ(-0.12); M.color([0.3, 0.26, 0.22]); M.boxB('charred', -0.05, 0.05, 0, S.r * 0.75, -0.18, 0.18); M.restore(); } // moyeu nu sur une cale
+  if (wreck) { M.save().move(S.tx + 0.05, 0, S.ax[1]).rotZ(-0.12); M.color([0.3, 0.26, 0.22]); M.boxB('charred', -0.05, 0.05, 0, S.r * 0.75, -0.18, 0.18); M.restore(); } // bare hub on a block
 }
-/* 4x4 tout-terrain (4,4 m roue de secours comprise, d'après le Jeep Wrangler à quatre portes ; 5.1, retour du propriétaire) : caisse en
-   baignoire aux angles arrondis, capot plat entre deux ailes avant détachées, calandre à sept fentes entre deux phares ronds, élargisseurs
-   d'ailes noirs trapézoïdaux, pare-brise droit, une vitre par porte et une custode, charnières de portes apparentes, marchepieds, roue de
-   secours sur la porte arrière. o.rack : galerie chargée (jerricans, malle, pelle), tuba d'admission ; o.dust : boue et poussière ;
-   o.wreck : épave calcinée */
+/* Off-road 4x4 (4.4 m spare wheel included, modeled on the four-door Jeep Wrangler; 5.1, owner feedback): tub-style body with
+   rounded corners, flat hood between two detached front fenders, seven-slot grille between two round headlights, trapezoidal black
+   fender flares, upright windshield, one window per door and a quarter window, exposed door hinges, running boards, spare wheel on
+   the rear door. o.rack: loaded roof rack (jerrycans, trunk, shovel), snorkel; o.dust: mud and dust;
+   o.wreck: burnt-out wreck */
 function offroadBuild(M, P, o) {
-  const wreck = !!o.wreck, body = wreck || o.dust ? 'paint' : 'carpaint', r = 0.44, lo = wreck ? -r * 0.38 : 0; // (roues de 0,38 m avant la 5.1 : trop petites dans leurs passages)
-  const W = 0.82, zf = -2.0, zr = 2.0, ax = [-1.4, 1.4], tx = 0.74, sill = 0.5, belt = 1.12, roof = 1.9, zw = -0.66, rc = 0.14; // (pavillon à 1,98 m avant la 5.1 : vitres trop hautes)
+  const wreck = !!o.wreck, body = wreck || o.dust ? 'paint' : 'carpaint', r = 0.44, lo = wreck ? -r * 0.38 : 0; // (0.38 m wheels before 5.1: too small in their arches)
+  const W = 0.82, zf = -2.0, zr = 2.0, ax = [-1.4, 1.4], tx = 0.74, sill = 0.5, belt = 1.12, roof = 1.9, zw = -0.66, rc = 0.14; // (roof at 1.98 m before 5.1: windows too tall)
   const trim = wreck ? [0.16, 0.15, 0.14] : [0.05, 0.05, 0.05], burnt = [0.19, 0.18, 0.17], rust = [0.3, 0.2, 0.14], one = wreck ? burnt : [1, 1, 1];
   P.tintable = wreck ? null : [body];
   M.local(1); M.save().move(0, lo, 0);
   M.aoFn = (x, y) => lerp(o.dust ? 0.42 : 0.55, 1, smoothstep(sill, belt + 0.1, y - lo));
-  // passage de roue trapézoïdal (côté, [z, y]) autour de l'essieu az, agrandi de g
+  // trapezoidal wheel arch (side, [z, y]) around axle az, enlarged by g
   const arch = (az, g) => [[az - 0.52 - g, 0.6], [az - 0.42 - g * 0.8, 0.88 + g * 0.5], [az - 0.28 - g * 0.4, 0.98 + g], [az + 0.28 + g * 0.4, 0.98 + g], [az + 0.42 + g * 0.8, 0.88 + g * 0.5], [az + 0.52 + g, 0.6]];
   const archTop = (z) => { const A = arch(ax[1], 0); if (z <= A[0][0] || z >= A[5][0]) return 0; return carPoly(A, z); };
-  // baignoire (de l'auvent au hayon) : une surface continue presque carrée, coins arrière arrondis, passage de roue arrière découpé
+  // tub (from cowl to tailgate): one continuous, almost square surface, rounded rear corners, rear wheel arch cut out
   const cut = (d, k) => (d >= k ? 0 : k - Math.sqrt(Math.max(0, k * k - (k - d) * (k - d))));
   const tub = (z) => { const d = zr - z, yb = Math.max(sill, archTop(z)), yt = belt - cut(d, 0.06); return { z, w: W - cut(d, rc), yb, yt, ym: clamp(Math.max(0.8, yb + 0.08), yb + 0.02, yt - 0.04), n: 8 }; };
   const zs = [zw - 0.1, zr]; for (let z = zw - 0.1; z < zr; z += 0.2) zs.push(z);
@@ -431,42 +431,42 @@ function offroadBuild(M, P, o) {
   for (let i = 0; i <= 6; i++) zs.push(zr - rc * (1 - Math.cos((i / 6) * (Math.PI / 2))));
   M.color(one); M.loft(body, [...new Set(zs.map((z) => +z.toFixed(4)))].sort((a, b) => a - b).map(tub), 20);
   if (o.dust) mudSkirt(M, W, [[ax[0] + 0.55, ax[1] - 0.55], [ax[1] + 0.55, zr - 0.1]], sill, sill + 0.3, 11);
-  // ailes avant détachées (dessus plat, découpe trapézoïdale), capot plat entre elles, face avant de la calandre
+  // detached front fenders (flat top, trapezoidal cutout), flat hood between them, front face of the grille
   const fender = [[zf + 0.02, 0.66], [zf + 0.02, 1.0], [zf + 0.14, 1.06], [zw - 0.04, 1.08], [zw - 0.04, 0.56], ...arch(ax[0], 0).reverse()];
   for (const sd of [-1, 1]) { M.save().move(sd > 0 ? 0.84 : -0.56, 0, 0).rotY(-Math.PI / 2); M.extrude(body, fender, 0.28, { sharp: 0.4 }); M.restore(); }
   M.boxB(body, -0.6, 0.6, 0.98, 1.13, zf + 0.04, zw - 0.02, { bevel: 0.045 });
   M.boxB(body, -0.62, 0.62, 0.6, 1.1, zf - 0.02, zf + 0.12, { bevel: 0.035 });
-  M.boxB(body, -0.62, 0.62, 0.56, 1.0, zw - 0.14, zw - 0.04); // tablier, derrière le capot
-  // élargisseurs d'ailes : un bandeau noir épais qui suit chaque découpe
+  M.boxB(body, -0.62, 0.62, 0.56, 1.0, zw - 0.14, zw - 0.04); // firewall, behind the hood
+  // fender flares: a thick black band following each cutout
   M.color(trim);
   for (const [az, x0, x1] of [[ax[0], 0.8, 0.95], [ax[1], 0.78, 0.93]]) for (const sd of [-1, 1]) {
     const ring = [...arch(az, -0.02), ...arch(az, 0.12).reverse()];
     M.save().move(sd > 0 ? x1 : -x0, 0, 0).rotY(-Math.PI / 2); M.extrude('plastic', ring, x1 - x0, { sharp: 0.4 }); M.restore();
   }
-  // fond des passages de roues
+  // bottom of the wheel arches
   M.color([0.03, 0.03, 0.03]); for (const az of ax) M.boxB('dark', -W + 0.28, W - 0.28, sill - 0.04, 0.98, az - 0.5, az + 0.5);
   M.color(wreck ? rust : [1, 1, 1]);
   M.aoFn = null;
-  // habitacle : évidé derrière ses vitres (l'épave garde son bloc, sans vitres ni intérieur) ; angles arrière arrondis, pavillon aux coins ronds
+  // cabin: hollowed behind its windows (the wreck keeps its block, without windows or interior); rounded rear corners, roof with round corners
   const wins = [[zw + 0.2, 0.3], [0.46, 1.02], [1.18, 1.84]], wy0 = belt + 0.1, wy1 = roof - 0.14;
   if (wreck) M.boxB(body, -W, W, belt, roof - 0.06, zw + 0.06, zr - rc, { bevel: 0.03 });
   else cabShell(M, body, W, belt, roof - 0.06, zw + 0.06, zr, [['av', -0.72, 0.72, belt + 0.06, roof - 0.12], ['ar', -0.42, 0.42, 1.5, roof - 0.16],
     ...['g', 'd'].flatMap((f) => wins.map(([a, b]) => [f, a, b, wy0, wy1]))], 0.05, rc);
   for (const sd of [-1, 1]) { M.save().move(sd * (W - rc), belt, zr - rc); M.cyl(body, rc, roof - 0.06 - belt, 8, { a0: sd > 0 ? 0 : Math.PI / 2, a1: sd > 0 ? Math.PI / 2 : Math.PI, caps: '' }); M.restore(); }
-  { const rr = [], n = 4; // pavillon : rectangle aux coins arrière arrondis, extrudé vers le bas
+  { const rr = [], n = 4; // roof: rectangle with rounded rear corners, extruded downward
     rr.push([-W + 0.02, zw + 0.02], [W - 0.02, zw + 0.02]);
     for (let i = 0; i <= n; i++) { const a = (i / n) * (Math.PI / 2); rr.push([W - rc + (rc - 0.02) * Math.cos(a), zr - rc + (rc - 0.02) * Math.sin(a)]); }
     for (let i = 0; i <= n; i++) { const a = Math.PI / 2 + (i / n) * (Math.PI / 2); rr.push([-W + rc + (rc - 0.02) * Math.cos(a), zr - rc + (rc - 0.02) * Math.sin(a)]); }
     M.save().move(0, roof, 0).rotX(Math.PI / 2); M.extrude(body, rr.map(([x, z]) => [x, z]), 0.08, { sharp: 0.6 }); M.restore(); }
-  M.color(trim); M.boxB('plastic', -W - 0.012, W + 0.012, belt - 0.025, belt + 0.02, zw + 0.04, zr - rc); // joint du toit rigide sur la baignoire
+  M.color(trim); M.boxB('plastic', -W - 0.012, W + 0.012, belt - 0.025, belt + 0.02, zw + 0.04, zr - rc); // hardtop seal on the tub
   if (!wreck) carInterior(M, { x: W - 0.1, za: zw + 0.12, zb: zr - 0.1, Y0: () => belt - 0.02, Y1: () => roof - 0.06, zSeat: 0.4, zRear: 1.3, dash: 0.32 });
-  // vitrage : pare-brise droit, une vitre par porte, custodes, vitre arrière (cadres de caoutchouc)
+  // glazing: upright windshield, one window per door, quarter windows, rear window (rubber frames)
   const gl = wreck ? 'dark' : o.dust ? 'carglassD' : 'carglass'; M.color(wreck ? [0.04, 0.04, 0.04] : o.dust ? [0.6, 0.57, 0.52] : [0.2, 0.23, 0.26]); M.cls = 1;
   vQuad(M, gl, [-0.74, belt + 0.06, zw - 0.02], [0.74, belt + 0.06, zw - 0.02], [0.72, roof - 0.12, zw + 0.06], [-0.72, roof - 0.12, zw + 0.06], [0, 0.2, -1]);
   for (const sd of [-1, 1]) for (const [z0, z1] of wins) { const xx = sd * (W + 0.006); vQuad(M, gl, [xx, wy0, z0], [xx, wy0, z1], [xx, wy1, z1], [xx, wy1, z0], [sd, 0, 0]); }
   vQuad(M, gl, [-0.42, 1.5, zr + 0.006], [0.42, 1.5, zr + 0.006], [0.42, roof - 0.16, zr + 0.006], [-0.42, roof - 0.16, zr + 0.006], [0, 0, 1]);
   M.cls = 0; M.color(trim);
-  // cadre du pare-brise (couleur caisse), joints noirs autour des vitres, joints de portes, charnières apparentes, poignées, rétroviseurs
+  // windshield frame (body color), black seals around the windows, door seals, exposed hinges, handles, mirrors
   M.color(one); M.boxB(body, -0.8, 0.8, belt + 0.01, belt + 0.07, zw - 0.07, zw + 0.03, { bevel: 0.02 }); M.boxB(body, -0.78, 0.78, roof - 0.13, roof - 0.04, zw - 0.02, zw + 0.1, { bevel: 0.03 });
   for (const sd of [-1, 1]) M.tube(body, 0.04, [[sd * 0.77, belt + 0.05, zw - 0.02], [sd * 0.76, roof - 0.1, zw + 0.06]], 6);
   M.color(trim); M.cls = 2;
@@ -478,7 +478,7 @@ function offroadBuild(M, P, o) {
   }
   M.cls = 0;
   for (const sd of [-1, 1]) { M.save().move(sd * (W + 0.02), belt + 0.06, zw + 0.24).rotY(sd * 0.1); M.boxB('plastic', sd > 0 ? 0 : -0.2, sd > 0 ? 0.2 : 0, 0, 0.16, -0.04, 0.06, { bevel: 0.035 }); if (!wreck) { M.color([0.7, 0.72, 0.74]); M.cls = 1; M.boxB('glass', sd > 0 ? 0.02 : -0.18, sd > 0 ? 0.18 : -0.02, 0.02, 0.14, 0.06, 0.066); M.cls = 0; M.color(trim); } M.restore(); }
-  // calandre à sept fentes, phares ronds cerclés à ses deux bouts, clignotants sur les ailes ; pare-chocs poutre, antibrouillards, crochets
+  // seven-slot grille, ringed round headlights at its two ends, turn signals on the fenders; beam bumper, fog lights, hooks
   M.color([0.03, 0.03, 0.03]); for (let i = 0; i < 7; i++) { const x = (i - 3) * 0.105; M.boxB('dark', x - 0.034, x + 0.034, 0.68, 1.02, zf - 0.03, zf - 0.015, { bevel: 0.012 }); }
   for (const sd of [-1, 1]) {
     M.save().move(sd * 0.5, 0.88, zf - 0.02).rotX(-Math.PI / 2);
@@ -492,10 +492,10 @@ function offroadBuild(M, P, o) {
   if (!wreck) { M.color([0.95, 0.95, 0.9]); M.cls = 1; for (const sd of [-1, 1]) { M.save().move(sd * 0.68, 0.56, zf - 0.185).rotX(-Math.PI / 2); M.cyl('lampOff', 0.045, 0.012, 10, { caps: 't' }); M.restore(); } M.boxB('plastic', -0.26, 0.26, 0.5, 0.61, zf - 0.19, zf - 0.182); M.cls = 0; }
   M.color(trim); M.cls = 2; for (const sd of [-1, 1]) M.tube('steel', 0.022, [[sd * 0.42, 0.5, zf - 0.18], [sd * 0.42, 0.46, zf - 0.26], [sd * 0.42, 0.56, zf - 0.26]], 5); M.cls = 0;
   for (const sd of [-1, 1]) { M.color(trim); M.boxB('steel', sd * 0.6, sd * 0.9, sill - 0.1, sill - 0.03, ax[0] + 0.56, ax[1] - 0.56, { bevel: 0.015 }); }
-  // roue de secours sur la porte arrière, charnières
+  // spare wheel on the rear door, hinges
   M.save().move(0.1, 1.02 - r, zr + 0.17).rotY(Math.PI / 2); wheel(M, r, 0.26, { noTire: wreck, side: -1, hub: wreck ? null : 'steel', rim: wreck ? [0.36, 0.3, 0.26] : [0.85, 0.85, 0.82], tread: wreck ? 0 : 14, tire: o.dust ? [0.72, 0.66, 0.58] : null }); M.restore();
   M.color(trim); M.cls = 2; for (const y of [0.75, 1.55]) M.boxB('steel', -0.8, -0.72, y, y + 0.08, zr - 0.01, zr + 0.03); M.cls = 0;
-  // galerie et tuba
+  // roof rack and snorkel
   if (o.rack) {
     M.color([0.12, 0.12, 0.12]); M.cls = 1;
     for (const sd of [-1, 1]) M.tube('steel', 0.02, [[sd * 0.74, roof + 0.02, zw + 0.2], [sd * 0.74, roof + 0.14, zw + 0.3], [sd * 0.74, roof + 0.14, zr - 0.1], [sd * 0.74, roof + 0.02, zr - 0.05]], 5);
@@ -507,7 +507,7 @@ function offroadBuild(M, P, o) {
     M.color(trim); M.tube('steel', 0.05, [[0.9, 0.9, zf + 0.5], [0.92, belt + 0.05, zw - 0.05], [0.86, roof - 0.05, zw + 0.02], [0.86, roof + 0.08, zw + 0.06]], 6);
   }
   M.restore();
-  // roues (pneus tout-terrain) ; l'épave repose sur ses jantes, une manque
+  // wheels (off-road tires); the wreck rests on its rims, one is missing
   for (const az of ax) for (const sd of [-1, 1]) {
     if (wreck && az === ax[1] && sd > 0) continue;
     M.save().move(sd * tx, lo, az);
@@ -515,8 +515,8 @@ function offroadBuild(M, P, o) {
     M.restore();
   }
 }
-/* Voiture : model 'sedan' (berline), 'hatch' (citadine), 'suv', 'mpv', 'cross' (familiales hautes), 'offroad' (4x4) ; o : { dust, wreck, rack } (voir carBuild, offroadBuild).
-   Ancienne écriture : PF.car(true) pour la berline calcinée. Les collisions du modèle sont dans pf.vcols */
+/* Car: model 'sedan', 'hatch' (city car), 'suv', 'mpv', 'cross' (tall family cars), 'offroad' (4x4); o: { dust, wreck, rack } (see carBuild, offroadBuild).
+   Old form: PF.car(true) for the burnt-out sedan. The model's collisions are in pf.vcols */
 PF.car = (model = 'sedan', o = {}) => {
   if (model === true || model === false) { o = { wreck: model }; model = 'sedan'; }
   const key = `car_${model}_${o.dust ? 1 : 0}${o.wreck ? 1 : 0}${o.rack ? 1 : 0}`;
@@ -525,24 +525,24 @@ PF.car = (model = 'sedan', o = {}) => {
     P.vcols = vehCols(model, o);
   });
 };
-/* Collisions d'un véhicule (repère du prefab) : [[x0, x1, y0, y1, z0, z1], ...]. Voitures : la caisse en trois tronçons (capot, ceinture,
-   malle ou hayon), d'un pare-chocs à l'autre, puis l'habitacle en deux étages qui restent sous le vitrage incliné ; l'épave est plus basse (affaissée sur ses jantes) */
+/* Collisions of a vehicle (prefab frame): [[x0, x1, y0, y1, z0, z1], ...]. Cars: the body in three sections (hood, beltline,
+   trunk or tailgate), from bumper to bumper, then the cabin in two tiers that stay under the raked glazing; the wreck is lower (sagging on its rims) */
 function vehCols(model, o = {}) {
   const S = CAR_SPECS[model];
   if (S) {
     const g = S.gh, G = carGeo(S), lo = o.wreck ? -S.r * 0.38 : 0, y0 = G.belt, b0 = S.w - g.ins, ym = (y0 + g.y1) / 2, bs = S.bumper ? S.bumper[2] : 0;
     const hood = G.sec((S.zf + g.wz0) / 2).yt, deck = G.sec((g.bz + S.zr) / 2).yt;
     return [[-S.w - 0.01, S.w + 0.01, 0, hood + lo, S.zf - bs, g.wz0], [-S.w - 0.01, S.w + 0.01, 0, y0 + lo, g.wz0, g.bz], [-S.w - 0.01, S.w + 0.01, 0, deck + lo, g.bz, S.zr + bs],
-      [-(b0 + g.b1) / 2, (b0 + g.b1) / 2, y0 + lo, ym + lo, (g.wz0 + g.wz1) / 2, (g.rz1 + g.bz) / 2, 'vitre'],
-      [-g.b1, g.b1, ym + lo, Math.min(g.y1, g.y1r) + 0.02 + lo, g.wz1, g.rz1, 'vitre']]; // (habitacle vitré : balles et vue passent)
+      [-(b0 + g.b1) / 2, (b0 + g.b1) / 2, y0 + lo, ym + lo, (g.wz0 + g.wz1) / 2, (g.rz1 + g.bz) / 2, 'glassPane'],
+      [-g.b1, g.b1, ym + lo, Math.min(g.y1, g.y1r) + 0.02 + lo, g.wz1, g.rz1, 'glassPane']]; // (glazed cabin: bullets and sight lines pass)
   }
   if (model === 'offroad') {
     const lo = o.wreck ? -0.38 * 0.38 : 0;
-    return [[-0.95, 0.95, 0, 1.12 + lo, -2.18, 2.1], [-0.82, 0.82, 1.12 + lo, 1.9 + lo, -0.6, 2.0, o.wreck ? undefined : 'vitre'], [-0.26, 0.46, 0.66 + lo, 1.38 + lo, 2.1, 2.28]];
+    return [[-0.95, 0.95, 0, 1.12 + lo, -2.18, 2.1], [-0.82, 0.82, 1.12 + lo, 1.9 + lo, -0.6, 2.0, o.wreck ? undefined : 'glassPane'], [-0.26, 0.46, 0.66 + lo, 1.38 + lo, 2.1, 2.28]];
   }
   return truckCols(model, o);
 }
-/* Pose un véhicule et ses collisions (pf.vcols) au point (x, y, z), tourné de rot ; o : options de DECOR.place (tint...) */
+/* Places a vehicle and its collisions (pf.vcols) at point (x, y, z), rotated by rot; o: DECOR.place options (tint...) */
 function vehicle(pf, x, y, z, rot, o) {
   DECOR.place(pf, x, y, z, rot, o);
   if (pf.vcols && !(o && o.nocol)) colShape(x, y, z, rot, pf.vcols, 'metal');
@@ -559,7 +559,7 @@ PF.bicycle = () => prefab('bicycle', (M, P) => {
   M.color([0.12, 0.12, 0.12]); M.tube('steel', 0.012, [[-0.25, 0.98, 0.34], [0, 0.95, 0.38], [0.25, 0.98, 0.34]], 5); M.tube('steel', 0.014, [head, [0, 0.95, 0.38]], 5);
   M.save().move(0, 0.82, -0.14); M.boxB('rubber', -0.06, 0.06, 0, 0.05, -0.12, 0.1, { bevel: 0.02 }); M.restore();
 });
-/* Mobylette (cyclomoteur) sur sa béquille */
+/* Moped on its kickstand */
 PF.moped = () => prefab('moped', (M, P) => {
   P.tintable = ['carpaint'];
   M.local(1);
@@ -574,10 +574,10 @@ PF.moped = () => prefab('moped', (M, P) => {
   M.tube('steel', 0.02, [[0.1, 0.3, -0.1], [0.14, 0.28, -0.5], [0.14, 0.34, -0.72]], 5);
   M.tube('steel', 0.012, [[0, 0.25, -0.1], [0.12, 0.02, -0.02]], 4);
 });
-/* ---------- Camions ---------- */
-/* Couleurs communes : garnitures noires, tôle brûlée et rouille des épaves */
+/* ---------- Trucks ---------- */
+/* Shared colors: black trim, burnt sheet metal and rust of the wrecks */
 const TRK = { trim: [0.1, 0.1, 0.1], burnt: [0.19, 0.18, 0.17], rust: [0.3, 0.2, 0.14], tarp: [0.6, 0.6, 0.46] };
-/* Rétroviseur de camion sur deux bras, côté sd, attaché à la cabine en (x, y, z) */
+/* Truck mirror on two arms, side sd, attached to the cab at (x, y, z) */
 function truckMirror(M, sd, x, y, z, wreck) {
   M.color(wreck ? TRK.burnt : TRK.trim); M.cls = 1;
   M.tube('steel', 0.016, [[sd * x, y + 0.25, z], [sd * (x + 0.26), y + 0.25, z], [sd * (x + 0.28), y + 0.2, z]], 4);
@@ -586,42 +586,42 @@ function truckMirror(M, sd, x, y, z, wreck) {
   if (!wreck) { M.color([0.7, 0.72, 0.74]); M.boxB('glass', sd * (x + 0.25), sd * (x + 0.32), y - 0.23, y + 0.28, z + 0.04, z + 0.046); }
   M.cls = 0;
 }
-/* Vitre posée à plat sur une face de cabine, avec son joint de caoutchouc : rectangle (a0..a1, y0..y1) sur la face normale à l'axe ax
-   ('x' : face latérale en x = c, côté sd ; 'z' : face avant ou arrière en z = c, côté sd) */
+/* Window laid flat on a cab face, with its rubber seal: rectangle (a0..a1, y0..y1) on the face normal to axis ax
+   ('x': side face at x = c, side sd; 'z': front or rear face at z = c, side sd) */
 function truckPane(M, ax, sd, c, a0, a1, y0, y1, wreck, dust) {
   const t = 0.012, e = 0.025;
   M.color(TRK.trim); M.cls = 1;
-  // joint : un cadre de quatre baguettes autour de la vitre (une plaque pleine cachait la cabine derrière la vitre transparente)
+  // seal: a frame of four strips around the window (a solid plate hid the cab behind the transparent window)
   const n0 = sd * c - (sd > 0 ? 0.003 : t + 0.004), n1 = sd * c + (sd > 0 ? t + 0.004 : 0.003);
   for (const [b0, b1, h0, h1] of [[a0 - e, a1 + e, y0 - e, y0], [a0 - e, a1 + e, y1, y1 + e], [a0 - e, a0, y0, y1], [a1, a1 + e, y0, y1]]) {
     if (ax === 'x') M.boxB('rubber', n0, n1, h0, h1, b0, b1); else M.boxB('rubber', b0, b1, h0, h1, n0, n1);
   }
-  M.color(wreck ? [0.04, 0.04, 0.04] : dust ? [0.6, 0.57, 0.52] : [0.2, 0.23, 0.26]); const m = wreck ? 'dark' : dust ? 'carglassD' : 'carglass', o = t + 0.008; // (vitre transparente : cabine évidée derrière, cabShell)
-  // une seule face de verre (une boîte en superposait deux, la cabine ne se voyait plus derrière) ; l'épave garde ses vitres noircies
+  M.color(wreck ? [0.04, 0.04, 0.04] : dust ? [0.6, 0.57, 0.52] : [0.2, 0.23, 0.26]); const m = wreck ? 'dark' : dust ? 'carglassD' : 'carglass', o = t + 0.008; // (transparent window: cab hollowed behind, cabShell)
+  // a single face of glass (a box stacked two, the cab no longer showed behind); the wreck keeps its blackened windows
   const p = sd * (c + o);
   if (wreck) { if (ax === 'x') M.boxB(m, sd * c - (sd > 0 ? 0 : o), sd * c + (sd > 0 ? o : 0), y0, y1, a0, a1); else M.boxB(m, a0, a1, y0, y1, sd * c - (sd > 0 ? 0 : o), sd * c + (sd > 0 ? o : 0)); }
   else if (ax === 'x') vQuad(M, m, [p, y0, a0], [p, y0, a1], [p, y1, a1], [p, y1, a0], [sd, 0, 0]);
   else vQuad(M, m, [a0, y0, p], [a1, y0, p], [a1, y1, p], [a0, y1, p], [0, 0, sd]);
   M.cls = 0;
 }
-/* Roues d'un camion : axles [[z, jumelées], ...], rayon r, largeur tw, voie tx ; o : { tread, hub, rim, wreck, lo } */
+/* Wheels of a truck: axles [[z, dual], ...], radius r, width tw, track tx; o: { tread, hub, rim, wreck, lo } */
 function truckWheels(M, axles, r, tw, tx, o) {
   for (const [z, dual] of axles) for (const sd of [-1, 1]) for (const k of dual ? [0, 1] : [0]) {
-    if (o.wreck && z === axles[axles.length - 1][0] && sd > 0) continue; // l'épave a perdu une roue
+    if (o.wreck && z === axles[axles.length - 1][0] && sd > 0) continue; // the wreck has lost a wheel
     M.save().move(sd * (tx - k * (tw + 0.03)), o.wreck ? o.lo : 0, z);
     wheel(M, r, tw, { side: sd, noTire: !!o.wreck, tread: o.tread, hub: o.wreck ? null : o.hub, rim: o.wreck ? [0.34, 0.28, 0.24] : o.rim });
     M.restore();
   }
 }
-/* Plateau à ridelles : plancher (yf) de z0 à z1, ridelles jusqu'à ys, ranchers, lisse haute, hayon, ridelle avant jusqu'à yh ; demi-largeur W.
-   Garde-boue derrière chaque roue arrière (zm) */
+/* Flatbed with side boards: floor (yf) from z0 to z1, side boards up to ys, stakes, top rail, tailgate, front board up to yh; half-width W.
+   Mudguard behind each rear wheel (zm) */
 function truckBed(M, body, z0, z1, yf, ys, yh, W, zm, wreck) {
   M.color(wreck ? TRK.rust : [1, 1, 1]);
   M.boxB(body, -W, W, yf - 0.16, yf, z0, z1, { bevel: 0.02 });
   for (const sd of [-1, 1]) M.boxB(body, sd * (W - 0.05), sd * W, yf, ys, z0, z1, { bevel: 0.01 });
   M.boxB(body, -W, W, yf, ys, z1 - 0.06, z1, { bevel: 0.01 });
   M.boxB(body, -W, W, yf, yh, z0, z0 + 0.06, { bevel: 0.01 });
-  // ranchers, lisses, charnières du hayon, longerons sous le plancher, barre anti-encastrement
+  // stakes, rails, tailgate hinges, longitudinal beams under the floor, rear underrun bar
   M.color(wreck ? TRK.burnt : [0.82, 0.82, 0.8]); M.cls = 1;
   const n = Math.max(2, Math.round((z1 - z0) / 1.1));
   for (const sd of [-1, 1]) {
@@ -635,19 +635,19 @@ function truckBed(M, body, z0, z1, yf, ys, yh, W, zm, wreck) {
   M.cls = 0;
   for (const sd of [-1, 1]) { M.color(wreck ? TRK.burnt : [0.06, 0.06, 0.06]); M.boxB('rubber', sd * (W - 0.4), sd * (W - 0.02), 0.22, yf - 0.2, zm, zm + 0.025); }
 }
-/* Bâche sur arceaux : de z0 à z1, des ridelles (ys) jusqu'à yt, demi-largeur W ; arceaux en relief, sangles, rabat arrière roulé.
-   La bâche est une toile simulée (Maker.toile) : sanglée sur les ridelles et tenue par les arceaux, elle se gonfle entre eux au vent et
-   claque sous un souffle ; les deux pignons restent rigides. Épave : arceaux nus et un lambeau de toile qui pend et bat au vent */
+/* Tarp over hoops: from z0 to z1, from the side boards (ys) up to yt, half-width W; raised hoops, straps, rolled rear flap.
+   The tarp is a simulated cloth (Maker.canvasCloth): strapped to the side boards and held by the hoops, it billows between them in the wind and
+   flaps in a gust; the two gables stay rigid. Wreck: bare hoops and a scrap of cloth hanging and flapping in the wind */
 function truckTarp(M, z0, z1, ys, yt, W, wreck) {
   if (wreck) {
     M.color(TRK.burnt); M.cls = 1;
     for (let i = 0; i <= 4; i++) { const z = lerp(z0 + 0.1, z1 - 0.1, i / 4), arc = []; for (let k = 0; k <= 8; k++) { const a = (k / 8) * Math.PI; arc.push([Math.cos(a) * (W - 0.04), ys + Math.pow(Math.sin(a), 0.35) * (yt - ys - 0.05), z]); } if (i !== 2) M.tube('steel', 0.025, arc, 4); }
-    M.color([0.24, 0.22, 0.18]); M.toile(4, 2, (u, v) => [lerp(-W + 0.05, -W + 0.6, u), lerp(yt - 0.2, ys + 0.2, v * v), z1 - 0.6 + Math.sin(u * 3) * 0.06], { uL: 0.6, vL: 1, genre: 'pendu', play: 0.5, glow: 0, pin: (u, v) => v <= 0 && (u <= 0 || u >= 1) });
+    M.color([0.24, 0.22, 0.18]); M.canvasCloth(4, 2, (u, v) => [lerp(-W + 0.05, -W + 0.6, u), lerp(yt - 0.2, ys + 0.2, v * v), z1 - 0.6 + Math.sin(u * 3) * 0.06], { uL: 0.6, vL: 1, clothKind: 'hung', play: 0.5, glow: 0, pin: (u, v) => v <= 0 && (u <= 0 || u >= 1) });
     M.cls = 0; return;
   }
-  const ym = ys; // la toile tombe sur le haut des ridelles
+  const ym = ys; // the cloth falls onto the top of the side boards
   M.color(TRK.tarp);
-  // profil : la jupe sanglée sur la ridelle (12 cm), puis l'arc des arceaux (superellipse) ; u de la ridelle gauche à la droite
+  // profile: the skirt strapped to the side board (12 cm), then the arc of the hoops (superellipse); u from the left side board to the right
   const sk = 0.06, Wt = W + 0.015, prof = (u) => {
     if (u < sk) return [-Wt, ys - 0.12 + (u / sk) * 0.12];
     if (u > 1 - sk) return [Wt, ys - 0.12 + ((1 - u) / sk) * 0.12];
@@ -655,9 +655,9 @@ function truckTarp(M, z0, z1, ys, yt, W, wreck) {
     return [Math.sign(c) * Math.pow(Math.abs(c), 1 / 3) * Wt, ym + Math.pow(sn, 1 / 3) * (yt - ym)];
   };
   const arches = [1, 2, 3, 4].map((i) => lerp(z0, z1, i / 5)), dz = (z1 - z0) / 12;
-  M.toile(22, 8, (u, v) => { const q = prof(u); return [q[0], q[1], lerp(z0, z1, v)]; }, { uL: 2 * Wt + 2 * (yt - ym), vL: z1 - z0, flipN: true, play: 0.1, glow: 0.15,
+  M.canvasCloth(22, 8, (u, v) => { const q = prof(u); return [q[0], q[1], lerp(z0, z1, v)]; }, { uL: 2 * Wt + 2 * (yt - ym), vL: z1 - z0, flipN: true, play: 0.1, glow: 0.15,
     pin: (u, v) => u <= sk || u >= 1 - sk || v <= 0 || v >= 1 || arches.some((z) => Math.abs(lerp(z0, z1, v) - z) < dz * 0.6) });
-  // pignons (rigides)
+  // gables (rigid)
   for (const [z, s] of [[z0, -1], [z1, 1]]) M.surf('canvas', 16, 1, (u, v) => { const q = prof(u); return [q[0] * (1 - v), lerp(q[1], ys - 0.12, v), z]; }, { uL: 2 * Wt, vL: yt - ys, flipN: s > 0 });
   M.color([0.52, 0.52, 0.4]); M.cls = 1;
   for (let i = 1; i < 5; i++) {
@@ -665,13 +665,13 @@ function truckTarp(M, z0, z1, ys, yt, W, wreck) {
     for (let k = 0; k <= 12; k++) { const a = (k / 12) * Math.PI, c = Math.cos(a), sn = Math.sin(a); arc.push([Math.sign(c) * Math.pow(Math.abs(c), 1 / 3) * (W + 0.02), ym + Math.pow(sn, 1 / 3) * (yt - ym + 0.008), z]); }
     M.tube('canvas', 0.03, arc.filter((p) => p[1] > ys - 0.02), 5);
   }
-  // rabat arrière roulé, sangles sur les ridelles
+  // rolled rear flap, straps on the side boards
   M.color([0.48, 0.48, 0.37]); M.save().move(-W + 0.08, yt - 0.28, z1 + 0.05).rotZ(-Math.PI / 2); M.cyl('canvas', 0.09, 2 * W - 0.16, 8); M.restore();
   M.color([0.18, 0.18, 0.15]); M.cls = 2;
   for (let i = 0; i <= 5; i++) for (const sd of [-1, 1]) { const z = lerp(z0 + 0.25, z1 - 0.25, i / 5); M.boxB('dark', sd * (W + 0.018) - 0.006, sd * (W + 0.018) + 0.006, ys - 0.25, ys + 0.12, z - 0.02, z + 0.02); }
   M.cls = 0;
 }
-/* Chargement arrimé d'un plateau ouvert (caisses de bois, pile bâchée, sangles) entre z0 et z1, sur le plancher yf ; renvoie ses boîtes */
+/* Secured load of an open flatbed (wooden crates, tarped pile, straps) between z0 and z1, on floor yf; returns its boxes */
 function truckCargo(M, z0, z1, yf, W, wreck) {
   const boxes = [[-W + 0.15, -0.05, yf, yf + 0.75, z0 + 0.25, z0 + 1.35], [0.1, W - 0.15, yf, yf + 0.6, z0 + 0.25, z0 + 1.15], [-W + 0.15, W - 0.15, yf, yf + 0.9, z1 - 1.6, z1 - 0.3]];
   M.color(wreck ? TRK.burnt : [0.85, 0.8, 0.7]); for (const b of boxes.slice(0, 2)) M.boxB(wreck ? 'charred' : 'crate', b[0], b[1], b[2], b[3], b[4], b[5], { bevel: 0.02 });
@@ -682,17 +682,17 @@ function truckCargo(M, z0, z1, yf, W, wreck) {
   M.cls = 0;
   return boxes;
 }
-/* Camion militaire 6x6 (7,7 x 2,5 m, d'après le Renault GBC de l'armée française ; 5.1, retour du propriétaire : il avait un capot) :
-   cabine avancée posée sur l'essieu avant, pare-brise plat en deux, calandre noire à lames entre deux blocs de phares ronds, grandes ailes
-   arrondies sur les roues avant, pare-chocs noir à feux ronds et manilles, marchepieds sous la porte, roue de secours derrière la cabine,
-   cheminée et prise d'air, réservoir, coffre, plateau à ridelles ; load : 'tarp' (bâché), 'open' (chargement arrimé) */
+/* 6x6 military truck (7.7 x 2.5 m, modeled on the French army's Renault GBC; 5.1, owner feedback: it had a hood):
+   forward cab set on the front axle, flat two-piece windshield, black slatted grille between two round headlight blocks, large
+   rounded fenders over the front wheels, black bumper with round lights and shackles, running boards under the door, spare wheel behind the cab,
+   stack and air intake, fuel tank, storage box, flatbed with side boards; load: 'tarp' (tarped), 'open' (secured load) */
 function armyTruckBuild(M, P, o) {
-  const wreck = !!o.wreck, body = 'paint', r = 0.6, lo = wreck ? -r * 0.38 : 0, W = 1.25, one = wreck ? TRK.burnt : [1, 1, 1]; // (roues de 0,56 m avant la 5.1)
+  const wreck = !!o.wreck, body = 'paint', r = 0.6, lo = wreck ? -r * 0.38 : 0, W = 1.25, one = wreck ? TRK.burnt : [1, 1, 1]; // (0.56 m wheels before 5.1)
   const z0 = -3.62, z1 = -1.92, zA = -2.55, X = 1.2;
   P.tintable = wreck ? null : [body];
   M.local(1); M.save().move(0, lo, 0);
   M.aoFn = (x, y) => lerp(0.5, 1, smoothstep(0.7, 1.7, y - lo));
-  // châssis, pare-chocs noir à feux ronds, manilles
+  // chassis, black bumper with round lights, shackles
   M.color([0.12, 0.12, 0.11]); for (const x of [-0.5, 0.5]) M.boxB('steel', x - 0.07, x + 0.07, 0.8, 1.05, -3.6, 3.5);
   M.color(wreck ? TRK.burnt : TRK.trim); M.boxB('steel', -1.25, 1.25, 0.62, 0.94, -3.86, -3.64, { bevel: 0.03 });
   for (const sd of [-1, 1]) {
@@ -700,7 +700,7 @@ function armyTruckBuild(M, P, o) {
     if (!wreck) { M.color([0.95, 0.55, 0.12]); M.cls = 1; M.boxB('plastic', sd * 0.72, sd * 0.86, 0.74, 0.82, -3.875, -3.855); M.cls = 0; }
   }
   M.cls = 2; for (const sd of [-1, 1]) { M.save().move(sd * 0.55, 0.66, -3.87).rotX(Math.PI / 2); M.color([0.65, 0.12, 0.08]); M.tube('steel', 0.025, Array.from({ length: 9 }, (_, i) => { const a = (i / 8) * Math.PI; return [Math.cos(a) * 0.07, 0, Math.sin(a) * 0.1]; }), 4); M.restore(); } M.cls = 0;
-  // face avant : calandre noire à lames au milieu, flancs couleur caisse, blocs de phares ronds en haut des flancs
+  // front face: black slatted grille in the middle, body-colored flanks, round headlight blocks at the top of the flanks
   M.color(one); for (const sd of [-1, 1]) M.boxB(body, sd * 0.8, sd * X, 0.94, 1.36, z0, z0 + 0.34, { bevel: 0.04 });
   M.color([0.03, 0.03, 0.03]); M.boxB('dark', -0.82, 0.82, 0.94, 1.88, z0 - 0.02, z0 + 0.5);
   M.color(wreck ? TRK.burnt : [0.07, 0.07, 0.07]); M.cls = 1; for (let i = 0; i < 9; i++) { const y = 1.0 + i * 0.1; M.boxB('steel', -0.78, 0.78, y, y + 0.045, z0 - 0.04, z0 - 0.015); } M.cls = 0;
@@ -708,7 +708,7 @@ function armyTruckBuild(M, P, o) {
     M.color(TRK.trim); M.boxB('plastic', sd * 0.86, sd * 1.15, 1.44, 1.74, z0 - 0.07, z0 + 0.01, { bevel: 0.02 });
     for (const dx of [0.94, 1.07]) { M.save().move(sd * dx, 1.6, z0 - 0.07).rotX(-Math.PI / 2); M.color(wreck ? TRK.burnt : [0.6, 0.6, 0.6]); M.cyl('steel', 0.06, 0.012, 12, { caps: 't' }); if (!wreck) { M.color([1, 1, 1]); M.cyl('lampOff', 0.048, 0.018, 12, { caps: 't' }); } M.restore(); }
   }
-  // cabine : bas plein au-dessus des roues avant, haut évidé derrière ses vitres, pavillon bombé
+  // cab: solid lower part above the front wheels, upper part hollowed behind its windows, domed roof
   M.color(wreck ? TRK.rust : [1, 1, 1]);
   M.boxB(body, -X, X, 1.32, 1.9, z0, z1, { bevel: 0.07 });
   const win = [[-3.42, -2.66, 1.96, 2.56], [-2.5, -2.14, 2.1, 2.56]];
@@ -717,22 +717,22 @@ function armyTruckBuild(M, P, o) {
     cabShell(M, body, X, 1.9, 2.7, z0, z1, [['av', -1.06, -0.06, 1.98, 2.58], ['av', 0.06, 1.06, 1.98, 2.58], ['ar', -0.45, 0.45, 2.05, 2.45], ...['g', 'd'].flatMap((f) => win.map(([a, b, c, d]) => [f, a, b, c, d]))]);
     carInterior(M, { x: 1.08, za: z0 + 0.06, zb: z1 - 0.06, Y0: () => 1.88, Y1: () => 2.68, zSeat: -2.3, zRear: -9, dash: 0.32, wheelR: 0.22 });
   }
-  for (const sd of [-1, 1]) M.boxB(body, sd * (X - 0.08), sd * X, 1.9, 2.7, z0, z0 + 0.08, { bevel: 0.03 }); // montants avant
+  for (const sd of [-1, 1]) M.boxB(body, sd * (X - 0.08), sd * X, 1.9, 2.7, z0, z0 + 0.08, { bevel: 0.03 }); // front pillars
   M.loft(body, [{ z: z0 + 0.02, w: X - 0.02, yb: 2.64, yt: 2.86, ym: 2.66, n: 4 }, { z: z1 - 0.02, w: X - 0.02, yb: 2.64, yt: 2.88, ym: 2.66, n: 4 }], 16, { caps: true });
-  M.color(wreck ? TRK.burnt : [0.16, 0.16, 0.15]); M.cls = 1; M.save().move(0.4, 2.85, -2.55); M.cyl('steel', 0.32, 0.06, 14); M.restore(); M.cls = 0; // trappe de toit
+  M.color(wreck ? TRK.burnt : [0.16, 0.16, 0.15]); M.cls = 1; M.save().move(0.4, 2.85, -2.55); M.cyl('steel', 0.32, 0.06, 14); M.restore(); M.cls = 0; // roof hatch
   for (const x of [-0.56, 0.56]) truckPane(M, 'z', -1, -z0, x - 0.5, x + 0.5, 1.98, 2.58, wreck, o.dust);
   for (const sd of [-1, 1]) for (const [a, b, c, d] of win) truckPane(M, 'x', sd, X, a, b, c, d, wreck, o.dust);
   truckPane(M, 'z', 1, z1, -0.45, 0.45, 2.05, 2.45, wreck, o.dust);
   M.color(TRK.trim); M.cls = 2;
   for (const sd of [-1, 1]) {
-    M.boxB('rubber', sd * X - 0.006, sd * X + 0.02, 1.96, 2.56, -3.2, -3.17); // déflecteur de la vitre de porte
+    M.boxB('rubber', sd * X - 0.006, sd * X + 0.02, 1.96, 2.56, -3.2, -3.17); // door window deflector
     for (const z of [-3.48, -2.58]) M.boxB('dark', sd * X - 0.004, sd * X + 0.004, 1.34, 2.62, z - 0.004, z + 0.004);
     M.boxB('steel', sd * X, sd * (X + 0.02), 1.72, 1.76, -2.78, -2.64);
   }
-  M.boxB('rubber', -0.06, 0.06, 1.97, 2.59, z0 - 0.025, z0 + 0.01); // montant central du pare-brise
+  M.boxB('rubber', -0.06, 0.06, 1.97, 2.59, z0 - 0.025, z0 + 0.01); // center pillar of the windshield
   M.cls = 0;
   for (const sd of [-1, 1]) truckMirror(M, sd, X, 2.2, -3.5, wreck);
-  // grandes ailes avant arrondies (couleur caisse) et bavettes ; marchepieds sous la porte
+  // large rounded front fenders (body color) and mud flaps; running boards under the door
   for (const sd of [-1, 1]) {
     const ring = [], n = 12; for (let i = 0; i <= n; i++) { const a = lerp(0.45, Math.PI - 0.12, i / n); ring.push([zA + 0.72 * Math.cos(a), r + 0.72 * Math.sin(a)]); }
     for (let i = n; i >= 0; i--) { const a = lerp(0.45, Math.PI - 0.12, i / n); ring.push([zA + 0.9 * Math.cos(a), r + 0.84 * Math.sin(a)]); }
@@ -741,13 +741,13 @@ function armyTruckBuild(M, P, o) {
     M.color(TRK.trim); for (const y of [0.6, 0.86]) M.boxB('steel', sd * 1.0, sd * 1.24, y, y + 0.04, -1.9, -1.74);
     M.boxB('steel', sd * 1.18, sd * 1.21, 0.58, 1.32, -1.9, -1.87); M.boxB('steel', sd * 1.18, sd * 1.21, 0.58, 0.92, -1.77, -1.74);
   }
-  // roue de secours debout derrière la cabine, cheminée, prise d'air, réservoir, coffre à batteries
+  // upright spare wheel behind the cab, stack, air intake, fuel tank, battery box
   M.save().move(0.35, 1.12, -1.72).rotY(Math.PI / 2); wheel(M, r, 0.36, { side: -1, noTire: wreck, tread: 16, hub: wreck ? null : 'army', rim: wreck ? [0.34, 0.28, 0.24] : [0.32, 0.33, 0.26] }); M.restore();
   M.color(wreck ? TRK.burnt : [0.16, 0.16, 0.15]); M.cls = 1; M.tube('steel', 0.07, [[-0.85, 1.1, -1.84], [-0.85, 3.0, -1.84]], 8); M.cls = 0;
   M.color(one); M.tube(body, 0.09, [[-1.12, 1.5, -1.86], [-1.18, 2.4, -1.86], [-1.18, 2.92, -1.86]], 8); M.boxB(body, -1.28, -1.08, 2.9, 3.0, -1.96, -1.76, { bevel: 0.02 });
   M.color(one); M.save().move(-1.0, 0.86, -1.5); M.rotX(Math.PI / 2); M.cyl(body, 0.24, 1.0, 12); M.restore();
   M.boxB(body, 0.72, 1.16, 0.62, 1.05, -1.4, -0.6, { bevel: 0.02 });
-  // plateau, chargement
+  // bed, load
   M.aoFn = null;
   truckBed(M, body, -1.5, 3.62, 1.36, 1.9, 2.3, W, 3.25, wreck);
   P.cargo = null;
@@ -756,23 +756,23 @@ function armyTruckBuild(M, P, o) {
   M.restore();
   truckWheels(M, [[zA], [1.2], [2.6]], r, 0.4, 0.98, { tread: 16, hub: 'army', rim: wreck ? null : [0.32, 0.33, 0.26], wreck, lo });
 }
-/* Porteur 6x6 à cabine avancée (7,4 x 2,5 m), à la manière des camions russes : cabine haute sur l'essieu avant, pare-brise en deux,
-   calandre à lames, phares ronds dans le pare-chocs, feux de gabarit sur le pavillon, roue de secours debout derrière la cabine, plateau à
-   hautes ridelles ; load : 'open' (ridelles), 'tarp' (bâché), 'cargo' (ridelles et chargement) */
+/* 6x6 forward-cab carrier (7.4 x 2.5 m), in the style of Russian trucks: tall cab over the front axle, two-piece windshield,
+   slatted grille, round headlights in the bumper, marker lights on the roof, upright spare wheel behind the cab, flatbed with
+   high side boards; load: 'open' (side boards), 'tarp' (tarped), 'cargo' (side boards and load) */
 function cargoTruckBuild(M, P, o) {
-  const wreck = !!o.wreck, body = 'paint', r = 0.59, lo = wreck ? -r * 0.38 : 0, W = 1.25, one = wreck ? TRK.burnt : [1, 1, 1]; // (roues de 0,55 m avant la 5.1)
+  const wreck = !!o.wreck, body = 'paint', r = 0.59, lo = wreck ? -r * 0.38 : 0, W = 1.25, one = wreck ? TRK.burnt : [1, 1, 1]; // (0.55 m wheels before 5.1)
   P.tintable = wreck ? null : [body];
   M.local(1); M.save().move(0, lo, 0);
   M.aoFn = (x, y) => lerp(0.5, 1, smoothstep(0.7, 1.8, y - lo));
   M.color([0.12, 0.12, 0.11]); for (const x of [-0.5, 0.5]) M.boxB('steel', x - 0.07, x + 0.07, 0.82, 1.1, -3.6, 3.5);
-  // pare-chocs, phares ronds, marchepieds
+  // bumpers, round headlights, running boards
   M.color(one); M.boxB(body, -1.22, 1.22, 0.78, 1.12, -3.82, -3.62, { bevel: 0.03 });
   for (const sd of [-1, 1]) {
     M.color(TRK.trim); M.save().move(sd * 0.86, 0.96, -3.83).rotX(-Math.PI / 2); M.cyl('steel', 0.13, 0.04, 12); M.restore();
     if (!wreck) { M.color([0.95, 0.95, 0.9]); M.cls = 1; M.save().move(sd * 0.86, 0.96, -3.86).rotX(-Math.PI / 2); M.cyl('glass', 0.105, 0.02, 12); M.restore(); M.color([0.95, 0.55, 0.12]); M.boxB('plastic', sd * 0.5, sd * 0.64, 0.9, 1.0, -3.85, -3.82); M.cls = 0; }
     M.color(TRK.trim); for (const y of [0.62, 0.94]) M.boxB('steel', sd * 1.0, sd * 1.22, y, y + 0.04, -3.68, -3.46);
   }
-  // cabine : caisse haute, face avant légèrement inclinée, calandre à lames, pavillon bombé, feux de gabarit
+  // cab: tall body, slightly raked front face, slatted grille, domed roof, marker lights
   M.color(wreck ? TRK.rust : [1, 1, 1]);
   if (wreck) M.boxB(body, -1.2, 1.2, 1.25, 2.66, -3.72, -2.0, { bevel: 0.07 });
   else {
@@ -791,9 +791,9 @@ function cargoTruckBuild(M, P, o) {
   M.cls = 0;
   if (!wreck) { M.color([0.95, 0.55, 0.12]); M.cls = 2; for (const x of [-0.4, 0, 0.4]) M.boxB('plastic', x - 0.06, x + 0.06, 2.86, 2.93, -3.62, -3.52); M.cls = 0; }
   for (const sd of [-1, 1]) truckMirror(M, sd, 1.2, 2.2, -3.55, wreck);
-  // garde-boue des roues avant (sous la cabine)
-  M.color(TRK.trim); for (const sd of [-1, 1]) M.tube('plastic', 0.045, Array.from({ length: 9 }, (_, i) => { const a = lerp(0.15, Math.PI - 0.15, i / 8); return [sd * 1.18, r + (r + 0.07) * Math.sin(a), -2.85 + (r + 0.07) * Math.cos(a)]; }), 5); // passage resserré sur la roue (0,12 de jour avant la 5.1)
-  // roue de secours debout derrière la cabine, cheminée, réservoir, coffre
+  // mudguards of the front wheels (under the cab)
+  M.color(TRK.trim); for (const sd of [-1, 1]) M.tube('plastic', 0.045, Array.from({ length: 9 }, (_, i) => { const a = lerp(0.15, Math.PI - 0.15, i / 8); return [sd * 1.18, r + (r + 0.07) * Math.sin(a), -2.85 + (r + 0.07) * Math.cos(a)]; }), 5); // tightened clearance around the wheel (0.12 gap before 5.1)
+  // upright spare wheel behind the cab, stack, tank, storage box
   M.save().move(0.35, 1.12, -1.78).rotY(Math.PI / 2); wheel(M, r, 0.36, { side: -1, noTire: wreck, tread: 16, hub: wreck ? null : 'army', rim: wreck ? [0.34, 0.28, 0.24] : [0.32, 0.33, 0.26] }); M.restore();
   M.color(wreck ? TRK.burnt : [0.16, 0.16, 0.15]); M.cls = 1; M.tube('steel', 0.07, [[-0.85, 1.1, -1.88], [-0.85, 3.0, -1.88]], 8); M.cls = 0;
   M.color(one); M.save().move(-1.0, 0.86, -1.5); M.rotX(Math.PI / 2); M.cyl(body, 0.24, 1.0, 12); M.restore();
@@ -807,8 +807,8 @@ function cargoTruckBuild(M, P, o) {
   M.restore();
   truckWheels(M, [[-2.85], [1.35], [2.65]], r, 0.38, 0.98, { tread: 16, hub: 'army', rim: wreck ? null : [0.32, 0.33, 0.26], wreck, lo });
 }
-/* Porteur de livraison à cabine avancée (7,6 x 2,45 m) : cabine plate à grande calandre chromée et doubles phares ronds, caisse fourgon
-   à nervures, portes arrière à crémones, bandeau de couleur (la teinte de la cabine) ; o.reefer : groupe froid sur la face avant de la caisse */
+/* Forward-cab delivery carrier (7.6 x 2.45 m): flat cab with a large chrome grille and dual round headlights, ribbed van
+   body, rear doors with espagnolette locks, color band (the cab's tint); o.reefer: refrigeration unit on the front face of the body */
 function boxTruckBuild(M, P, o) {
   const wreck = !!o.wreck, cab = wreck ? 'paint' : o.dust ? 'paint' : 'carpaint', r = 0.5, lo = wreck ? -r * 0.38 : 0, W = 1.22, one = wreck ? TRK.burnt : [1, 1, 1];
   const chrome = wreck ? TRK.burnt : [0.85, 0.85, 0.85];
@@ -816,7 +816,7 @@ function boxTruckBuild(M, P, o) {
   M.local(1); M.save().move(0, lo, 0);
   M.aoFn = (x, y) => lerp(0.55, 1, smoothstep(0.6, 1.6, y - lo));
   M.color([0.12, 0.12, 0.11]); for (const x of [-0.45, 0.45]) M.boxB('steel', x - 0.07, x + 0.07, 0.62, 0.9, -3.6, 3.45);
-  // cabine plate, calandre chromée, doubles phares, pare-chocs chromé
+  // flat cab, chrome grille, dual headlights, chrome bumper
   M.color(wreck ? TRK.rust : [1, 1, 1]);
   if (wreck) M.boxB(cab, -1.2, 1.2, 1.05, 2.62, -3.72, -2.2, { bevel: 0.06 });
   else {
@@ -841,7 +841,7 @@ function boxTruckBuild(M, P, o) {
   M.color(chrome); M.boxB('steel', -1.22, 1.22, 0.58, 0.88, -3.84, -3.68, { bevel: 0.03 });
   M.color(TRK.trim); M.cls = 2; for (const sd of [-1, 1]) for (const z of [-3.58, -2.78]) M.boxB('dark', sd * 1.2 - 0.004, sd * 1.2 + 0.004, 1.0, 2.55, z - 0.004, z + 0.004); M.cls = 0;
   for (const sd of [-1, 1]) { truckMirror(M, sd, 1.2, 2.15, -3.58, wreck); M.color(TRK.trim); for (const y of [0.5, 0.8]) M.boxB('steel', sd * 1.0, sd * 1.22, y, y + 0.04, -3.68, -3.44); }
-  // caisse fourgon : panneaux, nervures, lisses, bandeau de couleur, portes arrière ; groupe froid du frigo
+  // van body: panels, ribs, rails, color band, rear doors; fridge refrigeration unit
   M.color(wreck ? TRK.rust : [0.94, 0.94, 0.92]);
   M.boxB('paint', -W, W, 1.0, 3.55, -2.1, 3.6, { bevel: 0.04 });
   M.color(wreck ? TRK.burnt : [0.8, 0.8, 0.78]); M.cls = 1;
@@ -860,7 +860,7 @@ function boxTruckBuild(M, P, o) {
     M.color([0.06, 0.06, 0.06]); M.cls = 1; for (const x of [-0.42, 0.42]) { M.save().move(x, 3.12, -2.41).rotX(-Math.PI / 2); M.cyl('dark', 0.24, 0.01, 14); M.restore(); }
     M.color(wreck ? TRK.burnt : [0.7, 0.71, 0.72]); M.cls = 2; for (const x of [-0.42, 0.42]) for (let k = 0; k < 4; k++) M.boxB('steel', x - 0.24, x + 0.24, 2.92 + k * 0.08, 2.935 + k * 0.08, -2.43, -2.415); M.cls = 0;
   }
-  // jupes latérales, réservoir, barre arrière, garde-boue
+  // side skirts, tank, rear bar, mudguards
   M.color(TRK.trim); for (const sd of [-1, 1]) M.boxB('steel', sd * (W - 0.08), sd * (W - 0.04), 0.5, 0.96, -1.6, 1.3);
   M.color(wreck ? TRK.burnt : [0.75, 0.76, 0.78]); M.save().move(1.0, 0.72, -2.38).rotX(Math.PI / 2); M.cyl('steel', 0.22, 0.7, 12); M.restore();
   M.color(TRK.trim); M.boxB('steel', -1.05, 1.05, 0.45, 0.58, 3.45, 3.56); for (const sd of [-1, 1]) M.boxB('rubber', sd * 0.6, sd * 1.15, 0.2, 0.95, 2.82, 2.845);
@@ -868,8 +868,8 @@ function boxTruckBuild(M, P, o) {
   M.restore();
   truckWheels(M, [[-2.9], [2.25, true]], r, 0.28, 0.98, { hub: 'steel', rim: wreck ? null : [0.82, 0.82, 0.8], wreck, lo });
 }
-/* Camion : model 'army' (militaire à cabine avancée, façon GBC), 'cargo' (porteur à cabine avancée), 'box' (fourgon de livraison) ; o : { load, reefer, dust,
-   wreck }. Ancienne écriture : PF.truck() pour le militaire bâché. Les collisions du modèle sont dans pf.vcols */
+/* Truck: model 'army' (military forward cab, GBC style), 'cargo' (forward-cab carrier), 'box' (delivery van); o: { load, reefer, dust,
+   wreck }. Old form: PF.truck() for the tarped military one. The model's collisions are in pf.vcols */
 PF.truck = (model = 'army', o = {}) => {
   const key = `truck_${model}_${o.load || ''}_${o.reefer ? 1 : 0}${o.dust ? 1 : 0}${o.wreck ? 1 : 0}`;
   return prefab(key, (M, P) => {
@@ -877,27 +877,27 @@ PF.truck = (model = 'army', o = {}) => {
     P.vcols = truckCols(model, o, P.cargo);
   });
 };
-/* Collisions d'un camion : pare-chocs, châssis et plancher, cabine, plateau (jusqu'au haut des ridelles, de la
-   bâche ou du chargement) ; l'épave est plus basse */
+/* Collisions of a truck: bumper, chassis and floor, cab, flatbed (up to the top of the side boards, the
+   tarp or the load); the wreck is lower */
 function truckCols(model, o = {}, cargo) {
   const lo = o.wreck ? (model === 'box' ? -0.48 : -0.55) * 0.38 : 0, L = (b) => [b[0], b[1], b[2] + (b[2] > 0 ? lo : 0), b[3] + lo, b[4], b[5], o.wreck ? undefined : b[6]];
-  // (b[6] 'vitre' : la cabine au-dessus de la ceinture, évidée derrière ses vitres, laisse passer les balles et la vue)
+  // (b[6] 'glassPane': the cab above the beltline, hollowed behind its windows, lets bullets and sight lines through)
   let B;
   if (model === 'cargo') {
     const top = o.wreck ? 2.15 : o.load === 'tarp' ? 3.0 : 2.15;
-    B = [[-1.22, 1.22, 0, 1.45, -3.82, 3.62], [-1.2, 1.2, 1.45, 1.9, -3.72, -2.0], [-1.2, 1.2, 1.9, 2.86, -3.72, -2.0, 'vitre'], [-1.25, 1.25, 1.45, top, -1.55, 3.62], [-1.25, 1.25, top, Math.max(top, 2.4), -1.55, -1.49]];
+    B = [[-1.22, 1.22, 0, 1.45, -3.82, 3.62], [-1.2, 1.2, 1.45, 1.9, -3.72, -2.0], [-1.2, 1.2, 1.9, 2.86, -3.72, -2.0, 'glassPane'], [-1.25, 1.25, 1.45, top, -1.55, 3.62], [-1.25, 1.25, top, Math.max(top, 2.4), -1.55, -1.49]];
   } else if (model === 'box') {
-    B = [[-1.22, 1.22, 0, 1.0, -3.84, 3.64], [-1.2, 1.2, 1.0, 1.88, -3.72, -2.2], [-1.2, 1.2, 1.88, 2.76, -3.72, -2.2, 'vitre'], [-1.22, 1.22, 1.0, 3.55, -2.1, 3.64]];
+    B = [[-1.22, 1.22, 0, 1.0, -3.84, 3.64], [-1.2, 1.2, 1.0, 1.88, -3.72, -2.2], [-1.2, 1.2, 1.88, 2.76, -3.72, -2.2, 'glassPane'], [-1.22, 1.22, 1.0, 3.55, -2.1, 3.64]];
     if (o.reefer) B.push([-0.85, 0.85, 2.8, 3.45, -2.4, -2.1]);
   } else {
     const top = o.wreck ? 1.9 : (o.load || 'tarp') === 'tarp' ? 3.05 : 1.9;
-    B = [[-1.25, 1.25, 0, 0.94, -3.86, -3.62], [-1.25, 1.25, 0, 1.36, -3.62, 3.62], [-1.2, 1.2, 1.36, 1.9, -3.62, -1.92], [-1.2, 1.2, 1.9, 2.86, -3.62, -1.92, 'vitre'],
+    B = [[-1.25, 1.25, 0, 0.94, -3.86, -3.62], [-1.25, 1.25, 0, 1.36, -3.62, 3.62], [-1.2, 1.2, 1.36, 1.9, -3.62, -1.92], [-1.2, 1.2, 1.9, 2.86, -3.62, -1.92, 'glassPane'],
       [-1.25, 1.25, 1.36, top, -1.5, 3.62], [-1.25, 1.25, top, Math.max(top, 2.3), -1.5, -1.44]];
   }
   if (cargo) for (const c of cargo) B.push(c);
   return B.filter((b) => b[3] > b[2] + 0.01).map(L);
 }
-/* Bus incendié (11 m) : carcasse percée de baies vides, intérieur calciné, sur les jantes */
+/* Burnt-out bus (11 m): shell pierced with empty bays, charred interior, on its rims */
 PF.busWreck = () => prefab('busWreck', (M) => {
   M.local(1);
   const L = 11, W = 2.5, H = 2.75, hl = L / 2, hw = W / 2, y0 = 0.3;
@@ -912,7 +912,7 @@ PF.busWreck = () => prefab('busWreck', (M) => {
   M.boxB('charred', -hw, hw, y0 + H, y0 + H + 0.06, -hl, hl);
   M.color([0.08, 0.08, 0.08]); M.boxB('dark', -hw + 0.05, hw - 0.05, y0, y0 + 0.2, -hl, hl);
   M.aoFn = null; M.ao = 0.5;
-  // squelettes de sièges
+  // seat skeletons
   M.color([0.3, 0.26, 0.22]);
   for (let z = -hl + 1.2; z < hl - 1; z += 0.85) for (const s of [-1, 1]) { M.boxB('charred', s * 0.3, s * 1.1, y0 + 0.2, y0 + 0.65, z, z + 0.45); M.boxB('charred', s * 0.3, s * 1.1, y0 + 0.65, y0 + 1.2, z + 0.38, z + 0.45); }
   M.ao = 1;

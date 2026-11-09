@@ -1,45 +1,45 @@
 /* ==========================================================================
-   EAU : la mer et les bassins d'une carte portuaire (Kervénec), avec leur shader dédié.
-   - Plan d'eau sous le niveau des quais (WATER.y) : une grille fine (80 cm) le long de la côte, de plus en plus lâche
-     vers le large, jusqu'à 900 m. Vagues de Gerstner calculées sur la carte graphique : clapot partout, houle au-delà
-     de la digue (WATER.open), amorties contre les quais et les coques. Les mêmes vagues, calculées ici en JavaScript
-     (waterHeight), font danser les canots (floatAdd).
-   - Matière (waterMaterial) : MeshStandardMaterial retouchée par userData.patch, pour garder les ombres en cascade,
-     le soleil et le brouillard du moteur. Le shader ajoute :
-       · des rides en trois couches qui défilent (surface procédurale « ripple » du laboratoire de textures), fondues
-         avec la distance (pas de scintillement au loin) ;
-       · le reflet du ciel, rendu une fois au chargement dans une cube map à mipmaps (waterReady) : le ciel reflété
-         est celui qu'on voit (dégradé, nuages, lueur du couchant), pas celui de l'éclairage HDRI ;
-       · le reflet sombre des quais et coloré des coques tout près de l'eau : le rayon réfléchi avance dans le champ de
-         distance aux obstacles (waterField) et les touche s'il passe sous leur arête ;
-       · la lumière qui traverse les crêtes à contre-jour (diffusion, dans RE_Direct : elle suit donc les ombres) ;
-       · l'écume : liseré qui lèche les quais et les coques, vagues qui battent la digue, moutons de la houle au large ;
-       · le fond vu à travers l'eau claire (floor, abs) : le rayon réfracté descend jusqu'à un fond de sable qui n'est pas modélisé (plus
-         profond à mesure qu'on s'éloigne des quais), ou bute sur le pied immergé d'un quai ou d'une coque (champ des obstacles) ; l'eau
-         absorbe chaque couleur sur ce trajet (le rouge d'abord), et la lumière du soleil y dessine des caustiques. Une mer claire (Meltem)
-         laisse voir son fond au pied des quais, une eau de port trouble (Kervénec) presque pas.
-   - Le reste du jeu connaît l'eau : un tir y fait une gerbe (rayWorld, matière 'water'), une grenade y plonge et sa
-     gerbe remplace la boule de feu, une arme lâchée y coule (groundHeight). Les bords de quai portent des murs
-     invisibles (waterEdge) qui arrêtent les soldats mais pas les balles ni les grenades, et que les bots ne prennent
-     pas pour des couverts.
-   Tout appartient à la carte : maillage et matière sous sa racine, textures libérées avec la matière (MAT.water).
+   WATER: the sea and basins of a harbor map (Port-Maël), with their dedicated shader.
+   - Water plane below the quay level (WATER.y): a fine grid (80 cm) along the coast, getting looser
+     toward the open sea, out to 900 m. Gerstner waves computed on the graphics card: chop everywhere, swell beyond
+     the breakwater (WATER.open), damped against the quays and hulls. The same waves, computed here in JavaScript
+     (waterHeight), make the boats bob (floatAdd).
+   - Material (waterMaterial): MeshStandardMaterial patched via userData.patch, to keep the cascaded shadows,
+     the sun and the engine's fog. The shader adds:
+       · ripples in three scrolling layers (procedural "ripple" surface from the texture lab), faded
+         with distance (no sparkle far away);
+       · the sky reflection, rendered once at load into a mipmapped cube map (waterReady): the reflected sky
+         is the one you see (gradient, clouds, sunset glow), not that of the HDRI lighting;
+       · the dark reflection of the quays and colored reflection of the hulls close to the water: the reflected ray advances in the
+         obstacle distance field (waterField) and hits them if it passes under their edge;
+       · light passing through the backlit crests (scattering, in RE_Direct: so it follows the shadows);
+       · foam: a fringe lapping the quays and hulls, waves beating the breakwater, whitecaps of the swell offshore;
+       · the bottom seen through clear water (floor, abs): the refracted ray descends to a sandy bottom that isn't modeled (deeper
+         the farther from the quays), or hits the submerged foot of a quay or hull (obstacle field); the water
+         absorbs each color along that path (red first), and sunlight draws caustics on it. A clear sea (Notos)
+         shows its bottom at the foot of the quays, a murky harbor water (Port-Maël) hardly at all.
+   - The rest of the game knows about water: a shot makes a splash there (rayWorld, material 'water'), a grenade sinks in and its
+     splash replaces the fireball, a dropped weapon sinks in it (groundHeight). Quay edges carry invisible
+     walls (waterEdge) that stop soldiers but not bullets or grenades, and that bots don't take
+     for cover.
+   Everything belongs to the map: mesh and material under its root, textures freed with the material (MAT.water).
    ========================================================================== */
 const WATER = {
   on: false, y: -1.5, floor: -7, land: [], box: [-1e4, 1e4, -1e4, 1e4], obs: [], floats: [], t: 0,
   open: [-150, -112], east: -16, F: null, dist: null, cube: null, mat: null, U: null,
 };
-/* Vagues : [direction de propagation (rad, 0 = vers +x), longueur d'onde (m), amplitude (m), raideur (déplacement
-   horizontal en part de l'amplitude), groupe : 0 clapot (partout, amorti près des quais), 1 houle (au large)] */
+/* Waves: [propagation direction (rad, 0 = toward +x), wavelength (m), amplitude (m), steepness (horizontal
+   displacement as a share of the amplitude), group: 0 chop (everywhere, damped near the quays), 1 swell (offshore)] */
 const WAVES = [
   [0.35, 8.5, 0.045, 1.6, 0], [-0.45, 5.6, 0.03, 1.5, 0], [1.15, 3.6, 0.017, 1.2, 0], [-1.05, 2.4, 0.01, 1.0, 0],
   [0.08, 46, 0.4, 1.1, 1], [-0.22, 29, 0.22, 1.2, 1], [0.42, 18, 0.12, 1.3, 1], [-0.62, 11, 0.06, 1.2, 1],
 ];
 const WAVES_C = WAVES.map(([a, L, A, Q, g], i) => { const k = TAU / L; return { dx: Math.cos(a), dz: Math.sin(a), k, A, Q, g, w: Math.sqrt(9.81 * k), ph: i * 1.7 }; });
 
-/* ---------- Surface procédurale des rides (normales), motif d'écume (map.a) et caustiques (map.rgb) ----------
-   Caustiques : réseau de lignes lumineuses fines et de leur halo (bords de cellules de Voronoï déformées, deux tailles), que les eaux
-   lisent deux fois, à deux échelles qui défilent en sens contraires, et dont elles gardent le minimum : le réseau se défait et se
-   refait sans cesse, comme la lumière du soleil au fond d'un bassin. */
+/* ---------- Procedural ripple surface (normals), foam pattern (map.a) and caustics (map.rgb) ----------
+   Caustics: network of fine bright lines and their halo (edges of deformed Voronoi cells, two sizes), which the water
+   shaders read twice, at two scales scrolling in opposite directions, keeping the minimum: the network keeps breaking up and
+   re-forming, like sunlight at the bottom of a pool. */
 Object.assign(TEXLAB, {
   ripple: [512, 83, 1.6, `
     vec2 ww = vec2(gfbm(uv, vec2(4.0), 3, 7.0), gfbm(uv + 0.37, vec2(4.0), 3, 8.0)) - 0.5;
@@ -57,37 +57,37 @@ Object.assign(TEXLAB, {
 });
 TEXSCALE.ripple = 8; OPT_TEX.add('ripple');
 
-/* ---------- Plan : terre, obstacles, bords ---------- */
-/* Réglages de la carte : niveau de l'eau, zone où il peut y avoir de l'eau (box : x0, x1, z0, z1), limite de la houle
-   (open : la houle est pleine à l'ouest de open[0], nulle à l'est de open[1]), bord est du plan d'eau (sous les quais) */
+/* ---------- Plan: land, obstacles, edges ---------- */
+/* Map settings: water level, zone where there can be water (box: x0, x1, z0, z1), swell limit
+   (open: the swell is full west of open[0], zero east of open[1]), east edge of the water plane (under the quays) */
 function waterSetup(o) {
   Object.assign(WATER, { on: true, y: o.y, floor: o.y - 5.5, box: o.box, open: o.open, east: o.east, land: [], obs: [], floats: [], F: null, dist: null });
 }
-/* Terre ferme (rectangle) : ni eau pour les tirs et les grenades, ni plan d'eau visible au-dessus d'elle */
+/* Dry land (rectangle): no water for shots and grenades, no visible water plane above it */
 function waterLand(x0, x1, z0, z1) { WATER.land.push([x0, x1, z0, z1]); }
-/* Point (x, z) au-dessus de l'eau ? */
+/* Point (x, z) above the water? */
 function waterAt(x, z) {
   const W = WATER, b = W.box;
   if (x < b[0] || x > b[1] || z < b[2] || z > b[3]) return false;
   for (const r of W.land) if (x >= r[0] && x <= r[1] && z >= r[2] && z <= r[3]) return false;
   return true;
 }
-/* Obstacle dans l'eau (quai, coque, digue, pieux) pour l'écume et les reflets : polygone [[x, z], ...] ou rectangle
-   [x0, x1, z0, z1] ; h : hauteur au-dessus de l'eau (m) ; c : teinte sRGB de sa base ; foam : force de l'écume */
+/* Obstacle in the water (quay, hull, breakwater, piles) for foam and reflections: polygon [[x, z], ...] or rectangle
+   [x0, x1, z0, z1]; h: height above the water (m); c: sRGB tint of its base; foam: foam strength */
 function waterObstacle(shape, h, c, foam = 1) {
   const poly = shape.length === 4 && typeof shape[0] === 'number' ? [[shape[0], shape[2]], [shape[1], shape[2]], [shape[1], shape[3]], [shape[0], shape[3]]] : shape;
   WATER.obs.push({ poly, h, c, foam });
 }
-/* Mur invisible au bord de l'eau : arrête les soldats (et les corps), laisse passer les balles et les grenades,
-   n'est ni un couvert pour les bots ni une ombre pour l'éclairage cuit */
+/* Invisible wall at the water's edge: stops soldiers (and bodies), lets bullets and grenades through,
+   is neither cover for bots nor a shadow for the baked lighting */
 function waterEdge(x0, x1, z0, z1) {
   COL.push({ x0: Math.min(x0, x1), x1: Math.max(x0, x1), y0: WATER.y - 2, y1: WATER.y + 7.5, z0: Math.min(z0, z1), z1: Math.max(z0, z1), m: 'concrete', ray: false, noRay: true, inv: true });
 }
 
-/* ---------- Bassins praticables (étangs, ruisseaux, canaux) ----------
-   Un bassin est un contour où l'on patauge : le fond des pieds y est à bed (m, négatif pour un étang creusé, 0 pour un ruisseau
-   posé sur le sol) et l'eau à wl. groundHeight (02-map.js) rend le fond du bassin à la place du sol, rayWorld la surface de l'eau
-   (gerbe des tirs), la navigation des bots passe par le fond, surfaceAt répond 'water' (pas dans l'eau). Se déclare par pondAdd (wade). */
+/* ---------- Walkable basins (ponds, streams, canals) ----------
+   A basin is an outline you wade in: the bottom under the feet is at bed (m, negative for a dug pond, 0 for a stream
+   laid on the ground) and the water at wl. groundHeight (02-map.js) returns the basin bottom instead of the ground, rayWorld the water surface
+   (splash from shots), bot navigation goes along the bottom, surfaceAt answers 'water' (not in the water). Declared via pondAdd (wade). */
 const POOLS = [];
 function poolAdd(poly, bed, wl) {
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const [x, z] of poly) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
@@ -102,14 +102,14 @@ function poolAt(x, z) {
   }
   return null;
 }
-/* Niveau de l'eau sous le point (x, z) : la mer (au-dessus de son plan), un bassin, ou null s'il n'y a pas d'eau */
+/* Water level under point (x, z): the sea (above its plane), a basin, or null if there is no water */
 function waterSurfaceAt(x, z) {
   if (WATER.on && waterAt(x, z)) return WATER.y;
   if (POOLS.length) { const p = poolAt(x, z); if (p) return p.wl; }
   return null;
 }
 
-/* ---------- Vagues (JavaScript, mêmes formules que le shader, déplacement vertical seul) ---------- */
+/* ---------- Waves (JavaScript, same formulas as the shader, vertical displacement only) ---------- */
 function waterCalm(x, z) {
   const F = WATER.F; if (!F) return 1;
   const i = Math.floor((x - F.x0) * F.ppm), j = Math.floor((z - F.z0) * F.ppm);
@@ -126,9 +126,9 @@ function waterHeight(x, z, t) {
   return h;
 }
 
-/* ---------- Champ de distance aux obstacles (écume, reflets, amortissement des vagues) ----------
-   2 pixels par mètre sur la zone portuaire. Chaque cellule retient la cellule d'obstacle la plus proche (propagation
-   de vecteurs en deux passes) : distance, direction de l'obstacle, sa hauteur, sa teinte et la force de son écume. */
+/* ---------- Obstacle distance field (foam, reflections, wave damping) ----------
+   2 pixels per meter over the harbor zone. Each cell keeps the nearest obstacle cell (vector propagation
+   in two passes): distance, direction of the obstacle, its height, its tint and the strength of its foam. */
 function waterField() {
   const W = WATER, F = { x0: -144, z0: -128, ppm: 2, w: 256, h: 512 }, N = F.w * F.h;
   const id = new Int16Array(N).fill(-1), sx = new Int16Array(N).fill(-1), sz = new Int16Array(N).fill(-1);
@@ -176,7 +176,7 @@ function waterField() {
   return { field: tex(a, false), col: tex(b, true) };
 }
 
-/* ---------- Maillage : grille fine près de la côte, lâche au large ---------- */
+/* ---------- Mesh: fine grid near the coast, loose offshore ---------- */
 function waterGeometry() {
   const W = WATER, xs = [], zp = [0];
   for (let x = W.east, s = 0.8; x > -900; x -= s) { xs.push(x); if (x < -72) s = Math.min(s * 1.07, 45); }
@@ -202,7 +202,7 @@ function waterGeometry() {
 const WTR_VERT_HEAD = `#include <common>
 uniform float uWTime; uniform vec4 uWv[8], uWw[8]; uniform vec2 uWOpen; uniform sampler2D tWField; uniform vec4 uWFieldB;
 varying vec3 vWtr; varying vec3 vWtrN; varying float vWtrC;
-/* vagues de Gerstner : position déplacée, normale, hauteur relative de la crête (-1 à 1) */
+/* Gerstner waves: displaced position, normal, relative crest height (-1 to 1) */
 void wtrWaves(vec2 p, out vec3 P, out vec3 N, out float crest) {
   vec2 fuv = (p - uWFieldB.xy) * uWFieldB.zw;
   float d = (fuv.x >= 0.0 && fuv.x <= 1.0 && fuv.y >= 0.0 && fuv.y <= 1.0) ? texture2D(tWField, fuv).r * 16.0 : 16.0;
@@ -223,14 +223,14 @@ uniform float uWTime, uWReflI; uniform vec2 uWOpen; uniform sampler2D tWField, t
 uniform samplerCube tWRefl; uniform vec3 uWDeep, uWShallow, uWScat, uWFoamC, uWAmb, uWSunC, uWSunD, uWFloor, uWAbs, uWSand; uniform float uWCaus, uWFoamK;
 varying vec3 vWtr; varying vec3 vWtrN; varying float vWtrC;
 vec3 wtrN, wtrTr, wtrSand; float wtrFoam, wtrRough, wtrD, wtrCK; vec4 wtrF, wtrFC;`;
-/* Couleur, normale et écume (à la place de color_fragment, avant la rugosité et la normale) */
+/* Color, normal and foam (in place of color_fragment, before roughness and normal) */
 const WTR_COLOR = `{
   vec3 V = cameraPosition - vWtr; float dist = length(V);
   vec2 fuv = (vWtr.xz - uWFieldB.xy) * uWFieldB.zw;
   bool inF = fuv.x >= 0.0 && fuv.x <= 1.0 && fuv.y >= 0.0 && fuv.y <= 1.0;
   wtrF = inF ? texture2D(tWField, fuv) : vec4(1.0, 0.5, 0.5, 0.0); wtrFC = inF ? texture2D(tWFieldC, fuv) : vec4(0.0);
   wtrD = wtrF.r * 16.0;
-  // rides : trois couches qui défilent, de moins en moins marquées avec la distance
+  // ripples: three scrolling layers, less and less pronounced with distance
   vec2 p = vWtr.xz, t = vec2(uWTime);
   vec3 r1 = texture2D(tWRip, p * 0.085 + t * vec2(0.011, 0.004)).xyz * 2.0 - 1.0;
   vec3 r2 = texture2D(tWRip, p.yx * 0.19 + t * vec2(-0.017, 0.021)).xyz * 2.0 - 1.0;
@@ -238,9 +238,9 @@ const WTR_COLOR = `{
   float fade = 1.0 / (1.0 + dist * 0.03), calm = mix(0.55, 1.0, smoothstep(0.5, 6.0, wtrD));
   vec2 sl = (r1.xy / max(r1.z, 0.25) * 0.9 + r2.yx / max(r2.z, 0.25) * 0.55) * fade * calm + r3.xy / max(r3.z, 0.25) * 0.7 * (0.35 + 0.65 * fade);
   vec3 Nw = normalize(vWtrN);
-  vec2 rps; float rpf, rph, rpl; ripple(vWtr.xz, rps, rpf, rph, rpl); // ondulations des soldats, des tirs et des explosions (02mb-ondes.js)
+  vec2 rps; float rpf, rph, rpl; ripple(vWtr.xz, rps, rpf, rph, rpl); // ripples from soldiers, shots and explosions (02mb-waves.js)
   wtrN = normalize(vec3(Nw.x / Nw.y + sl.x * 0.34 + rps.x * uRipG * 1.3, 1.0, Nw.z / Nw.y + sl.y * 0.34 + rps.y * uRipG * 1.3));
-  // écume : liseré contre les quais et les coques, battement de la digue, moutons de la houle
+  // foam: fringe against the quays and hulls, breakwater surf, whitecaps of the swell
   float pat = texture2D(tWFoam, p * 0.19 + t * vec2(0.006, 0.0015)).a, pat2 = texture2D(tWFoam, p * 0.07 - t * vec2(0.002, 0.004)).a;
   float k = wtrFC.a, open = 1.0 - smoothstep(uWOpen.x, uWOpen.y, vWtr.x);
   float shore = (1.0 - smoothstep(0.0, 0.25 + pat2 * 0.7 + k * 0.9, wtrD)) * k * uWFoamK;
@@ -248,15 +248,15 @@ const WTR_COLOR = `{
   float caps = smoothstep(0.55, 0.95, vWtrC) * open * smoothstep(0.35, 0.7, pat2);
   wtrFoam = clamp((shore + lap) * (pat * 1.5 - 0.15) + caps * pat * 0.9, 0.0, 1.0) * (0.45 + 0.55 * fade);
   wtrFoam = max(wtrFoam, clamp(rpf * (0.6 + pat * 0.5), 0.0, 1.0));
-  // eau : vert-de-gris trouble près des quais, plus sombre et plus bleue au large
+  // water: murky verdigris near the quays, darker and bluer offshore
   vec3 body = mix(uWShallow, uWDeep, smoothstep(0.5, 9.0, wtrD)) * (0.9 + pat2 * 0.2);
-  // le fond vu à travers l'eau (uWFloor : profondeur au pied des obstacles, au large, distance de l'une à l'autre ; x = 0 : pas de fond visible)
+  // the bottom seen through the water (uWFloor: depth at the foot of obstacles, offshore, distance from one to the other; x = 0: no visible bottom)
   wtrTr = vec3(0.0); wtrCK = 0.0; wtrSand = uWSand;
   if (uWFloor.x > 0.0) {
     vec3 Vn = normalize(V), T = refract(-Vn, normalize(mix(wtrN, vec3(0.0, 1.0, 0.0), 0.4)), 0.75);
     float D = mix(uWFloor.x, uWFloor.y, smoothstep(0.0, uWFloor.z, wtrD)), ty = max(-T.y, 0.25), tl = length(T.xz), L = D / ty;
     bool wall = false; vec3 hitC = uWSand;
-    // le pied immergé d'un quai ou d'une coque : le rayon avance dans le champ des obstacles jusqu'à toucher l'un d'eux avant le fond
+    // the submerged foot of a quay or hull: the ray advances in the obstacle field until it hits one of them before the bottom
     if (wtrD < 6.0 && tl > 1e-3) {
       vec2 d2 = T.xz / tl; float s = 0.0, Dd = wtrD;
       for (int i = 0; i < 5; i++) {
@@ -265,12 +265,12 @@ const WTR_COLOR = `{
         vec2 fuv = (vWtr.xz + d2 * s - uWFieldB.xy) * uWFieldB.zw;
         if (fuv.x < 0.0 || fuv.x > 1.0 || fuv.y < 0.0 || fuv.y > 1.0) break;
         Dd = texture2D(tWField, fuv).r * 16.0;
-        if (Dd < 0.3) { L = dep / ty; hitC = texture2D(tWFieldC, fuv).rgb * vec3(0.55, 0.6, 0.55); wall = true; break; } // pierre un peu verdie sous l'eau
+        if (Dd < 0.3) { L = dep / ty; hitC = texture2D(tWFieldC, fuv).rgb * vec3(0.55, 0.6, 0.55); wall = true; break; } // stone slightly greened under the water
       }
     }
     wtrTr = exp(-uWAbs * L);
     vec2 fp = vWtr.xz + T.xz * L;
-    if (!wall) { // sable : grain, taches, caustiques (deux lectures du réseau qui défilent)
+    if (!wall) { // sand: grain, patches, caustics (two scrolling reads of the network)
       hitC *= 0.8 + texture2D(tWFoam, fp * 0.11).a * 0.35;
       float c1 = texture2D(tWFoam, fp * 0.21 + t * vec2(0.012, 0.007)).r, c2 = texture2D(tWFoam, fp.yx * 0.17 - t * vec2(0.009, 0.014) + 0.37).r, cn = (c1 + c2) * 0.5;
       wtrCK = cn * cn * 2.2 * uWCaus * exp(-D * 0.22);
@@ -284,18 +284,18 @@ const WTR_COLOR = `{
 }`;
 const WTR_ROUGH = 'float roughnessFactor = wtrRough;';
 const WTR_NORMAL = 'normal = normalize((viewMatrix * vec4(normalize(mix(wtrN, vec3(0.0, 1.0, 0.0), wtrFoam * 0.7)), 0.0)).xyz);';
-/* Lumière à contre-jour à travers les crêtes : ajoutée au soleil (et aux éclairs), donc éteinte à l'ombre */
+/* Backlight through the crests: added to the sun (and to lightning), so off in shadow */
 const WTR_DIRECT = `#include <lights_physical_pars_fragment>
 void RE_Direct_Water( const in IncidentLight directLight, const in GeometricContext geometry, const in PhysicalMaterial material, inout ReflectedLight reflectedLight ) {
   RE_Direct_Physical( directLight, geometry, material, reflectedLight );
   float back = saturate( dot( geometry.viewDir, - directLight.direction ) ), crest = saturate( vWtrC * 0.5 + 0.5 );
   float sss = ( pow( back, 4.0 ) * ( 0.12 + crest * crest * 1.1 ) + 0.02 ) * ( 1.0 - wtrFoam );
   reflectedLight.directDiffuse += directLight.color * uWScat * sss;
-  reflectedLight.directDiffuse += directLight.color * wtrCK * wtrTr * wtrSand * 0.3 * saturate( dot( directLight.direction, geometry.normal ) ); // caustiques sur le fond
+  reflectedLight.directDiffuse += directLight.color * wtrCK * wtrTr * wtrSand * 0.3 * saturate( dot( directLight.direction, geometry.normal ) ); // caustics on the bottom
 }
 #undef RE_Direct
 #define RE_Direct RE_Direct_Water`;
-/* Reflets : ciel et lointain (cube map de la carte), quais et coques tout près (champ des obstacles) */
+/* Reflections: sky and distance (map cube map), quays and hulls up close (obstacle field) */
 const WTR_REFL = `#if defined( RE_IndirectDiffuse ) && defined( USE_ENVMAP ) && defined( ENVMAP_TYPE_CUBE_UV )
 iblIrradiance += getIBLIrradiance( geometry.normal );
 #endif
@@ -304,13 +304,13 @@ iblIrradiance += getIBLIrradiance( geometry.normal );
   vec3 V = normalize(cameraPosition - vWtr), Nw = normalize(mix(wtrN, vec3(0.0, 1.0, 0.0), wtrFoam * 0.7));
   vec3 R = reflect(-V, Nw); R.y = max(R.y, 0.012);
   vec3 env = textureLod(tWRefl, R, clamp(wtrRough * 9.0, 0.0, 6.0)).rgb * uWReflI;
-  // rayon du reflet proche : normale de la seule houle, adoucie, pour une image des quais et des coques qui ondule
-  // sans se déchirer en éclats
+  // near-reflection ray: normal of the swell alone, softened, for an image of the quays and hulls that undulates
+  // without breaking into shards
   vec3 Rh = reflect(-V, normalize(mix(normalize(vWtrN), vec3(0.0, 1.0, 0.0), 0.5))); Rh.y = max(Rh.y, 0.012);
-  // le rayon réfléchi avance dans le champ de distance (pas égal à la distance libre) jusqu'à un obstacle : il le
-  // touche s'il passe encore sous son sommet. Juste pour toute forme (coin de coque, bout de quai, pieu)
+  // the reflected ray advances in the distance field (step equal to the free distance) until an obstacle: it
+  // hits it if it still passes under its top. Correct for any shape (hull corner, quay end, pile)
   float rl = length(Rh.xz);
-  // (aucun obstacle ne dépasse 4,5 m au-dessus de l'eau : un rayon plus haut ne touche plus rien)
+  // (no obstacle rises more than 4.5 m above the water: a higher ray no longer hits anything)
   if (rl > 1e-3 && wtrD < 12.0 && Rh.y / rl * wtrD < 4.5) {
     vec2 d2 = Rh.xz / rl; float rise = Rh.y / rl, s = 0.0, D = wtrD;
     for (int i = 0; i < 6; i++) {
@@ -343,9 +343,9 @@ function waterPatch(s) {
     .replace('#include <roughnessmap_fragment>', WTR_ROUGH).replace('#include <normal_fragment_maps>', WTR_NORMAL)
     .replace('#include <lights_physical_pars_fragment>', WTR_DIRECT).replace('#include <lights_fragment_maps>', WTR_REFL);
 }
-/* Matière de l'eau ; couleurs de la carte (linéaires) : deep, shallow, scatter, foam ; le fond vu au travers : floor ([profondeur au pied des
-   obstacles, au large, distance de l'une à l'autre], m ; sans : pas de fond visible), abs (absorption par mètre de chaque couleur), sand (albédo
-   du fond), caus (caustiques) ; foamK : force du liseré d'écume contre les quais */
+/* Water material; map colors (linear): deep, shallow, scatter, foam; the bottom seen through: floor ([depth at the foot of
+   obstacles, offshore, distance from one to the other], m; without: no visible bottom), abs (absorption per meter of each color), sand (albedo
+   of the bottom), caus (caustics); foamK: strength of the foam fringe against the quays */
 function waterMaterial(field, o) {
   const A = CURMAP.def.atmo, lin = (h) => new THREE.Color(h).convertSRGBToLinear();
   const hemi = lin(A.hemi[0]), sun = lin(A.sunColor);
@@ -367,11 +367,11 @@ function waterMaterial(field, o) {
   return m;
 }
 
-/* ---------- Construction (après le décor : les obstacles sont posés) ---------- */
+/* ---------- Construction (after the scenery: the obstacles are placed) ---------- */
 function waterBuild(o) {
   rippleEnsure();
   const field = waterField();
-  // cube map des reflets du ciel, rendue par waterReady une fois l'éclairage de la carte en place
+  // sky reflection cube map, rendered by waterReady once the map lighting is in place
   const rt = new THREE.WebGLCubeRenderTarget(o.cube || 256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
   rt.texture.userData.rt = rt; WATER.cube = rt;
   const m = waterMaterial(field, o); MAT.water = m; WATER.mat = m;
@@ -382,11 +382,11 @@ function waterBuild(o) {
   mesh.userData.noPrepass = true; mesh.userData.noAO = true; mesh.frustumCulled = false;
   mapAdd(mesh); WATER.mesh = mesh;
 }
-/* Calque des objets reflétés par l'eau (le ciel) pendant le rendu de la cube map */
+/* Layer of the objects reflected by the water (the sky) while rendering the cube map */
 const LAYER_REFL = 5;
-/* Cube map des reflets : le ciel vu depuis l'avant-port, à ras de l'eau. Le décor n'y entre pas : vu d'un seul point,
-   il se refléterait au mauvais endroit (les quais et les coques ont leur propre reflet, voir WTR_REFL). Le disque du
-   soleil en est retiré (le soleil se reflète déjà par la lumière directe, avec ses ombres) */
+/* Reflection cube map: the sky seen from the outer harbor, at water level. The scenery isn't in it: seen from a single point,
+   it would be reflected in the wrong place (quays and hulls have their own reflection, see WTR_REFL). The sun
+   disc is removed from it (the sun is already reflected through the direct light, with its shadows) */
 function waterReady(o = {}) {
   if (!WATER.cube) return;
   const cc = new THREE.CubeCamera(0.5, 1200, WATER.cube), p = new V3(...(o.from || [-70, WATER.y + 2.5, 0]));
@@ -395,7 +395,7 @@ function waterReady(o = {}) {
   sky.layers.enable(LAYER_REFL);
   const sp = sky.position.clone(), disk = SkyShader.uniforms.uDisk.value.clone();
   sky.position.copy(p); sky.updateMatrixWorld(); SkyShader.uniforms.uDisk.value.set(0, 0, 0);
-  // chaque face est effacée avant son rendu
+  // each face is cleared before its render
   const sm = renderer.shadowMap.needsUpdate, ac = renderer.autoClear; renderer.shadowMap.needsUpdate = false; renderer.autoClear = true;
   try { cc.update(renderer, scene); } finally {
     renderer.shadowMap.needsUpdate = sm; renderer.autoClear = ac; SkyShader.uniforms.uDisk.value.copy(disk); sky.position.copy(sp); sky.updateMatrixWorld();
@@ -403,14 +403,14 @@ function waterReady(o = {}) {
   }
 }
 
-/* ---------- Objets flottants (canots, voiliers au mouillage) ----------
-   Un prefab devient un groupe de maillages (un seul par matière, classes de détail confondues : chaque maillage coûte
-   un appel de rendu par passe) que les vagues soulèvent et balancent. Sans collision : à réserver à ce que les
-   soldats ne peuvent pas atteindre. Au loin (arrière-plan), ni ombre ni pré-passe : quelques pixels à l'écran.
-   o : draft (enfoncement, m), L et B (longueur et largeur sur lesquelles on mesure la pente des vagues), roll
-   (balancement propre, rad) */
+/* ---------- Floating objects (boats, sailboats at anchor) ----------
+   A prefab becomes a group of meshes (just one per material, detail classes merged: each mesh costs
+   a draw call per pass) that the waves lift and rock. No collision: reserve for what soldiers
+   can't reach. In the distance (background), no shadow or pre-pass: a few pixels on screen.
+   o: draft (sinkage, m), L and B (length and beam over which the wave slope is measured), roll
+   (natural rocking, rad) */
 function floatAdd(pf, x, z, ry, o = {}) {
-  const g = new THREE.Group(); g.matrixAutoUpdate = false; g.name = 'flotteur:' + pf.name;
+  const g = new THREE.Group(); g.matrixAutoUpdate = false; g.name = 'float:' + pf.name;
   const far = Math.abs(x) > CHUNK_NEAR.x || Math.abs(z) > CHUNK_NEAR.z, byMat = new Map();
   for (const part of pf.parts.values()) {
     if (!part.g.nv || !MAT[part.mat]) continue;
@@ -443,7 +443,7 @@ function waterUpdate(t) {
     f.g.matrix.compose(_wp, _wq.setFromEuler(_we), _ws); f.g.matrixWorldNeedsUpdate = true;
   }
 }
-/* Nouvelle carte ou déchargement : l'état de l'eau repart de zéro (maillage et textures partent avec la carte) */
+/* New map or unload: the water state starts from zero (mesh and textures leave with the map) */
 function waterUnload() {
   for (const rt of WPROBES) rt.dispose(); WPROBES.length = 0;
   Object.assign(WATER, { on: false, land: [], obs: [], floats: [], F: null, dist: null, cube: null, mat: null, U: null, mesh: null });
@@ -451,25 +451,25 @@ function waterUnload() {
 }
 
 /* ==========================================================================
-   PETITES EAUX : fontaines, bassins, canaux, ruisseaux, étangs, abreuvoirs, flaques. RÈGLE DU DÉCOR : toute eau, si petite soit-elle, se pose
-   avec pondAdd (jamais une face 'glass' ou une teinte plate) pour avoir le même rendu que la mer. Le shader rend l'eau comme une eau :
-   - transparente selon sa profondeur : le fond est à bed m sous la surface (le fond du bassin où l'on patauge, sinon une profondeur
-     donnée), les berges descendent en pente slope depuis le bord (aRim : distance au bord) ; le long du rayon réfracté, le corps de l'eau
-     devient opaque sur vis m (Beer-Lambert), teinté de shallow à deep ; on voit donc le vrai fond (gravier, sable, dalles) là où l'eau
-     est mince, et l'eau se fond dans la berge au lieu de la couper net ;
-   - Fresnel : rendue en alpha prémultiplié, l'eau laisse passer le fond pour (1 - Fresnel) x (1 - opacité) et ajoute son reflet par-dessus,
-     si bien que le reflet reste franc de biais quand on voit le fond en regardant vers le bas ;
-   - le reflet du décor (waterProbes) : une cube map rendue au chargement autour de l'eau (arbres, murs, pont, palmiers), recalée sur une
-     boîte (parallaxe) ; à défaut (flaques, puits, appareil fragile), le ciel de la carte ;
-   - les caustiques : la lumière du soleil concentrée par les rides dessine sur le fond un réseau qui ondule (motif de la surface
-     « ripple » lu au point du fond que touche le rayon réfracté, deux fois, à deux échelles qui défilent), resserré et déplacé par les
-     ondulations du champ d'ondes (02mb-ondes.js : une bosse fait lentille), éteint à l'ombre comme le reste de la lumière du soleil ;
-   - rides qui défilent, lumière qui traverse l'eau à contre-jour, liseré d'écume contre la margelle (shore), anneaux d'un jet (jet).
-   Une flaque (shape 'blob') est la même eau en nappe très mince et sombre (murk), sans caustiques ni reflet du décor.
-   Une eau = un maillage et une matière à elle (libérés avec la carte) ; la texture 'ripple' doit figurer dans `textures` de la carte.
+   SMALL WATERS: fountains, basins, canals, streams, ponds, drinking troughs, puddles. SCENERY RULE: all water, however small, is placed
+   with pondAdd (never a 'glass' face or a flat tint) to get the same rendering as the sea. The shader renders water as water:
+   - transparent according to its depth: the bottom is at bed m under the surface (the bottom of the basin you wade in, otherwise a given
+     depth), the banks descend at slope from the edge (aRim: distance to the edge); along the refracted ray, the body of the water
+     becomes opaque over vis m (Beer-Lambert), tinted from shallow to deep; so you see the real bottom (gravel, sand, slabs) where the water
+     is thin, and the water blends into the bank instead of cutting off sharply;
+   - Fresnel: rendered in premultiplied alpha, the water lets the bottom through for (1 - Fresnel) x (1 - opacity) and adds its reflection on top,
+     so the reflection stays strong at grazing angles when you see the bottom looking down;
+   - the scenery reflection (waterProbes): a cube map rendered at load around the water (trees, walls, bridge, palms), reprojected onto a
+     box (parallax); failing that (puddles, wells, fragile device), the map's sky;
+   - caustics: sunlight concentrated by the ripples draws a rippling network on the bottom (pattern of the "ripple"
+     surface read at the bottom point the refracted ray hits, twice, at two scrolling scales), tightened and shifted by the
+     undulations of the wave field (02mb-waves.js: a bump acts as a lens), off in shadow like the rest of the sunlight;
+   - scrolling ripples, backlight through the water, foam fringe against the coping (shore), rings of a jet (jet).
+   A puddle (shape 'blob') is the same water as a very thin, dark sheet (murk), without caustics or scenery reflection.
+   One water = its own mesh and material (freed with the map); the 'ripple' texture must be listed in the map's `textures`.
    ========================================================================== */
 const PONDS = [];
-const PONDAREAS = []; // eaux surélevées (fontaines) : surface où un tir fait gerbe et ondulations, sous le couvercle de collision du bassin
+const PONDAREAS = []; // raised waters (fountains): surface where a shot makes a splash and ripples, under the basin's collision lid
 const POND_VERT_HEAD = `#include <common>
 attribute float aRim; varying float vRim; varying vec3 vPw;`;
 const POND_FRAG_HEAD = `#include <common>
@@ -481,24 +481,24 @@ const POND_COLOR = `{
   vec3 r1 = texture2D(tPRip, p * 0.9 + t * vec2(0.03, 0.012)).xyz * 2.0 - 1.0;
   vec3 r2 = texture2D(tPRip, p.yx * 1.7 + t * vec2(-0.045, 0.05)).xyz * 2.0 - 1.0;
   vec3 r3 = texture2D(tPRip, p * 0.35 + t * vec2(0.01, -0.007)).xyz * 2.0 - 1.0;
-  vec2 sl = (r1.xy / max(r1.z, 0.25) * 0.42 + r2.yx / max(r2.z, 0.25) * 0.3 + r3.xy / max(r3.z, 0.25) * 0.4) * uPCalm; // eau dormante : rides faibles, reflet net
+  vec2 sl = (r1.xy / max(r1.z, 0.25) * 0.42 + r2.yx / max(r2.z, 0.25) * 0.3 + r3.xy / max(r3.z, 0.25) * 0.4) * uPCalm; // still water: weak ripples, clean reflection
   vec2 dv = vPw.xz - uPC; float rr = length(dv);
   float ring = uPRing * cos(rr * 15.0 - uPT * 3.4) * exp(-rr * 1.4) / (1.0 + rr * 2.0);
   sl += dv / max(rr, 1e-3) * ring * 0.8;
-  vec2 rps; float rpf, rph, rpl; ripple(vPw.xz, rps, rpf, rph, rpl); // ondulations des soldats, des tirs et des explosions (02mb-ondes.js)
+  vec2 rps; float rpf, rph, rpl; ripple(vPw.xz, rps, rpf, rph, rpl); // ripples from soldiers, shots and explosions (02mb-waves.js)
   pdN = normalize(vec3(sl.x * 0.5 + rps.x * uRipG, 1.0, sl.y * 0.5 + rps.y * uRipG));
   float pat = texture2D(tPFoam, p * 0.8 + t * vec2(0.008, 0.002)).a, pat2 = texture2D(tPFoam, p * 0.3 - t * vec2(0.003, 0.005)).a;
   float shore = (1.0 - smoothstep(0.0, 0.05 + pat2 * 0.09, vRim)) * uPFoam;
-  pdFoam = clamp(max(shore * (pat * 1.5 - 0.1), rpf * 0.28 * (0.5 + pat)), 0.0, 0.4); // hors de la mer : pas de blanc, seulement l'eau qui s'éclaircit dans la gerbe
-  // profondeur sous ce point (fond plat à uPBed, berges en pente uPSlope depuis le bord), rayon réfracté (air vers eau), trajet dans l'eau
+  pdFoam = clamp(max(shore * (pat * 1.5 - 0.1), rpf * 0.28 * (0.5 + pat)), 0.0, 0.4); // off the sea: no white, only the water lightening in the splash
+  // depth under this point (flat bottom at uPBed, banks sloping uPSlope from the edge), refracted ray (air to water), path in the water
   vec3 V = normalize(cameraPosition - vPw), T = refract(-V, pdN, 0.75);
   float dep = min(uPBed, vRim * uPSlope), cosT = max(-T.y, 0.3), L = dep / cosT;
-  // opacité du corps de l'eau : Beer-Lambert sur uPVis m, un minimum pour une eau trouble (uPMurk), plafonnée (uPAlpha), nulle au ras du bord
+  // opacity of the water body: Beer-Lambert over uPVis m, a minimum for murky water (uPMurk), capped (uPAlpha), zero right at the edge
   pdA = clamp(max(1.0 - exp(-L / uPVis), uPMurk) * uPAlpha, 0.0, 1.0) * smoothstep(0.0, 0.03, vRim);
-  // Fresnel de l'eau (Schlick, 0,03 de face) sur la normale ridée
+  // Fresnel of the water (Schlick, 0.03 head-on) on the rippled normal
   pdF = 0.03 + 0.97 * pow(1.0 - clamp(dot(V, pdN), 0.0, 1.0), 5.0);
-  // caustiques au point du fond que touche le rayon réfracté : deux lectures du réseau qui défilent en sens contraires, mêlées puis
-  // resserrées ; la courbure des ondulations les concentre (une bosse fait lentille), elles pâlissent avec la profondeur
+  // caustics at the bottom point the refracted ray hits: two reads of the network scrolling in opposite directions, blended then
+  // tightened; the curvature of the undulations concentrates them (a bump acts as a lens), they fade with depth
   vec2 bp = vPw.xz + T.xz / cosT * dep - uPFlow * uPT * 0.6;
   float c1 = texture2D(tPFoam, bp * 0.47 + t * vec2(0.019, 0.011)).r, c2 = texture2D(tPFoam, bp.yx * 0.39 - t * vec2(0.014, 0.022) + 0.37).r;
   float cn = (c1 + c2) * 0.5;
@@ -512,12 +512,12 @@ void RE_Direct_Pond( const in IncidentLight directLight, const in GeometricConte
   RE_Direct_Physical( directLight, geometry, material, reflectedLight );
   float back = saturate( dot( geometry.viewDir, - directLight.direction ) );
   reflectedLight.directDiffuse += directLight.color * uPScat * ( pow( back, 4.0 ) * 0.5 + 0.05 ) * ( 1.0 - pdFoam );
-  pdCL += directLight.color * saturate( dot( directLight.direction, pdUp ) ); // la lumière qui atteint le fond (caustiques), à l'ombre comme le reste
+  pdCL += directLight.color * saturate( dot( directLight.direction, pdUp ) ); // the light reaching the bottom (caustics), in shadow like the rest
 }
 #undef RE_Direct
 #define RE_Direct RE_Direct_Pond`;
-/* Reflet : la cube map du décor autour de l'eau, recalée sur sa boîte (le point de la boîte que touche le rayon réfléchi, vu depuis la sonde),
-   à défaut le ciel (cube map d'ambiance, 01-core.js) ; sans elle (WebGL 1), le reflet de three.js */
+/* Reflection: the scenery cube map around the water, reprojected onto its box (the box point the reflected ray hits, seen from the probe),
+   failing that the sky (ambience cube map, 01-core.js); without it (WebGL 1), three.js's reflection */
 const POND_REFL = `#if defined( RE_IndirectDiffuse ) && defined( USE_ENVMAP ) && defined( ENVMAP_TYPE_CUBE_UV )
 iblIrradiance += getIBLIrradiance( geometry.normal );
 #endif
@@ -533,13 +533,13 @@ iblIrradiance += getIBLIrradiance( geometry.normal );
 radiance += getIBLRadiance( geometry.viewDir, geometry.normal, material.roughness );
 #endif
 #endif`;
-/* Sortie en alpha prémultiplié : le fond passe pour (1 - Fresnel) x (1 - opacité) ; s'y ajoutent le corps de l'eau, les caustiques sur le fond
-   (albédo du fond pris à 0,45) et le reflet. Le brouillard couvre l'eau et le fond vu au travers dans la même proportion. */
+/* Premultiplied alpha output: the bottom passes through for (1 - Fresnel) x (1 - opacity); added to it are the water body, the caustics on the bottom
+   (bottom albedo taken as 0.45) and the reflection. Fog covers the water and the bottom seen through it in the same proportion. */
 const POND_OUT = `float pdO = max(pdA, pdFoam * 2.0), pdT = (1.0 - pdF) * (1.0 - pdO);
 gl_FragColor = vec4((totalDiffuse * pdO + pdCL * pdK * 0.045 * (1.0 - pdO)) * (1.0 - pdF) + totalSpecular + totalEmissiveRadiance, 1.0 - pdT);`;
 const POND_FOG = `#ifdef USE_FOG
 #ifdef FOG_EXP2
-float fogFactor = fogPath( fogDensity * vFogDepth ); // brouillard allégé en altitude, lueur du soleil (01-core.js)
+float fogFactor = fogPath( fogDensity * vFogDepth ); // fog thinned with altitude, sun glow (01-core.js)
 #else
 float fogFactor = smoothstep( fogNear, fogFar, vFogDepth );
 #endif
@@ -555,8 +555,8 @@ function pondPatch(s, U) {
     .replace('#include <lights_physical_pars_fragment>', POND_DIRECT).replace('#include <lights_fragment_maps>', POND_REFL)
     .replace('#include <output_fragment>', POND_OUT).replace('#include <fog_fragment>', POND_FOG);
 }
-/* Maillage plat d'une eau : sommets locaux autour de (0, 0, 0), distance au bord (m) dans aRim. disc : r, seg, rings ;
-   rect : w, d, n ; blob : w, d, seed (nappe irrégulière) */
+/* Flat mesh of a water: local vertices around (0, 0, 0), distance to the edge (m) in aRim. disc: r, seg, rings;
+   rect: w, d, n; blob: w, d, seed (irregular sheet) */
 function pondGeometry(o) {
   const P = [], I = [], E = [];
   const rings = o.rings || 6, seg = o.seg || 24;
@@ -568,7 +568,7 @@ function pondGeometry(o) {
     }
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1; I.push(a, c, b, b, c, d); }
   } else if (o.shape === 'poly') {
-    // contour libre (points locaux [x, z]) : grille régulière dont les sommets hors du contour sont ramenés sur lui ; aRim = distance au bord
+    // free outline (local points [x, z]): regular grid whose vertices outside the outline are pulled back onto it; aRim = distance to the edge
     const Q = o.poly, st = o.cell || 0.5; let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
     for (const [x, z] of Q) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
     const nx = Math.ceil((x1 - x0) / st) + 1, nz = Math.ceil((z1 - z0) / st) + 1, sd = new Float32Array(nx * nz), idx = new Int32Array(nx * nz).fill(-1);
@@ -581,7 +581,7 @@ function pondGeometry(o) {
     };
     for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
       const c = [sd[j * nx + i], sd[j * nx + i + 1], sd[(j + 1) * nx + i], sd[(j + 1) * nx + i + 1]];
-      if (Math.max(...c) <= 0) continue; // cellule entièrement dehors
+      if (Math.max(...c) <= 0) continue; // cell entirely outside
       const a = vert(i, j), b = vert(i + 1, j), cc = vert(i, j + 1), d = vert(i + 1, j + 1);
       I.push(a, cc, b, b, cc, d);
     }
@@ -609,30 +609,30 @@ function pondGeometry(o) {
   g.setIndex(I); g.computeBoundingSphere();
   return g;
 }
-/* Pose une eau. o : shape ('disc' : r, seg ; 'rect' : w, d ; 'poly' : contour ; 'blob' : w, d, seed), x, y, z (centre, y = surface), rot ;
-   l'eau elle-même : bed (profondeur du fond sous la surface, m ; par défaut celle du bassin où l'on patauge, sinon depth), slope (pente des
-   berges depuis le bord, 4 par défaut : un bassin à margelle ; moins pour une berge naturelle), vis (distance sur laquelle l'eau devient
-   opaque, m), murk (opacité minimale : eau trouble, puits), alpha (opacité maximale), deep / shallow / scatter (couleurs linéaires du corps de
-   l'eau, de la mince à l'épaisse, et de la lumière qui la traverse), tone (clarté de ces couleurs, 0,2 par défaut), caus (force des
-   caustiques, 1), calm (force des rides : 1, moins pour une eau dormante qui reflète net) ; shore (liseré d'écume contre la margelle, 0 par défaut : hors de la mer, l'eau n'a pas d'écume), jet (anneaux d'un jet au
-   centre, 0 à 1), flow (courant, m/s), wade (niveau du fond où l'on patauge) ; reflet du décor : probe (faux : le ciel seul), probeAt
-   (point de la sonde), probeBox (boîte de parallaxe [x0, y0, z0, x1, y1, z1]) */
+/* Places a water. o: shape ('disc': r, seg; 'rect': w, d; 'poly': outline; 'blob': w, d, seed), x, y, z (center, y = surface), rot;
+   the water itself: bed (depth of the bottom under the surface, m; by default that of the basin you wade in, otherwise depth), slope (slope of the
+   banks from the edge, 4 by default: a basin with coping; less for a natural bank), vis (distance over which the water becomes
+   opaque, m), murk (minimum opacity: murky water, well), alpha (maximum opacity), deep / shallow / scatter (linear colors of the water
+   body, from thin to thick, and of the light passing through it), tone (lightness of these colors, 0.2 by default), caus (strength of the
+   caustics, 1), calm (strength of the ripples: 1, less for still water that reflects sharply); shore (foam fringe against the coping, 0 by default: off the sea, water has no foam), jet (rings of a jet at the
+   center, 0 to 1), flow (current, m/s), wade (level of the bottom you wade on); scenery reflection: probe (false: the sky alone), probeAt
+   (probe point), probeBox (parallax box [x0, y0, z0, x1, y1, z1]) */
 function pondAdd(o) {
   rippleEnsure();
-  // eau où l'on patauge (o.wade : niveau du fond, 0 pour un ruisseau posé sur le sol) : contour en coordonnées du monde, avant tout recentrage
+  // water you wade in (o.wade: bottom level, 0 for a stream laid on the ground): outline in world coordinates, before any recentering
   if (o.wade !== undefined) {
     let wp = null;
     if (o.shape === 'poly') wp = o.poly;
     else if (o.shape === 'rect') { const c = Math.cos(o.rot || 0), s = Math.sin(o.rot || 0); wp = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => [o.x + (a * o.w / 2) * c - (b * o.d / 2) * s, o.z + (a * o.w / 2) * s + (b * o.d / 2) * c]); }
     if (wp) poolAdd(wp, o.wade, o.y);
   }
-  if (o.shape === 'poly') { // le maillage est local autour du centre de la boîte du contour
+  if (o.shape === 'poly') { // the mesh is local, around the center of the outline's box
     let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9; for (const [x, z] of o.poly) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
     const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2; o = Object.assign({}, o, { x: cx, z: cz, poly: o.poly.map(([x, z]) => [x - cx, z - cz]) });
   }
   const puddle = o.shape === 'blob', carved = o.wade !== undefined ? o.y - o.wade : 0;
   const bed = o.bed !== undefined ? o.bed : puddle ? 0.03 : carved > 0.1 ? carved : (o.depth || 0.5);
-  // uPFoam : liseré d'écume au bord, nul hors de la mer (o.shore pour en remettre un)
+  // uPFoam: foam fringe at the edge, zero off the sea (o.shore to put one back)
   const U = {
     uPT: { value: 0 }, uPRing: { value: o.jet || 0 }, uPFoam: { value: o.shore || 0 }, uPAlpha: { value: o.alpha || 1 }, uPTone: { value: o.tone !== undefined ? o.tone : 0.2 },
     uPBed: { value: bed }, uPSlope: { value: o.slope || 4 }, uPVis: { value: o.vis || (puddle ? 0.2 : 0.7) }, uPMurk: { value: o.murk !== undefined ? o.murk : puddle ? 0.35 : 0 }, uPCaus: { value: o.caus !== undefined ? o.caus : puddle ? 0 : 1 }, uPCalm: { value: o.calm !== undefined ? o.calm : puddle ? 0.2 : 1 },
@@ -644,7 +644,7 @@ function pondAdd(o) {
   m.defines = { POND: '' };
   m.userData.patch = (s) => pondPatch(s, U); m.onBeforeCompile = m.userData.patch;
   m.userData.noShadow = true; m.userData.noAO = true;
-  // alpha prémultiplié (voir POND_OUT) ; dessinée avant les autres objets transparents (gerbes, fumées : par-dessus l'eau)
+  // premultiplied alpha (see POND_OUT); drawn before the other transparent objects (splashes, smoke: over the water)
   Object.assign(m, { transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.AddEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor });
   if (puddle) { m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2; }
   const geo = pondGeometry(o), mesh = new THREE.Mesh(geo, m);
@@ -654,7 +654,7 @@ function pondAdd(o) {
   geo.computeBoundingBox(); const wb = geo.boundingBox.clone().applyMatrix4(mesh.matrix);
   mapAdd(mesh);
   PONDS.push({ U, mesh, y: o.y, b: [wb.min.x, wb.min.z, wb.max.x, wb.max.z], probe: o.probe !== undefined ? o.probe : !puddle && !(o.murk >= 1), at: o.probeAt, box: o.probeBox });
-  if (o.wade === undefined && o.y > 0.3) { // fontaine : le bassin est plein de collision (on n'y entre pas), mais un tir qui s'y plante touche l'eau
+  if (o.wade === undefined && o.y > 0.3) { // fountain: the basin is full of collision (you can't enter it), but a shot that lands in it hits the water
     const c = Math.cos(o.rot || 0), s = Math.sin(o.rot || 0);
     let inside;
     if (o.shape === 'disc') { const r = o.r * 0.97; inside = (x, z) => (x - o.x) * (x - o.x) + (z - o.z) * (z - o.z) < r * r; }
@@ -662,20 +662,20 @@ function pondAdd(o) {
     else inside = (x, z) => { const poly = o.poly.map(([a, b]) => [a + o.x, b + o.z]); let n = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) if ((poly[i][1] > z) !== (poly[j][1] > z) && x < ((poly[j][0] - poly[i][0]) * (z - poly[i][1])) / (poly[j][1] - poly[i][1]) + poly[i][0]) n = !n; return n; };
     PONDAREAS.push({ y: o.y, inside });
   }
-  if (o.jet > 0) AMBW.push({ x: o.jc ? o.jc[0] : o.x, y: o.y, z: o.jc ? o.jc[1] : o.z }); // fontaine : source sonore d'ambiance (05c-ambiance.js)
-  if (o.jet > 0) rippleSource(o.jc ? o.jc[0] : o.x, o.jc ? o.jc[1] : o.z, 0.26 + 0.1 * o.jet, -0.034 * o.jet, 0.24, 0.3); // le jet creuse l'eau du bassin sans cesse
+  if (o.jet > 0) AMBW.push({ x: o.jc ? o.jc[0] : o.x, y: o.y, z: o.jc ? o.jc[1] : o.z }); // fountain: ambience sound source (05c-ambiance.js)
+  if (o.jet > 0) rippleSource(o.jc ? o.jc[0] : o.x, o.jc ? o.jc[1] : o.z, 0.26 + 0.1 * o.jet, -0.034 * o.jet, 0.24, 0.3); // the jet constantly digs into the basin water
   return mesh;
 }
 
-/* ---------- Reflets du décor dans les petites eaux ----------
-   Une cube map par groupe d'eaux voisines (une fontaine et sa vasque, un canal, un étang), rendue une seule fois au chargement de la carte,
-   après la compilation des shaders (mapCompile), une barrière GPU entre deux : le décor vu d'un point à ras de l'eau, avec ses ombres
-   (les cascades sont recentrées sur la sonde), sans l'eau elle-même ni les soldats, le disque du soleil retiré (il se reflète déjà par la
-   lumière directe). Le shader recale le reflet sur une boîte autour de l'eau et de son décor (parallaxe : un arbre au bord se reflète au
-   pied de l'arbre). La sonde se place à 1,1 m au-dessus de l'eau (au-dessus des nénuphars et des margelles), à l'écart du milieu (la
-   colonne d'une fontaine), ou en probeAt (au-dessus des fougères d'un ruisseau, d'une île). 64 pixels sur téléphone, 128
-   ailleurs ; au plus 6 ou 12 sondes, les plus grandes eaux d'abord ; sautées sur un appareil qui a perdu le contexte à cette étape
-   (GPUX.lean.probe) : l'eau garde le reflet du ciel. */
+/* ---------- Scenery reflections in small waters ----------
+   One cube map per group of neighboring waters (a fountain and its basin, a canal, a pond), rendered only once at map load,
+   after shader compilation (mapCompile), with a GPU barrier in between: the scenery seen from a point at water level, with its shadows
+   (the cascades are recentered on the probe), without the water itself or the soldiers, the sun disc removed (it is already reflected by the
+   direct light). The shader reprojects the reflection onto a box around the water and its scenery (parallax: a tree on the bank is reflected at the
+   foot of the tree). The probe is placed 1.1 m above the water (above water lilies and copings), off the middle (the
+   column of a fountain), or at probeAt (above the ferns of a stream, an island). 64 pixels on phones, 128
+   elsewhere; at most 6 or 12 probes, the largest waters first; skipped on a device that lost its context at this step
+   (GPUX.lean.probe): the water keeps the sky reflection. */
 const WPROBES = [];
 async function waterProbes() {
   if (!ENVC.on || GPUX.lean.probe || !PONDS.some((q) => q.probe)) return;
@@ -703,7 +703,7 @@ async function waterProbes() {
       WPROBES.push(rt);
       const cc = new THREE.CubeCamera(0.05, 600, rt); cc.position.copy(c); cc.updateMatrixWorld(true);
       for (const k of cc.children) k.layers.mask = mask;
-      // ombres : cascades recentrées sur la sonde (caméra plongeante au-dessus d'elle), recalculées au premier rendu
+      // shadows: cascades recentered on the probe (plunging camera above it), recomputed on first render
       camera.position.set(c.x, c.y + 30, c.z); camera.rotation.set(-Math.PI / 2, 0, 0); updateShadows();
       if (csm) for (const l of csm.lights) l.shadow.needsUpdate = true;
       renderer.shadowMap.needsUpdate = true;
@@ -723,27 +723,27 @@ async function waterProbes() {
     if (csm) for (const l of csm.lights) l.shadow.needsUpdate = true;
   }
 }
-/* Surface d'une fontaine touchée par un point d'impact (au-dessus de l'eau, sous le bord) : y de l'eau, sinon null */
+/* Surface of a fountain hit by an impact point (above the water, below the edge): water y, otherwise null */
 function pondHitAt(p) {
   for (const a of PONDAREAS) if (p.y > a.y - 0.1 && p.y < a.y + 0.6 && a.inside(p.x, p.z)) return a.y;
   return null;
 }
-// une eau sans sonde reflète le ciel de la carte : sa cube map n'existe qu'après l'éclairage de la carte (mapEnvironment), bien après pondAdd
+// a water without a probe reflects the map's sky: its cube map only exists after the map lighting (mapEnvironment), well after pondAdd
 function pondUpdate(t) { for (const q of PONDS) { q.U.uPT.value = t; if (q.U.uPProbe.value.w < 0.5) q.U.tPRefl.value = ENVC.gloss.value; } }
 
-/* ---------- Gerbes ---------- */
-/* Impact de balle dans l'eau : gouttes qui retombent, colonne de bruine, voile */
+/* ---------- Splashes ---------- */
+/* Bullet impact in water: falling droplets, column of drizzle, veil */
 function waterSplashFx(p, big) {
   const sea = WATER.on && waterAt(p.x, p.z), y = (sea ? WATER.y + waterHeight(p.x, p.z, WATER.t) : p.y) + 0.02, k = big ? 1.4 : 1;
-  rippleAdd(p.x, p.z, big ? 0.55 : 0.36, big ? -0.34 : -0.17, big ? 0.38 : 0.24); // le tir creuse l'eau : anneaux et gerbe d'écume (02mb-ondes.js)
+  rippleAdd(p.x, p.z, big ? 0.55 : 0.36, big ? -0.34 : -0.17, big ? 0.38 : 0.24); // the shot digs into the water: rings and foam spray (02mb-waves.js)
   for (let i = 0; i < (big ? 14 : 9); i++) FX.smoke.spawn(p.x, y, p.z, rand(-0.9, 0.9) * k, rand(2.2, 4.6) * k, rand(-0.9, 0.9) * k, rand(0.45, 0.8), 0.05 * k, 0.035 * k, 0.82, 0.87, 0.9, 0.95, 0.3, 9.8, 0.4);
   FX.smoke.spawn(p.x, y + 0.05, p.z, 0, 1.5 * k, 0, 0.6, 0.18 * k, 0.7 * k, 0.86, 0.9, 0.93, 0.6, 0, 1.2, 1.4, rand(-1, 1));
   FX.smoke.spawn(p.x, y, p.z, 0, 0.25, 0, 1.1, 0.35 * k, 1.2 * k, 0.8, 0.85, 0.88, 0.32, 0, 0, 0.8, rand(-1, 1));
 }
-/* Grenade qui tombe à l'eau (k = 0,6) ou qui explose sous la surface (k = 1) : gerbe haute, rideau de gouttes, embruns */
+/* Grenade falling into the water (k = 0.6) or exploding under the surface (k = 1): high splash, curtain of droplets, spray */
 function waterBlastFx(p, k = 1) {
   const sea = WATER.on && waterAt(p.x, p.z), y = (sea ? WATER.y + waterHeight(p.x, p.z, WATER.t) : (waterSurfaceAt(p.x, p.z) || p.y)) + 0.02;
-  rippleAdd(p.x, p.z, 1.3 * k, -0.5 * k, 1); rippleAdd(p.x, p.z, 0.6 * k, -0.3 * k, 1); // onde de choc : un grand cercle et un cœur d'écume
+  rippleAdd(p.x, p.z, 1.3 * k, -0.5 * k, 1); rippleAdd(p.x, p.z, 0.6 * k, -0.3 * k, 1); // shock wave: a large circle and a heart of foam
   for (let i = 0; i < 46 * k; i++) { const a = rand(0, TAU), r = rand(0, 2.2) * k; FX.smoke.spawn(p.x, y, p.z, Math.cos(a) * r, rand(5, 13) * k, Math.sin(a) * r, rand(0.9, 1.6), rand(0.08, 0.14) * k, rand(0.06, 0.1), 0.84, 0.88, 0.9, 0.95, 0.3, 9.8, 0.3); }
   for (let i = 0; i < 10 * k; i++) FX.smoke.spawn(p.x + rand(-0.6, 0.6), y + rand(0, 1.5) * k, p.z + rand(-0.6, 0.6), rand(-1, 1), rand(3, 8) * k, rand(-1, 1), rand(1.2, 2.2), rand(0.6, 1.1) * k, rand(2, 3.5) * k, 0.88, 0.91, 0.94, 0.55, 0, 2.5, 1.0, rand(-0.5, 0.5));
   for (let i = 0; i < 8 * k; i++) { const a = rand(0, TAU); FX.smoke.spawn(p.x, y + 0.1, p.z, Math.cos(a) * rand(2, 4) * k, 0.3, Math.sin(a) * rand(2, 4) * k, rand(1.4, 2.4), 0.6 * k, 2.2 * k, 0.8, 0.84, 0.87, 0.4, 0, 0, 1.2, rand(-0.5, 0.5)); }

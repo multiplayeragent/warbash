@@ -1,19 +1,19 @@
 /* ==========================================================================
-   LE DEHORS de Hortus : ce qu'on voit par-dessus l'enceinte depuis le plateau, la terrasse du Rocher et la passerelle.
-   Autour du jardin, une ceinture de pelouse plantée de grands arbres, puis un boulevard (trottoirs de dalles, chaussée pavée,
-   platanes, réverbères, colonnes Morris), puis une rangée continue d'immeubles de pierre à toit mansardé, avec des cheminées
-   et des lucarnes ; derrière, les toits plus hauts d'un second rang, un dôme et une tour de fer, estompés par la brume.
-   Tout est hors de la zone de jeu : aucune collision, aucune ombre (les immeubles, à 25 m, projetteraient leur ombre jusque
-   dans le jardin). Tout est dans le tronçon lointain (`far`) : un seul maillage par matière.
-   Plan (demi-dimensions, centre de la carte) : enceinte 38 x 50 ; pelouse jusqu'à 52 x 64 ; trottoir intérieur 52-55 x 64-67 ;
-   chaussée 55-63 x 67-75 ; trottoir extérieur 63-66 x 75-78 ; façades à 66 x 78.
+   THE OUTSIDE of Floralia: what you see over the enclosure from the plateau, the Rocher terrace and the walkway.
+   Around the garden, a belt of lawn planted with tall trees, then a boulevard (paved sidewalks, cobbled roadway,
+   plane trees, street lamps, Morris columns), then a continuous row of stone buildings with mansard roofs, with chimneys
+   and dormers; behind, the higher roofs of a second row, a dome and an iron tower, blurred by the haze.
+   Everything is outside the play area: no collision, no shadow (the buildings, at 25 m, would cast their shadow all the way
+   into the garden). Everything is in the distant section (`far`): a single mesh per material.
+   Plan (half-dimensions, center of the map): enclosure 38 x 50; lawn up to 52 x 64; inner sidewalk 52-55 x 64-67;
+   roadway 55-63 x 67-75; outer sidewalk 63-66 x 75-78; facades at 66 x 78.
    ========================================================================== */
 const PARIS = { rx: 66, rz: 78, road: [55, 63, 67, 75], walkIn: [52, 55, 64, 67], walkOut: [63, 66, 75, 78] };
 const PARIS_TINTS = [[0.84, 0.78, 0.66], [0.8, 0.75, 0.66], [0.86, 0.8, 0.7], [0.83, 0.73, 0.65], [0.78, 0.76, 0.72], [0.85, 0.77, 0.62]];
 
-/* Cadre rectangulaire (demi-dimensions extérieures ox, oz ; intérieures ix, iz) en quatre bandes : f(x0, x1, z0, z1) */
+/* Rectangular frame (outer half-dimensions ox, oz; inner ix, iz) in four strips: f(x0, x1, z0, z1) */
 function parisFrame(ox, oz, ix, iz, f) { f(ix, ox, -oz, oz); f(-ox, -ix, -oz, oz); f(-ix, ix, iz, oz); f(-ix, ix, -oz, -iz); }
-/* Parcourt les quatre côtés d'un rectangle de demi-dimensions (hx, hz), tous les pas mètres : fn(x, z, côté) */
+/* Walks the four sides of a rectangle of half-dimensions (hx, hz), every step meters: fn(x, z, side) */
 function parisRing(hx, hz, step, fn) {
   for (const [side, pts] of [
     ['E', Array.from({ length: Math.floor((2 * hz) / step) + 1 }, (_, i) => [hx, -hz + i * step])],
@@ -23,15 +23,15 @@ function parisRing(hx, hz, step, fn) {
   ]) for (const [x, z] of pts) fn(x, z, side);
 }
 
-/* Réverbère de boulevard : fût de fonte vert sombre, console courbe, lanterne ; sans collision */
+/* Boulevard street lamp: dark green cast-iron shaft, curved bracket, lantern; no collision */
 PF.farLamp = (lit = litOn()) => prefab('farLamp' + (lit ? 'L' : ''), (M) => {
   M.save().color([0.12, 0.2, 0.15]).local(1); M.cls = 1;
   M.cyl('paintwood', 0.16, 0.5, 8, { r1: 0.12 }); M.save().move(0, 0.5, 0); M.cyl('paintwood', 0.07, 4.3, 6); M.restore();
   M.tube('paintwood', 0.04, [[0, 4.7, 0], [0.1, 5.1, 0], [0.5, 5.25, 0], [0.9, 5.1, 0]], 5);
-  M.color([1, 0.92, 0.7]); M.save().move(0.9, 4.7, 0); M.cyl(lit ? 'lamp' : 'lampOff', 0.2, 0.4, 6, { r1: 0.12 }); M.restore(); // (hors de la zone de jeu : sa lumière n'est pas cuite)
+  M.color([1, 0.92, 0.7]); M.save().move(0.9, 4.7, 0); M.cyl(lit ? 'lamp' : 'lampOff', 0.2, 0.4, 6, { r1: 0.12 }); M.restore(); // (outside the play area: its light is not baked)
   M.restore();
 });
-/* Colonne Morris : fût vert, bandeau d'affiches, toit en dôme */
+/* Morris column: green shaft, poster band, dome roof */
 PF.morris = () => prefab('morris', (M) => {
   M.save().local(1); M.cls = 1;
   M.color([0.14, 0.26, 0.2]); M.cyl('paintwood', 0.62, 0.3, 12); M.save().move(0, 0.3, 0); M.cyl('paintwood', 0.5, 2.0, 12); M.restore();
@@ -40,7 +40,7 @@ PF.morris = () => prefab('morris', (M) => {
   M.restore();
 });
 
-/* Toit mansardé en zinc : brisis raide, terrasson, lucarnes sur les façades visibles (faces), cheminées. h : hauteur de l'égout */
+/* Zinc mansard roof: steep lower slope, upper slope, dormers on the visible facades (faces), chimneys. h: height of the eave */
 function parisRoof(w, d, h, faces, R) {
   const M = DECOR, i1 = 1.7, h1 = 3.0, i2 = Math.min(i1 + 3.0, Math.min(w, d) / 2 - 0.6), h2 = 1.2, zinc = [0.5, 0.56, 0.64];
   const rect = (i, y) => [[-w / 2 + i, y, -d / 2 + i], [w / 2 - i, y, -d / 2 + i], [w / 2 - i, y, d / 2 - i], [-w / 2 + i, y, d / 2 - i]];
@@ -53,7 +53,7 @@ function parisRoof(w, d, h, faces, R) {
     M.quad('slate', p0, p1, q1, q0, n);
   }
   M.quad('slate', C[0], C[1], C[2], C[3], [0, 1, 0]);
-  // lucarnes : à l'aplomb de la façade, posées sur la corniche ; un volume de pierre, une vitre sombre, deux pans de zinc et un fronton
+  // dormers: plumb with the facade, set on the cornice; a stone volume, a dark pane, two zinc slopes and a pediment
   for (const face of faces) {
     const alongX = face === 'n' || face === 's', len = alongX ? w : d, sg = face === 's' || face === 'e' ? 1 : -1, nb = Math.max(1, Math.round(len / 3.4)), sx = len / nb;
     for (let k = 0; k < nb; k++) {
@@ -67,13 +67,13 @@ function parisRoof(w, d, h, faces, R) {
       M.restore();
     }
   }
-  // cheminées sur le terrasson
+  // chimneys on the upper slope
   const n = 2 + Math.floor(R() * 3);
   for (let i = 0; i < n; i++) { const x = R.range(-w / 2 + i2 + 0.8, w / 2 - i2 - 0.8), z = R.range(-d / 2 + i2 + 0.6, d / 2 - i2 - 0.6); M.color([0.88, 0.8, 0.7]); M.boxB('plaster', x - 0.45, x + 0.45, h + h1 + h2 - 0.2, h + h1 + h2 + 2.2, z - 0.35, z + 0.35); M.color([0.3, 0.28, 0.27]); M.boxB('plaster', x - 0.52, x + 0.52, h + h1 + h2 + 2.2, h + h1 + h2 + 2.4, z - 0.42, z + 0.42); }
   M.restore();
 }
 
-/* Immeuble parisien : rez-de-chaussée à bossage, nf étages de portes-fenêtres, corniche, toit mansardé. Façades détaillées sur les faces demandées (faces : 'nsew'), enduit uni ailleurs */
+/* Parisian building: rusticated ground floor, nf floors of French windows, cornice, mansard roof. Detailed facades on the requested faces (faces: 'nsew'), plain plaster elsewhere */
 function parisBuilding(cx, cz, w, d, nf, tint, R, faces) {
   const M = DECOR, gh = 4.2, fh = 3.3, h = gh + nf * fh;
   M.save().move(cx, 0, cz); M.cls = 1;
@@ -85,9 +85,9 @@ function parisBuilding(cx, cz, w, d, nf, tint, R, faces) {
       M.quad('haussrdc', [0, 0, 0], [F.len, 0, 0], [F.len, gh, 0], [0, gh, 0], [0, 0, 1], { uv: [[0, 0], [nb, 0], [nb, 1], [0, 1]] });
       M.quad('haussmann', [0, gh, 0], [F.len, gh, 0], [F.len, h, 0], [0, h, 0], [0, 0, 1], { uv: [[0, 0], [nb, 0], [nb, nf], [0, nf]] });
       M.color([0.95, 0.91, 0.82]);
-      M.boxB('plaster', -0.05, F.len + 0.05, gh - 0.2, gh + 0.12, 0, 0.3);             // bandeau au-dessus du rez-de-chaussée
-      for (const k of [1, nf - 2]) if (k >= 0 && k < nf) M.boxB('plaster', -0.05, F.len + 0.05, gh + k * fh - 0.1, gh + k * fh + 0.06, 0, 0.55); // balcons filants
-      M.boxB('plaster', -0.1, F.len + 0.1, h - 0.1, h + 0.38, 0, 0.55);               // corniche
+      M.boxB('plaster', -0.05, F.len + 0.05, gh - 0.2, gh + 0.12, 0, 0.3);             // band above the ground floor
+      for (const k of [1, nf - 2]) if (k >= 0 && k < nf) M.boxB('plaster', -0.05, F.len + 0.05, gh + k * fh - 0.1, gh + k * fh + 0.06, 0, 0.55); // continuous balconies
+      M.boxB('plaster', -0.1, F.len + 0.1, h - 0.1, h + 0.38, 0, 0.55);               // cornice
     } else M.quad('plaster', [0, 0, 0], [F.len, 0, 0], [F.len, h, 0], [0, h, 0], [0, 0, 1]);
     M.restore();
   }
@@ -95,7 +95,7 @@ function parisBuilding(cx, cz, w, d, nf, tint, R, faces) {
   M.save().move(cx, 0, cz); parisRoof(w, d, h + 0.38, faces, R); M.restore();
 }
 
-/* Tour de fer : quatre pieds qui se rejoignent, croisillons, deux plates-formes, flèche (silhouette dans la brume) */
+/* Iron tower: four legs that join, lattice bracing, two platforms, spire (silhouette in the haze) */
 function parisTower(x, z, H = 110, B = 24) {
   const M = DECOR, hw = (y) => 1.4 + (B - 1.4) * Math.pow(1 - y / H, 2.2), lv = [0, 9, 20, 33, 48, 65, 84, 104, H], co = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   M.save().move(x, 0, z).color([0.36, 0.31, 0.27]).local(1); M.cls = 1;
@@ -114,26 +114,26 @@ function parisTower(x, z, H = 110, B = 24) {
   M.restore();
 }
 
-function florealParis() {
+function floraliaParis() {
   const R = rngOf(8383), M = DECOR, { rx, rz } = PARIS;
-  WORLD.force = 'far'; // tout le dehors dans un seul tronçon : hors de la zone de jeu, il n'y a rien à écarter, et chaque tronçon coûterait un appel de rendu par matière
-  // arbres de la ceinture de pelouse (grands, allégés) et platanes des deux trottoirs ; hauts troncs : on voit la pelouse dessous
+  WORLD.force = 'far'; // the whole outside in a single section: outside the play area, there is nothing to cull, and each section would cost one draw call per material
+  // trees of the lawn belt (tall, lightened) and plane trees of the two sidewalks; tall trunks: you see the lawn beneath
   const tree = (x, z, h, r, kind) => M.place(PF.tree(kind || R.pick(['oak', 'linden', 'maple', 'ginkgo', 'oak']), h, r, 1 + Math.floor(R() * 12), { th: h * 0.38, lod: 1 }), x + R.range(-1, 1), 0, z + R.range(-1, 1), R() * TAU, { nocol: true, cls: 1 });
   parisRing(46, 57, 8, (x, z) => tree(x, z, R.range(15, 19), R.range(4.8, 6.2)));
   parisRing(53.5, 65.5, 10, (x, z) => tree(x, z, R.range(10, 12.5), R.range(3.2, 4), R.pick(['linden', 'maple', 'linden'])));
   parisRing(64.5, 76.5, 12, (x, z) => tree(x, z, R.range(10, 12.5), R.range(3.2, 4), R.pick(['linden', 'maple', 'linden'])));
-  // réverbères et colonnes Morris sur les trottoirs
+  // street lamps and Morris columns on the sidewalks
   parisRing(54.2, 66.2, 18, (x, z, side) => { const ry = side === 'E' ? -Math.PI / 2 : side === 'W' ? Math.PI / 2 : side === 'S' ? Math.PI : 0; M.place(PF.farLamp(), x, 0, z, ry, { nocol: true }); });
   parisRing(63.8, 75.8, 18, (x, z, side) => { const ry = side === 'E' ? Math.PI / 2 : side === 'W' ? -Math.PI / 2 : side === 'S' ? 0 : Math.PI; M.place(PF.farLamp(), x + (side === 'N' || side === 'S' ? 9 : 0), 0, z + (side === 'E' || side === 'W' ? 9 : 0), ry, { nocol: true }); });
   for (const [x, z] of [[52.8, -30], [-52.8, 22], [26, 64.8], [-34, -64.8], [64.7, 40]]) M.place(PF.morris(), x, 0, z, 0, { nocol: true });
-  // haie basse au bord de la pelouse, côté trottoir
+  // low hedge at the edge of the lawn, sidewalk side
   for (const [a, b, c, d] of [[51.2, 51.8, -63, 63], [-51.8, -51.2, -63, 63], [-51, 51, 63.2, 63.8], [-51, 51, -63.8, -63.2]]) { M.save().color([0.8, 0.94, 0.72]).world(1); M.cls = 1; M.boxB('hedge', a, b, 0, 0.8, c, d, { bevel: 0.1 }); M.restore(); }
-  // chaussée pavée
+  // cobbled roadway
   M.save().color([1, 1, 1]).world(1); M.cls = 1;
   const [r0, r1, q0, q1] = PARIS.road;
-  for (const [x0, x1, z0, z1] of [[r0, r1, -q1, q1], [-r1, -r0, -q1, q1], [-r0, r0, q0, q1], [-r0, r0, -q1, -q0]]) { M.quad('pave', [x0, 0.03, z0], [x1, 0.03, z0], [x1, 0.03, z1], [x0, 0.03, z1], [0, 1, 0]); }
+  for (const [x0, x1, z0, z1] of [[r0, r1, -q1, q1], [-r1, -r0, -q1, q1], [-r0, r0, q0, q1], [-r0, r0, -q1, -q0]]) { M.quad('paving', [x0, 0.03, z0], [x1, 0.03, z0], [x1, 0.03, z1], [x0, 0.03, z1], [0, 1, 0]); }
   M.restore();
-  // rangs d'immeubles : E et W de bout en bout, S et N entre les coins, quatre immeubles d'angle
+  // rows of buildings: E and W end to end, S and N between the corners, four corner buildings
   const row = (side, faces, a0, a1, off, depth, alongZ) => {
     for (let t = a0; t < a1 - 0.5;) {
       const w = a1 - t < 30 ? a1 - t : R.range(13, 24), d = R.range(depth - 2, depth + 3), nf = 5 + Math.floor(R() * 3), c = t + w / 2;
@@ -144,15 +144,15 @@ function florealParis() {
   };
   row('E', 'w', -rz, rz, rx, 15, true); row('W', 'e', -rz, rz, rx, 15, true); row('S', 'n', -rx, rx, rz, 15, false); row('N', 's', -rx, rx, rz, 15, false);
   for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) parisBuilding(sx * (rx + 8), sz * (rz + 8), 16, 16, 6, R.pick(PARIS_TINTS), R, (sx > 0 ? 'w' : 'e') + (sz > 0 ? 'n' : 's'));
-  // second rang, plus haut et plus loin : seuls les toits se voient au-dessus du premier (façades simples, tronçon lointain)
+  // second row, higher and farther: only the roofs are seen above the first (simple facades, distant section)
   for (let i = 0; i < 70; i++) {
     const a = (i / 70) * TAU + R() * 0.05, d = R.range(112, 165), x = Math.cos(a) * d * 1.1, z = Math.sin(a) * d * 1.25;
     if (Math.abs(x) < 100 && Math.abs(z) < 112) continue;
     if (hyp(x - PARIS_DOME[0], z - PARIS_DOME[1]) < 36 || hyp(x - PARIS_TOUR[0], z - PARIS_TOUR[1]) < 32) continue;
     farBuilding(x, z, R.range(18, 30), R.range(14, 22), R.range(30, 40), R.pick(PARIS_TINTS), R);
   }
-  // les deux repères de la carte (MAP_DEFS.floreal.landmarks), un par moitié, au-dessus des grands arbres de la ceinture : au nord
-  // (Bravo) le dôme d'un édifice sur son tambour, au sud (Alpha) la tour de fer
+  // the map's two landmarks (MAP_DEFS.floralia.landmarks), one per half, above the tall trees of the belt: in the north
+  // (Bravo) the dome of a building on its drum, in the south (Alpha) the iron tower
   const [dx, dz] = PARIS_DOME;
   M.save().move(dx, 0, dz).color([0.82, 0.8, 0.74]).world(1); M.boxB('stone', -14, 14, 0, 18, -14, 14);
   M.local(1); M.save().move(0, 18, 0); M.cyl('stone', 10.5, 10, 20); M.restore();

@@ -1,9 +1,9 @@
-"""Signale les déclarations de premier niveau (const, let, class, function) en double dans src/ : tous les
-modules sont concaténés dans un seul script, une seconde déclaration casserait le chargement ou en remplacerait une autre.
-api/_lib/filtre.js y est joint aussi (build.py le met dans le jeu, sans ses « export »)."""
+"""Reports duplicate top-level declarations (const, let, class, function) in src/: all the
+modules are concatenated into a single script, a second declaration would break loading or replace another one.
+api/_lib/textFilter.js is joined too (build.py puts it in the game, without its "export")."""
 import re, glob, collections, sys
 names = collections.defaultdict(list)
-for f in sorted(glob.glob('src/*.js')) + ['api/_lib/filtre.js']:
+for f in sorted(glob.glob('src/*.js')) + ['api/_lib/textFilter.js']:
     for i, l in enumerate(open(f, encoding='utf-8')):
         l = re.sub(r'^export ', '', l)
         m = re.match(r'^(?:const|let|var)\s+(.*)', l)
@@ -21,5 +21,5 @@ for f in sorted(glob.glob('src/*.js')) + ['api/_lib/filtre.js']:
         m = re.match(r'^(?:async\s+)?(?:function|class)\s+([\w$]+)', l)
         if m: names[m.group(1)].append(f'{f}:{i + 1}')
 dup = {k: v for k, v in names.items() if len(v) > 1}
-for k, v in dup.items(): print('en double :', k, v)
+for k, v in dup.items(): print('duplicate:', k, v)
 sys.exit(1 if dup else 0)

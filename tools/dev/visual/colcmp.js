@@ -1,5 +1,5 @@
-/* Compare les collisions de la zone de jeu entre deux versions construites du jeu (par défaut : la version d'un
-   commit git et dist/ actuel). Toute différence de boîte change le gameplay (déplacements, tirs, navigation des bots).
+/* Compares the collisions of the play area between two built versions of the game (by default: the version of a
+   git commit and the current dist/). Any box difference changes gameplay (movement, shooting, bot navigation).
    node colcmp.js [commit=HEAD] [page2=dist/index.html] */
 const fs = require('fs'), path = require('path'), os = require('os'), { execSync } = require('child_process');
 const { openGame, REPO } = require('./common');
@@ -19,7 +19,7 @@ async function dump(page) {
   const count = (l) => l.reduce((m, k) => m.set(k, (m.get(k) || 0) + 1), new Map());
   const ca = count(A.col), cb = count(B.col);
   const onlyA = [...ca.keys()].filter((k) => !cb.has(k)), onlyB = [...cb.keys()].filter((k) => !ca.has(k));
-  console.log(`boîtes : ${A.col.length} (${ref}) / ${B.col.length} (actuel) ; nœuds de navigation : ${A.nav} / ${B.nav} ; rampes identiques : ${A.ramps === B.ramps}`);
-  console.log(`seulement dans ${ref} :`, onlyA.length); for (const k of onlyA) console.log('  -', k);
-  console.log('seulement dans l\'actuel :', onlyB.length); for (const k of onlyB) console.log('  +', k);
+  console.log(`boxes: ${A.col.length} (${ref}) / ${B.col.length} (current); navigation nodes: ${A.nav} / ${B.nav}; identical ramps: ${A.ramps === B.ramps}`);
+  console.log(`only in ${ref} :`, onlyA.length); for (const k of onlyA) console.log('  -', k);
+  console.log('only in the current one:', onlyB.length); for (const k of onlyB) console.log('  +', k);
 })();

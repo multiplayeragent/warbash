@@ -1,0 +1,218 @@
+{
+ "mapKey": "chergui",
+ "naming": "Chergui",
+ "date": "2026-11-09",
+ "measures": {
+  "type": "mid",
+  "meanView": 9.3,
+  "groundShortView": 13.3,
+  "viewsOver60m": 5.7,
+  "plazaShare": 34.1,
+  "elevatedShare": 4.7,
+  "walking": [
+   95.1,
+   103.7
+  ],
+  "routes": 5,
+  "deadEnds": 0,
+  "detour90": 1.32,
+  "junctions": 1,
+  "landmark": 61.9,
+  "chokepoint": {
+   "front": 16,
+   "passages": 11,
+   "detail": [
+    {
+     "whereAt": [
+      5.5,
+      4
+     ],
+     "breadth": 2,
+     "zone": "Catwalk"
+    },
+    {
+     "whereAt": [
+      33,
+      3.5
+     ],
+     "breadth": 2,
+     "zone": "Containers"
+    },
+    {
+     "whereAt": [
+      -5.5,
+      5
+     ],
+     "breadth": 2,
+     "zone": "Main Street"
+    },
+    {
+     "whereAt": [
+      -35,
+      8.5
+     ],
+     "breadth": 2,
+     "zone": "Long"
+    },
+    {
+     "whereAt": [
+      5,
+      9.5
+     ],
+     "breadth": 2,
+     "elevated": true,
+     "zone": "Catwalk"
+    },
+    {
+     "whereAt": [
+      -0.5,
+      1.5
+     ],
+     "breadth": 1,
+     "zone": "Doors"
+    },
+    {
+     "whereAt": [
+      28.5,
+      5.5
+     ],
+     "breadth": 1,
+     "zone": "Containers"
+    },
+    {
+     "whereAt": [
+      -24.5,
+      6.5
+     ],
+     "breadth": 1,
+     "zone": "Long"
+    }
+   ]
+  },
+  "tightTurns": 0,
+  "tightTurnsAt": [],
+  "points": [
+   {
+    "naming": "A",
+    "point": [
+     1,
+     31
+    ],
+    "entrances": 2,
+    "walkable": 83,
+    "cover9m": 5,
+    "walking": [
+     28.2,
+     92.6
+    ],
+    "seenFromSpawns": [
+     2,
+     0
+    ]
+   },
+   {
+    "naming": "B",
+    "point": [
+     11,
+     0
+    ],
+    "entrances": 2,
+    "walkable": 74,
+    "cover9m": 7,
+    "walking": [
+     60.5,
+     61
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "C",
+    "point": [
+     1,
+     -31
+    ],
+    "entrances": 2,
+    "walkable": 83,
+    "cover9m": 5,
+    "walking": [
+     91.7,
+     29.1
+    ],
+    "seenFromSpawns": [
+     0,
+     2
+    ]
+   }
+  ]
+ },
+ "defects": {
+  "navigation": [],
+  "decor": {
+   "blockedDoors": 0,
+   "pots": 0,
+   "badPosters": 0,
+   "bikes": 0,
+   "bridgeIssues": 0,
+   "sand": 0,
+   "overlapCount": 0,
+   "itemList": []
+  },
+  "slits": {
+   "slits": 0,
+   "bulletPass": 0,
+   "wallHoles": 0,
+   "margins": 30,
+   "marginsOver30cm": 30,
+   "itemList": [
+    "margin 8 m (25, 22.95) metal",
+    "margin 8 m (31, 22.45) metal",
+    "margin 8 m (25, -31.05) metal",
+    "margin 8 m (31, -30.55) metal",
+    "margin 7.32 m (-3.87, 45) metal",
+    "margin 7.32 m (-3.87, -45) metal",
+    "margin 7.24 m (-25.73, 7.2) metal",
+    "margin 7.24 m (-25.73, -7.2) metal",
+    "margin 2.2 m (30.5, 38.05) metal",
+    "margin 2.2 m (30.5, -40.35) metal",
+    "margin 2 m (-27.75, 2.55) wood",
+    "margin 2 m (-27.75, -2.55) wood",
+    "margin 1.6 m (35.95, 7.34) concrete",
+    "margin 1.6 m (6.79, -49.95) concrete",
+    "margin 1.6 m (23.09, -49.95) concrete",
+    "margin 1.6 m (29.57, 49.95) concrete",
+    "margin 1.6 m (-24.05, 1.8) concrete",
+    "margin 1.6 m (-15, 6.35) concrete",
+    "margin 1.6 m (-24.05, 35) concrete",
+    "margin 1.6 m (13, -14.05) concrete"
+   ]
+  },
+  "snags": {
+   "snagCount": 0,
+   "pathCount": 160,
+   "itemList": []
+  },
+  "zfight": {
+   "visibleCount": 61,
+   "blocking": 1,
+   "itemList": [
+    "(13.5, 0.94, -0.6) 0.119 m² timber + wood"
+   ]
+  },
+  "crossing": {
+   "pairCount": 0,
+   "outOf": 595,
+   "itemList": [],
+   "jumpLinks": [
+    "(-30.5, 42.5) step-over from 0 to 0 m: 1",
+    "(-30.5, -42.5) step-over from 0 to 0 m: 1"
+   ]
+  }
+ },
+ "outOfRange": [],
+ "waived": [],
+ "blocking": 1,
+ "minutes": 13.9
+}

@@ -1,22 +1,22 @@
 /* ==========================================================================
-   ÉCLAIRAGE CUIT : volume 3D (cellules de 0,5 m) calculé au chargement à partir des volumes d'occlusion (OCC).
-   - r : part de ciel visible (seize rayons en hémisphère, pondération en cosinus), plus la lumière du ciel qui
-     entre par les ouvertures et se diffuse dans les pièces (atténuation d'environ 16 % par mètre) ;
-   - g : lumière du soleil renvoyée par les surfaces éclairées (sol, murs au soleil), diffusée dans l'air sans
-     traverser les murs (relaxation sur une grille de 1 m) ;
-   - b : part de ciel visible à la verticale (les quatre rayons les plus redressés, à moins de 30 degrés du zénith) :
-     là où la neige tombe et tient. Une pièce aux grandes vitres voit beaucoup de ciel (r), mais pas au-dessus d'elle ;
-   - a : soleil visible (un rayon vers le soleil) : l'ombre portée du soleil, cuite, à la place des cartes d'ombre quand elles sont coupées (NO_SHADOWS, 01-core.js).
-   Lampes du décor (Maker.lamp, LAMPS) : leur lumière, arrêtée par les volumes d'occlusion, est cuite dans des couches empilées au-dessus du
-   volume, dans la même texture (pas d'unité de texture en plus) : rgb, la lumière des lampes sur les 9 premiers mètres (uVolL).
-   Les rayons sont lancés dans des Web Workers, en parallèle de la suite du chargement ; sans Worker, le calcul
-   se fait sur place. Le résultat est une texture 3D lue par la matière du décor (voir WM_AO dans 02c-materials.js).
+   BAKED LIGHTING: 3D volume (0.5 m cells) computed at load from the occlusion volumes (OCC).
+   - r: visible share of sky (sixteen rays over a hemisphere, cosine weighting), plus the sky light that
+     comes in through openings and diffuses into rooms (attenuation of about 16% per meter);
+   - g: sunlight bounced by lit surfaces (ground, walls in the sun), diffused in the air without
+     passing through walls (relaxation on a 1 m grid);
+   - b: visible share of sky vertically (the four most upright rays, within 30 degrees of the zenith):
+     where snow falls and stays. A room with large windows sees a lot of sky (r), but not above it;
+   - a: visible sun (one ray toward the sun): the sun's cast shadow, baked, in place of shadow maps when they are off (NO_SHADOWS, 01-core.js).
+   Scenery lamps (Maker.lamp, LAMPS): their light, stopped by the occlusion volumes, is baked into layers stacked above the
+   volume, in the same texture (no extra texture unit): rgb, the lamp light over the first 9 meters (uVolL).
+   Rays are cast in Web Workers, in parallel with the rest of loading; without Workers, the computation
+   is done in place. The result is a 3D texture read by the scenery material (see WM_AO in 02c-materials.js).
    ========================================================================== */
 const LIGHT = { x0: -52, z0: -66, d: 0.5, nx: 208, nz: 264, ny: 36, nyL: 0, tex: null, ready: null, ms: 0, gen: 0 };
-/* Éclairement le plus fort que gardent les couches des lampes (au-delà, il plafonne) */
+/* Highest illuminance kept by the lamp layers (beyond it, it is capped) */
 const LAMP_MAX = 4;
 
-/* Noyau de calcul autonome (copié tel quel dans les Workers : aucune référence extérieure) */
+/* Standalone computation kernel (copied as is into the Workers: no outside reference) */
 function lightBakeKernel(J) {
   const nx = J.nx, ny = J.ny, nz = J.nz, occ = J.occ, hdil = J.hdil, hmax = J.hmax, dirs = J.dirs, sun = J.sun, NXZ = nx * nz, K = dirs.length / 3;
   const levels = J.levels, sky = new Uint8Array(levels.length * NXZ), sunv = new Uint8Array(levels.length * NXZ), zen = new Uint8Array(levels.length * NXZ), t0 = Date.now();
@@ -52,9 +52,9 @@ function lightBakeKernel(J) {
   return { levels, sky, sun: sunv, zen, ms: Date.now() - t0 };
 }
 
-/* Lance le calcul ; LIGHT.ready se résout quand la texture est prête. Le volume couvre la zone de jeu et 16 m autour, sur 18 m de haut ;
-   une grande carte peut demander des cellules plus grandes (MAP_DEFS.<id>.light = { d } : 0,75 m pour Simoun, deux fois moins de mémoire
-   qu'à 0,5 m). Le relief d'une carte en dunes (02-relief.js) remplit les cellules sous le sable : les dunes se font de l'ombre. */
+/* Starts the computation; LIGHT.ready resolves when the texture is ready. The volume covers the play area and 16 m around it, 18 m high;
+   a large map may ask for larger cells (MAP_DEFS.<id>.light = { d }: 0.75 m for Sirocco, half the memory
+   of 0.5 m). The relief of a dune map (02-relief.js) fills the cells under the sand: dunes shade each other. */
 function bakeLightStart() {
   const L = LIGHT, gen = ++L.gen, LD = CURMAP.def && CURMAP.def.light;
   L.d = (LD && LD.d) || 0.5; L.ny = Math.round(18 / L.d);
@@ -71,21 +71,21 @@ function bakeLightStart() {
       for (let ix = ix0; ix <= ix1; ix++) if (occ[row + ix] < op) occ[row + ix] = op;
     }
   }
-  if (RELIEF.on) for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) { // sous le sable
+  if (RELIEF.on) for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) { // under the sand
     const top = Math.min(ny, Math.floor(reliefAt(L.x0 + (ix + 0.5) * d, L.z0 + (iz + 0.5) * d) / d));
     for (let iy = 0; iy < top; iy++) occ[(iy * nz + iz) * nx + ix] = 255;
   }
-  // hauteur occupée par colonne (en cellules), puis dilatée sur 8 m : au-dessus, plus rien ne masque le ciel
+  // occupied height per column (in cells), then dilated over 8 m: above that, nothing masks the sky anymore
   const hcol = new Uint8Array(NXZ); let hmax = 0;
   for (let iy = 0; iy < ny; iy++) for (let i = 0; i < NXZ; i++) if (occ[iy * NXZ + i] >= 128) { hcol[i] = iy + 1; if (iy + 1 > hmax) hmax = iy + 1; }
   const R = 16, tmp = new Uint8Array(NXZ), hdil = new Uint8Array(NXZ);
   for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) { let m = 0; for (let k = Math.max(0, ix - R); k <= Math.min(nx - 1, ix + R); k++) m = Math.max(m, hcol[iz * nx + k]); tmp[iz * nx + ix] = m; }
   for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) { let m = 0; for (let k = Math.max(0, iz - R); k <= Math.min(nz - 1, iz + R); k++) m = Math.max(m, tmp[k * nx + ix]); hdil[iz * nx + ix] = m; }
-  // seize directions réparties en cosinus sur l'hémisphère (spirale dorée), de la plus redressée à la plus rasante
+  // sixteen directions distributed by cosine over the hemisphere (golden spiral), from the most upright to the most grazing
   const K = 16, dirs = new Float32Array(K * 3);
   for (let k = 0; k < K; k++) { const u = (k + 0.5) / K, r = Math.sqrt(u), ph = k * 2.39996323; dirs[k * 3] = r * Math.cos(ph); dirs[k * 3 + 1] = Math.sqrt(1 - u); dirs[k * 3 + 2] = r * Math.sin(ph); }
   const sun = [SUN_DIR.x, SUN_DIR.y, SUN_DIR.z];
-  // lampes du décor (Maker.lamp), en cellules : position, couleur fois puissance, portée, part rabattue vers le bas ; leurs couches couvrent les 9 premiers mètres
+  // scenery lamps (Maker.lamp), in cells: position, color times power, range, share folded downward; their layers cover the first 9 meters
   const lamps = new Float32Array(LAMPS.length * 8);
   LAMPS.forEach((l, k) => lamps.set([(l.x - L.x0) / d, l.y / d, (l.z - L.z0) / d, l.c[0] * l.p, l.c[1] * l.p, l.c[2] * l.p, l.r / d, l.down || 0], k * 8));
   L.nyL = LAMPS.length ? Math.min(ny, Math.ceil(9 / d)) : 0;
@@ -105,7 +105,7 @@ function bakeLightStart() {
         wk.onerror = () => { wk.terminate(); res(lightBakeKernel({ ...base, levels })); };
         wk.postMessage({ ...base, levels });
         return;
-      } catch (e) { /* Worker refusé : calcul sur place */ }
+      } catch (e) { /* Worker refused: computation in place */ }
     }
     res(lightBakeKernel({ ...base, levels }));
   });
@@ -113,7 +113,7 @@ function bakeLightStart() {
     L.tw = performance.now() - t0; L.wk = parts.map((p) => p.ms);
     const sky = new Uint8Array(nx * ny * nz), sunv = new Uint8Array(nx * ny * nz), zen = new Uint8Array(nx * ny * nz);
     for (const p of parts) p.levels.forEach((iy, li) => { const a = li * NXZ, b = (li + 1) * NXZ; sky.set(p.sky.subarray(a, b), iy * NXZ); sunv.set(p.sun.subarray(a, b), iy * NXZ); zen.set(p.zen.subarray(a, b), iy * NXZ); });
-    // diffusion et assemblage : dans un Worker aussi (le fil principal continue le chargement)
+    // diffusion and assembly: in a Worker too (the main thread continues loading)
     const J = { nx, ny, nz, occ, sky, sunv, zen, sun, lamps, nyL: L.nyL, d, lampMax: LAMP_MAX };
     return new Promise((res) => {
       let url = null;
@@ -125,13 +125,13 @@ function bakeLightStart() {
           wk.onerror = () => { wk.terminate(); URL.revokeObjectURL(url); res(lightDiffuseKernel(J)); };
           wk.postMessage(J, [occ.buffer, sky.buffer, sunv.buffer, zen.buffer]);
           return;
-        } catch (e) { /* calcul sur place */ }
+        } catch (e) { /* computed in place */ }
       }
       res(lightDiffuseKernel(J));
     });
   }).then((out) => {
     if (worker) URL.revokeObjectURL(worker);
-    if (gen !== L.gen) return null; // carte déchargée pendant le calcul
+    if (gen !== L.gen) return null; // map unloaded during the computation
     lightFinish(out);
     L.ms = performance.now() - t0;
     return L.tex;
@@ -139,8 +139,8 @@ function bakeLightStart() {
   return L.ready;
 }
 
-/* Noyau autonome (Worker) : diffusion du ciel entrant et du soleil renvoyé sur une grille de 1 m, puis texture
-   [ciel, rebond, ciel au zénith, soleil visible] en octets. Aucune référence extérieure. */
+/* Standalone kernel (Worker): diffusion of incoming sky and bounced sun on a 1 m grid, then texture
+   [sky, bounce, zenith sky, visible sun] in bytes. No outside reference. */
 function lightDiffuseKernel(J) {
   const nx = J.nx, ny = J.ny, nz = J.nz, occ = J.occ, sky = J.sky, sunv = J.sunv, zen = J.zen;
   const cx = nx >> 1, cy = ny >> 1, cz = nz >> 1, CXZ = cx * cz, CN = CXZ * cy;
@@ -155,7 +155,7 @@ function lightDiffuseKernel(J) {
       if (occ[i] >= 128) { ns++; continue; }
       na++; sk += sky[i];
       const sv = sunv[i]; if (!sv) continue;
-      // surface éclairée voisine : sol ou mur, pondérée par l'incidence du soleil
+      // neighboring lit surface: ground or wall, weighted by the sun's incidence
       let c = 0;
       if (solid(ix, iy - 1, iz)) c += sy;
       if (solid(ix - 1, iy, iz)) c += Math.max(0, sx); if (solid(ix + 1, iy, iz)) c += Math.max(0, -sx);
@@ -165,7 +165,7 @@ function lightDiffuseKernel(J) {
     const ci = (y * cz + z) * cx + x;
     solidC[ci] = ns >= 5 ? 1 : 0; S[ci] = src / 8; Q[ci] = na ? sk / na / 255 : 0;
   }
-  // relaxation : le soleil renvoyé se diffuse (somme), le ciel se propage vers l'intérieur (maximum atténué)
+  // relaxation: the bounced sun diffuses (sum), the sky propagates inward (attenuated maximum)
   let B = Float32Array.from(S), B2 = new Float32Array(CN), P = Float32Array.from(Q), P2 = new Float32Array(CN);
   const nb = [1, -1, cx, -cx, CXZ, -CXZ];
   for (let it = 0; it < 24; it++) {
@@ -182,13 +182,13 @@ function lightDiffuseKernel(J) {
     }
     const tb = B; B = B2; B2 = tb; const tp = P; P = P2; P2 = tp;
   }
-  // normalisation du rebond (90e centile des cellules d'air près du sol)
+  // bounce normalization (90th percentile of air cells near the ground)
   const vals = []; for (let z = 0; z < cz; z += 2) for (let x = 0; x < cx; x += 2) { const ci = z * cx + x; if (!solidC[ci]) vals.push(B[ci]); }
   vals.sort((a, b) => a - b); const bmax = Math.max(1e-3, vals[Math.floor(vals.length * 0.9)] || 1);
   const nyL = J.nyL || 0, out = new Uint8Array(nx * (ny + nyL) * nz * 4), DX = [1, -1, 0, 0, 0, 0], DY = [0, 0, 1, -1, 0, 0], DZ = [0, 0, 0, 0, 1, -1];
   for (let iy = 0; iy < ny; iy++) for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
     const i = (iy * nz + iz) * nx + ix;
-    // grille grossière : interpolation trilinéaire (centres des cellules de 1 m), cellules pleines ignorées
+    // coarse grid: trilinear interpolation (centers of the 1 m cells), full cells ignored
     const fx = ix * 0.5 - 0.25, fy = iy * 0.5 - 0.25, fz = iz * 0.5 - 0.25, x0 = Math.floor(fx), y0 = Math.floor(fy), z0 = Math.floor(fz), tx = fx - x0, ty = fy - y0, tz = fz - z0;
     let b = 0, p = 0, w = 0;
     for (let k = 0; k < 8; k++) {
@@ -199,7 +199,7 @@ function lightDiffuseKernel(J) {
     }
     if (w > 0) { b /= w; p /= w; } else { b = B[((iy >> 1) * cz + (iz >> 1)) * cx + (ix >> 1)] || 0; p = 0; }
     let s = sky[i] / 255, zv = zen[i], sv = sunv[i];
-    // cellule pleine : moyenne des cellules d'air voisines (la lecture trilinéaire près des murs ne s'assombrit pas)
+    // full cell: average of the neighboring air cells (the trilinear read near walls does not darken)
     if (occ[i] >= 128) {
       let a = 0, az = 0, as = 0, n = 0;
       for (let k = 0; k < 6; k++) {
@@ -211,10 +211,10 @@ function lightDiffuseKernel(J) {
     s = Math.max(s, p * 0.92);
     out[i * 4] = Math.round(clamp(s, 0, 1) * 255);
     const bn = b / bmax; out[i * 4 + 1] = Math.round(clamp(bn / (1 + bn * 0.35) * 1.35, 0, 1) * 255);
-    out[i * 4 + 2] = Math.round(zv); out[i * 4 + 3] = Math.round(sv); // a : soleil visible (ombre du soleil cuite, lue sans carte d'ombre, voir NO_SHADOWS)
+    out[i * 4 + 2] = Math.round(zv); out[i * 4 + 3] = Math.round(sv); // a: visible sun (baked sun shadow, read without a shadow map, see NO_SHADOWS)
   }
-  // lampes (Maker.lamp) : nyL couches de plus au-dessus du volume (du sol à nyL cellules de haut), rgb = racine de l'éclairement sur LAMP_MAX.
-  // La lumière va en ligne droite de la lampe à la cellule, les volumes d'occlusion l'arrêtent (murs, dalles) ; pas de rebond.
+  // lamps (Maker.lamp): nyL more layers above the volume (from the ground to nyL cells high), rgb = root of the illuminance over LAMP_MAX.
+  // Light travels in a straight line from the lamp to the cell, the occlusion volumes stop it (walls, slabs); no bounce.
   if (nyL) {
     const lp = J.lamps, NL = nx * nz, E = new Float32Array(NL * nyL * 3), dd = J.d * J.d;
     for (let k = 0; k < lp.length; k += 8) {
@@ -226,7 +226,7 @@ function lightDiffuseKernel(J) {
         const dx = ix + 0.5 - lx, dy = iy + 0.5 - ly, dz = iz + 0.5 - lz, q2 = dx * dx + dy * dy + dz * dz;
         if (q2 > R2) continue;
         const i = (iy * nz + iz) * nx + ix; if (occ[i] >= 128) continue;
-        // rayon par demi-cellules ; chaque cellule traversée compte une fois, ni celle de la lampe (son boîtier) ni la cellule visée
+        // ray in half-cells; each cell crossed counts once, neither the lamp's (its housing) nor the target cell
         const n = Math.ceil(Math.sqrt(q2) * 2); let T = 1, prev = -1;
         for (let st = 1; st < n && T > 0.03; st++) {
           const t = st / n, j = (((ly + dy * t) | 0) * nz + ((lz + dz * t) | 0)) * nx + ((lx + dx * t) | 0);
@@ -234,13 +234,13 @@ function lightDiffuseKernel(J) {
           prev = j; const op = occ[j]; if (op) T *= 1 - op / 255;
         }
         if (T <= 0.03) continue;
-        // abat-jour : sous l'ampoule la lumière est rabattue (jusqu'à 2,5 fois plus forte à la verticale), au-dessus il n'en reste que 1 - down
+        // lampshade: below the bulb the light is folded down (up to 2.5 times stronger vertically), above it only 1 - down remains
         const dn = lp[k + 7], u = q2 / R2, w = 1 - u * u, o = i * 3;
         const f = ((T * w * w) / (q2 * dd + 0.35)) * (1 - dn + dn * 2.5 * Math.max(0, -dy / Math.sqrt(q2 + 1e-6)));
         E[o] += lp[k + 3] * f; E[o + 1] += lp[k + 4] * f; E[o + 2] += lp[k + 5] * f;
       }
     }
-    // cellule pleine : moyenne des cellules d'air voisines (la lecture trilinéaire près des murs ne s'assombrit pas), puis en octets
+    // full cell: average of the neighboring air cells (the trilinear read near walls does not darken), then in bytes
     const base = nx * ny * nz * 4, LM = J.lampMax;
     for (let iy = 0; iy < nyL; iy++) for (let iz = 0; iz < nz; iz++) for (let ix = 0; ix < nx; ix++) {
       const i = (iy * nz + iz) * nx + ix; let r = E[i * 3], g = E[i * 3 + 1], b = E[i * 3 + 2];
@@ -259,7 +259,7 @@ function lightDiffuseKernel(J) {
   }
   return out;
 }
-/* Texture 3D du volume et réglages de la matière du décor */
+/* 3D texture of the volume and scenery material settings */
 function lightFinish(out) {
   const L = LIGHT, nx = L.nx, ny = L.ny, nz = L.nz;
   const tex = new THREE.Data3DTexture(out, nx, nz, ny + L.nyL);
@@ -268,28 +268,28 @@ function lightFinish(out) {
   L.tex = tex;
   WMU.tVol.value = tex;
   WMU.uVolMin.value.set(L.x0, 0, L.z0);
-  WMU.uVolInv.value.set(1 / (nx * L.d), 1 / (ny * L.d), 1 / (nz * L.d)); WMU.uVolNo.value = Math.max(0.32, L.d * 0.72); // 0,36 m en cellules de 0,5 m, 0,54 en 0,75
-  // couches des lampes empilées au-dessus du volume (voir uVolL dans 02c-materials.js) ; force des lampes de la carte (atmo.lamps)
+  WMU.uVolInv.value.set(1 / (nx * L.d), 1 / (ny * L.d), 1 / (nz * L.d)); WMU.uVolNo.value = Math.max(0.32, L.d * 0.72); // 0.36 m in 0.5 m cells, 0.54 in 0.75
+  // lamp layers stacked above the volume (see uVolL in 02c-materials.js); strength of the map's lamps (atmo.lamps)
   const lk = CURMAP.def.atmo.lamps !== undefined ? CURMAP.def.atmo.lamps : 1;
   WMU.uVolL.value.set(L.nyL ? LAMP_MAX * lk : 0, ny, L.nyL, ny + L.nyL);
-  // lumière du soleil renvoyée par le sol et les murs (couleur du soleil, atténuée par l'albédo moyen ; voir l'ambiance de la carte)
+  // sunlight bounced by the ground and walls (sun color, attenuated by the average albedo; see the map's ambience)
   WMU.uBounce.value.setRGB(...CURMAP.def.atmo.bounce);
   L.data = out;
 }
-/* Déchargement de la carte : volume libéré, calcul en cours ignoré */
+/* Map unload: volume freed, computation in progress ignored */
 function lightUnload() {
   const L = LIGHT; L.gen++;
   if (L.tex) L.tex.dispose();
   L.tex = null; L.data = null; L.ready = null; WMU.tVol.value = null; WMU.uVolL.value.set(0, 1, 0, 1); L.nyL = 0;
 }
-/* Lumière des lampes du décor au point (x, y, z), lue sur le processeur dans les couches des lampes : éclairement rangé dans la couleur c */
+/* Scenery lamp light at point (x, y, z), read on the processor from the lamp layers: illuminance stored in the color c */
 function lampAt(x, y, z, c) {
   const L = LIGHT; if (!L.data || !L.nyL) return c.setRGB(0, 0, 0);
   const ix = clamp(Math.floor((x - L.x0) / L.d), 0, L.nx - 1), iy = clamp(Math.floor(y / L.d), 0, L.nyL - 1), iz = clamp(Math.floor((z - L.z0) / L.d), 0, L.nz - 1);
   const i = (((L.ny + iy) * L.nz + iz) * L.nx + ix) * 4, k = WMU.uVolL.value.x / 65025;
   return c.setRGB(L.data[i] * L.data[i] * k, L.data[i + 1] * L.data[i + 1] * k, L.data[i + 2] * L.data[i + 2] * k);
 }
-/* Lecture sur le processeur (soldats, objets mobiles) : [ciel, rebond] de 0 à 1 */
+/* Read on the processor (soldiers, moving objects): [sky, bounce] from 0 to 1 */
 function lightAt(x, y, z) {
   const L = LIGHT; if (!L.data) return [1, 0];
   const ix = clamp(Math.floor((x - L.x0) / L.d), 0, L.nx - 1), iy = clamp(Math.floor(y / L.d), 0, L.ny - 1), iz = clamp(Math.floor((z - L.z0) / L.d), 0, L.nz - 1);

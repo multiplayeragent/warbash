@@ -1,18 +1,18 @@
-/* Illustrations des cartes pour les menus (choix de la carte, écran de chargement) : une vue du décor de chaque carte
-   jouable, rendue par le jeu lui-même en qualité Haute, enregistrée dans assets/maps/<id>.webp. build.py la publie à
-   côté de la page (dist/maps/), visible avant tout chargement de la carte.
-   Règle : le décor seul, sans soldat ni interface. Le cadrage est celui de la définition de la carte (MAP_DEFS.<id>.art :
-   cam, look, fov). À relancer après une retouche visible d'une carte.
+/* Map illustrations for the menus (map selection, loading screen): a view of the scenery of each playable map,
+   rendered by the game itself at High quality, saved in assets/maps/<id>.webp. build.py publishes it next
+   to the page (dist/maps/), visible before any map loading.
+   Rule: the scenery alone, no soldier or interface. The framing is that of the map definition (MAP_DEFS.<id>.art:
+   cam, look, fov). Rerun after a visible change to a map.
 
-   Installation (une fois) :  cd tools/dev && npm install
-   Usage (depuis la racine) :  python3 build.py && node tools/dev/illustrations.js [id ...] && python3 build.py
-   Sans identifiant : toutes les cartes jouables. Chromium : celui de Playwright, ou la variable d'environnement CHROME.
-   Rendu en 2560 x 1440 puis réduit en 1920 x 1080 (bords lissés), avec un étalonnage léger et un vignetage doux. */
+   Installation (once):  cd tools/dev && npm install
+   Usage (from the root):  python3 build.py && node tools/dev/illustrations.js [id ...] && python3 build.py
+   Without an id: all playable maps. Chromium: Playwright's, or the CHROME environment variable.
+   Rendered at 2560 x 1440 then downscaled to 1920 x 1080 (smoothed edges), with a light color grade and a soft vignette. */
 const path = require('path'), fs = require('fs');
 const DEV = __dirname, ROOT = path.join(DEV, '..', '..');
 const W = 2560, H = 1440, OW = 1920, OH = 1080;
 let chromium;
-try { ({ chromium } = require('playwright-core')); } catch (e) { console.error('playwright-core introuvable : cd tools/dev && npm install'); process.exit(1); }
+try { ({ chromium } = require('playwright-core')); } catch (e) { console.error('playwright-core not found: cd tools/dev && npm install'); process.exit(1); }
 
 (async () => {
   const b = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
@@ -34,10 +34,10 @@ try { ({ chromium } = require('playwright-core')); } catch (e) { console.error('
     fs.mkdirSync(path.join(ROOT, 'assets', 'maps'), { recursive: true });
     for (const id of ids) {
       process.stdout.write(`${id}… `);
-      // carte chargée, interface masquée, aucun soldat, boucle de rendu en mode capture
+      // map loaded, interface hidden, no soldier, render loop in capture mode
       const n0 = await pg.evaluate(async (id) => {
         await mapEnsure(id);
-        const a = MAP_DEFS[id].art; if (!a) throw new Error('pas de cadrage (MAP_DEFS.' + id + '.art)');
+        const a = MAP_DEFS[id].art; if (!a) throw new Error('no framing (MAP_DEFS.' + id + '.art)');
         document.querySelectorAll('body > *:not(canvas)').forEach((e) => { e.style.display = 'none'; });
         for (const e of entities) if (e.model) e.model.root.visible = false;
         VM.root.visible = false; MATCH.state = 'capture';
@@ -45,7 +45,7 @@ try { ({ chromium } = require('playwright-core')); } catch (e) { console.error('
         for (const l of csm.lights) l.shadow.needsUpdate = true;
         return frameN;
       }, id);
-      // quelques images complètes (cascades d'ombre recalculées, effets établis)
+      // a few full frames (shadow cascades recomputed, effects settled)
       await pg.waitForFunction((n0) => frameN >= n0 + 4, n0, { timeout: 900000, polling: 1000 });
       const png = await pg.screenshot({ timeout: 900000 });
       const url = await pg.evaluate(async ({ src, OW, OH }) => {
@@ -60,7 +60,7 @@ try { ({ chromium } = require('playwright-core')); } catch (e) { console.error('
       }, { src: 'data:image/png;base64,' + png.toString('base64'), OW, OH });
       const out = path.join(ROOT, 'assets', 'maps', id + '.webp');
       fs.writeFileSync(out, Buffer.from(url.split(',')[1], 'base64'));
-      console.log(`${path.relative(ROOT, out)} (${Math.round(fs.statSync(out).size / 1024)} Ko)`);
+      console.log(`${path.relative(ROOT, out)} (${Math.round(fs.statSync(out).size / 1024)} KB)`);
     }
   } finally { await b.close(); }
 })().catch((e) => { console.error(e); process.exit(1); });

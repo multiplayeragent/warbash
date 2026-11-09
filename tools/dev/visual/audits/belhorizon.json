@@ -1,0 +1,215 @@
+{
+ "mapKey": "belhorizon",
+ "naming": "Bel-Horizon",
+ "date": "2026-11-09",
+ "measures": {
+  "type": "close",
+  "meanView": 8.8,
+  "groundShortView": 15.3,
+  "viewsOver60m": 2.9,
+  "plazaShare": 25.1,
+  "elevatedShare": 5.9,
+  "walking": [
+   69.6,
+   78.9
+  ],
+  "routes": 4,
+  "deadEnds": 0,
+  "detour90": 1.4,
+  "junctions": 8,
+  "landmark": 95.4,
+  "chokepoint": {
+   "front": 12,
+   "passages": 9,
+   "detail": [
+    {
+     "whereAt": [
+      26.5,
+      4.5
+     ],
+     "breadth": 3,
+     "zone": "Turning Circle"
+    },
+    {
+     "whereAt": [
+      6.5,
+      9
+     ],
+     "breadth": 2,
+     "zone": "Houses"
+    },
+    {
+     "whereAt": [
+      16.5,
+      5.5
+     ],
+     "breadth": 1,
+     "zone": "Turning Circle"
+    },
+    {
+     "whereAt": [
+      7.5,
+      6.5
+     ],
+     "breadth": 1,
+     "zone": "Houses"
+    },
+    {
+     "whereAt": [
+      -22.5,
+      9.5
+     ],
+     "breadth": 1,
+     "zone": "Building Site"
+    },
+    {
+     "whereAt": [
+      -19.5,
+      9.5
+     ],
+     "breadth": 1,
+     "zone": "Houses"
+    },
+    {
+     "whereAt": [
+      -4.5,
+      9.5
+     ],
+     "breadth": 1,
+     "zone": "Houses"
+    },
+    {
+     "whereAt": [
+      28.5,
+      9.5
+     ],
+     "breadth": 1,
+     "zone": "Turning Circle"
+    }
+   ]
+  },
+  "tightTurns": 0,
+  "tightTurnsAt": [],
+  "points": [
+   {
+    "naming": "A",
+    "point": [
+     -11.5,
+     22.5
+    ],
+    "entrances": 3,
+    "walkable": 71,
+    "cover9m": 29,
+    "walking": [
+     24.3,
+     69.5
+    ],
+    "seenFromSpawns": [
+     1,
+     0
+    ]
+   },
+   {
+    "naming": "B",
+    "point": [
+     -3.5,
+     0
+    ],
+    "entrances": 3,
+    "walkable": 76,
+    "cover9m": 14,
+    "walking": [
+     42.3,
+     43.3
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "C",
+    "point": [
+     -11.5,
+     -22.5
+    ],
+    "entrances": 3,
+    "walkable": 71,
+    "cover9m": 29,
+    "walking": [
+     69.5,
+     24.3
+    ],
+    "seenFromSpawns": [
+     0,
+     1
+    ]
+   }
+  ]
+ },
+ "defects": {
+  "navigation": [],
+  "decor": {
+   "blockedDoors": 0,
+   "pots": 0,
+   "badPosters": 0,
+   "bikes": 0,
+   "bridgeIssues": 0,
+   "sand": 0,
+   "overlapCount": 0,
+   "itemList": []
+  },
+  "slits": {
+   "slits": 0,
+   "bulletPass": 0,
+   "wallHoles": 0,
+   "margins": 91,
+   "marginsOver30cm": 87,
+   "itemList": [
+    "margin 0.71 m (-10.5, 29.61) leaf",
+    "margin 0.71 m (-10.5, 34.59) leaf",
+    "margin 0.71 m (-10.91, 35) leaf",
+    "margin 0.71 m (-10.5, 38.79) leaf",
+    "margin 0.71 m (-10.91, 39.2) leaf",
+    "margin 0.71 m (-2.91, 29.2) leaf",
+    "margin 0.71 m (-2.5, 38.79) leaf",
+    "margin 0.71 m (-2.91, 39.2) leaf",
+    "margin 0.71 m (5.59, 35) leaf",
+    "margin 0.71 m (6, 38.79) leaf",
+    "margin 0.71 m (5.59, 39.2) leaf",
+    "margin 0.71 m (14.5, 29.61) leaf",
+    "margin 0.71 m (14.5, 34.59) leaf",
+    "margin 0.71 m (14.09, 35) leaf",
+    "margin 0.71 m (14.5, 38.79) leaf",
+    "margin 0.71 m (14.09, 39.2) leaf",
+    "margin 0.71 m (-10.91, -29.2) leaf",
+    "margin 0.71 m (-10.91, -35) leaf",
+    "margin 0.71 m (-10.5, -39.61) leaf",
+    "margin 0.71 m (-10.91, -39.2) leaf"
+   ]
+  },
+  "snags": {
+   "snagCount": 0,
+   "pathCount": 160,
+   "itemList": []
+  },
+  "zfight": {
+   "visibleCount": 112,
+   "blocking": 0,
+   "itemList": []
+  },
+  "crossing": {
+   "pairCount": 0,
+   "outOf": 666,
+   "itemList": [],
+   "jumpLinks": []
+  }
+ },
+ "outOfRange": [
+  "ground with short sightline (%) 15.3 (20 to 40)",
+  "walk from one side to the other 69.6 to 78.9 m (90 to 105)"
+ ],
+ "waived": [],
+ "blocking": 0,
+ "minutes": 14.8
+}

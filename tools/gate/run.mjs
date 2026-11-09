@@ -26,7 +26,7 @@ const step = async (name, fn) => {
   steps.push({ name, ...r, s: ((Date.now() - t0) / 1000).toFixed(0) });
 };
 
-await step('build', async () => { const r = await run(PY, ['build.py']); return { ok: r.code === 0 && /garde des secrets : dist\/ propre/.test(r.out) }; });
+await step('build', async () => { const r = await run(PY, ['build.py']); return { ok: r.code === 0 && /secrets guard: dist\/ clean/.test(r.out) }; });
 await step('secrets', async () => {
   const a = await run('node', ['tools/check_secrets.mjs']), b = await run('node', ['tools/check_secrets.mjs', 'dist']);
   return { ok: a.code === 0 && b.code === 0 };

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   EFFETS : particules GPU, décals instanciés, traçantes, explosions
+   EFFECTS: GPU particles, instanced decals, tracers, explosions
    ========================================================================== */
 let FXT = null;
 
@@ -50,9 +50,9 @@ class Particles {
       const k = i * 3, d = Math.max(0, 1 - this.drag[i] * dt);
       this.v[k] *= d; this.v[k + 1] = this.v[k + 1] * d - this.grav[i] * dt; this.v[k + 2] *= d;
       this.p[k] += this.v[k] * dt; this.p[k + 1] += this.v[k + 1] * dt; this.p[k + 2] += this.v[k + 2] * dt;
-      if (this.grav[i] > 0 && this.p[k + 1] < (RELIEF.on ? reliefAt(this.p[k], this.p[k + 2]) : 0) + 0.02) { // sol implicite : le relief d'une carte en dunes
-        // au-dessus de l'eau, la goutte poursuit sa chute et disparaît sous la surface ; ailleurs elle rebondit sur le sol ;
-        // au-dessus du vide (îles flottantes), elle tombe jusqu'à la fin de sa vie, et rebondit sur le dessus d'une île ou un tablier
+      if (this.grav[i] > 0 && this.p[k + 1] < (RELIEF.on ? reliefAt(this.p[k], this.p[k + 2]) : 0) + 0.02) { // implicit ground: the relief of a dune map
+        // above water, the droplet continues its fall and disappears under the surface; elsewhere it bounces on the ground;
+        // above the void (floating islands), it falls until the end of its life, and bounces on the top of an island or a deck
         const ws = waterSurfaceAt(this.p[k], this.p[k + 2]);
         if (ws !== null) { if (this.p[k + 1] < ws) this.life[i] = 0; }
         else if (VOID.on) {
@@ -80,15 +80,15 @@ class Particles {
   }
 }
 
-/* Décalcomanies (impacts, sang, brûlures) : elles assombrissent la surface qu'elles recouvrent (mélange multiplicatif), qui garde son propre
-   éclairage, ses ombres et son brouillard. Un shader d'une lecture de texture : avant, chacune était une matière PBR transparente complète
-   (ombres en cascade, ambiance), dont la surface à ombrer grandissait au fil de la partie, jusqu'à 20 brûlures de 4 m et 60 taches de sang.
-   k : force de la teinte (la couleur de la texture, sombre, est multipliée par k avant d'assombrir). life : durée de vie (s, temps de jeu,
-   0 : pour toute la partie), les fade dernières secondes en s'effaçant (les brûlures : au-delà, une tache noire sans explosion visible
-   passait pour un défaut du sol). */
+/* Decals (impacts, blood, burns): they darken the surface they cover (multiplicative blend), which keeps its own
+   lighting, shadows and fog. A one-texture-read shader: before, each was a complete transparent PBR material
+   (cascaded shadows, ambience), whose surface to shade grew over the match, up to 20 burns of 4 m and 60 blood stains.
+   k: tint strength (the texture's color, dark, is multiplied by k before darkening). life: lifetime (s, game time,
+   0: for the whole match), the last fade seconds fading out (burns: beyond that, a black stain with no visible explosion
+   looked like a ground defect). */
 const DECAL_VERT = 'attribute float aT; uniform float uNow, uLife, uFade; varying vec2 vUv; varying float vF; void main() { vUv = uv; vF = uLife > 0.0 ? clamp((uLife - (uNow - aT)) / uFade, 0.0, 1.0) : 1.0; gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0); }';
 const DECAL_FRAG = 'uniform sampler2D map; uniform float uK; varying vec2 vUv; varying float vF; void main() { vec4 t = texture2D(map, vUv); gl_FragColor = vec4(mix(vec3(1.0), min(t.rgb * uK, vec3(1.0)), t.a * vF), 1.0); }';
-const DECAL_U = { uNow: { value: 0 } }; // horloge des décalcomanies : avance avec updateFx, à chaque image hors des menus
+const DECAL_U = { uNow: { value: 0 } }; // decal clock: advances with updateFx, every frame outside the menus
 class Decals {
   constructor(max, tex, size, opts = {}) {
     this.max = max; this.i = 0; this.size = size; this.life = opts.life || 0;
@@ -118,7 +118,7 @@ class Decals {
   clear() { _m1.makeScale(0, 0, 0); for (let k = 0; k < this.max; k++) this.mesh.setMatrixAt(k, _m1); this.mesh.instanceMatrix.needsUpdate = true; }
 }
 
-/* Traçantes : quads étirés orientés vers la caméra */
+/* Tracers: stretched quads oriented toward the camera */
 class Tracers {
   constructor(max) {
     this.max = max; this.list = [];
@@ -169,12 +169,12 @@ function initFx() {
   FX = {
     add: new Particles(1400, FXT.glow, true),
     flash: new Particles(120, FXT.star, true),
-    muzzle: new Particles(48, FXT.flashP, true), // rosaces des tirs vus de loin (01-core.js, flashTex)
+    muzzle: new Particles(48, FXT.flashP, true), // muzzle-flash starbursts of shots seen from afar (01-core.js, flashTex)
     smoke: new Particles(900, FXT.smoke, false),
     blood: new Particles(300, FXT.smoke, false),
     holes: new Decals(220, FXT.hole, 0.13),
-    splats: new Decals(60, FXT.blood, 0.6, { k: 3.2 }), // le sang : rouge sombre, éclairci pour rester rouge une fois multiplié
-    scorch: new Decals(20, FXT.scorch, 4.2, { life: 40, fade: 12 }), // une brûlure s'efface en douze secondes, une demi-minute après l'explosion
+    splats: new Decals(60, FXT.blood, 0.6, { k: 3.2 }), // blood: dark red, lightened to stay red once multiplied
+    scorch: new Decals(20, FXT.scorch, 4.2, { life: 40, fade: 12 }), // a burn fades in twelve seconds, half a minute after the explosion
     tracers: new Tracers(48),
     dust: null, rings: [],
   };
@@ -183,12 +183,12 @@ function initFx() {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: rt, color: 0xffd9a8, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6, fog: false }));
     m.rotation.x = -Math.PI / 2; m.visible = false; m.frustumCulled = false; m.renderOrder = 3; scene.add(m); FX.rings.push({ mesh: m, on: false, t: 0, dur: 1, r: 1 });
   }
-  // poussière en suspension dans la lumière
-  // poussière : uniquement autour de la caméra et assez grosse pour ne jamais tomber sous le pixel (sinon elle scintille)
+  // dust suspended in the light
+  // dust: only around the camera and big enough to never fall below the pixel (otherwise it twinkles)
   const n = 160, g = new THREE.BufferGeometry(), p = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { p[i * 3] = rand(-9, 9); p[i * 3 + 1] = rand(0.3, 4); p[i * 3 + 2] = rand(-9, 9); }
   g.setAttribute('position', new THREE.BufferAttribute(p, 3));
-  // grains ronds et flous, jamais à moins de 2,5 m de l'œil : près de l'arme, ils passaient pour des pièces du modèle
+  // round, soft grains, never closer than 2.5 m to the eye: near the weapon, they passed for pieces of the model
   FX.dust = new THREE.Points(g, new THREE.ShaderMaterial({
     uniforms: { uColor: { value: new THREE.Color().setRGB(1.3, 1.05, 0.78) }, uScale: { value: 540 } },
     vertexShader: `uniform float uScale; varying float vA;
@@ -204,14 +204,14 @@ function initFx() {
   applyAtmoFx();
   onResizeFx();
 }
-/* Grains en suspension aux couleurs de la carte chargée (aucun sur une carte d'hiver : les flocons les remplacent) */
+/* Suspended grains in the loaded map's colors (none on a winter map: the snowflakes replace them) */
 function applyAtmoFx() {
   if (!FX) return;
   const m = CURMAP.def ? CURMAP.def.atmo.motes : ATMO_DEFAULT.motes;
   FX.dust.visible = !!m; if (m) FX.dust.material.uniforms.uColor.value.setRGB(...m);
 }
-/* Pixels par unité d'angle des points (gl_PointSize), comptés dans l'image 3D rendue (RS.h, plus petite que la toile quand le profil ou la
-   résolution dynamique la réduisent) : compter les pixels de la toile grossissait les particules d'autant (2,7 fois sur téléphone en Basse) */
+/* Pixels per angle unit of the points (gl_PointSize), counted in the rendered 3D image (RS.h, smaller than the canvas when the profile or the
+   dynamic resolution reduces it): counting the canvas's pixels enlarged the particles by the same factor (2.7 times on a phone at Low) */
 function pointScale() {
   const h = RS.h > 1 ? RS.h : VIEW.h * renderPixelRatio();
   return h / (2 * Math.tan((camera.fov * Math.PI) / 360));
@@ -222,7 +222,7 @@ function onResizeFx() {
   for (const k of ['add', 'flash', 'muzzle', 'smoke', 'blood']) FX[k].mat.uniforms.uScale.value = s;
   if (FX.dust) FX.dust.material.uniforms.uScale.value = s;
   if (SNOWFALL.mat) SNOWFALL.mat.uniforms.uScale.value = s;
-  VIE.uScale.value = s; // essaims de la carte de jardin (02x-vie.js)
+  LIFE.uScale.value = s; // swarms of the garden map (02x-life.js)
 }
 function updateFx(dt) {
   DECAL_U.uNow.value += dt;
@@ -237,13 +237,13 @@ function updateFx(dt) {
   FX.dust.geometry.attributes.position.needsUpdate = true;
 }
 
-/* Impact de balle sur la géométrie (noHole : sans trou de balle, pour un objet qui bouge) */
+/* Bullet impact on geometry (noHole: no bullet hole, for a moving object) */
 function impactFx(p, n, m, big, noHole) {
-  if (m === 'water') { waterSplashFx(p, big); return; } // gerbe, ni trou ni poussière (02m-water.js)
-  if (n.y > 0.5 && PONDAREAS.length) { const sy = pondHitAt(p); if (sy !== null) { waterSplashFx({ x: p.x, y: sy, z: p.z }, big); return; } } // tir dans l'eau d'une fontaine
+  if (m === 'water') { waterSplashFx(p, big); return; } // spray, no hole or dust (02m-water.js)
+  if (n.y > 0.5 && PONDAREAS.length) { const sy = pondHitAt(p); if (sy !== null) { waterSplashFx({ x: p.x, y: sy, z: p.z }, big); return; } } // shot into a fountain's water
   const nx = n.x, ny = n.y, nz = n.z;
-  if (p.y < 2.4) bendBlast(p.x, p.z, big ? 1.8 : 1.1, big ? 4 : 2.2); // le souffle d'un impact couche les herbes alentour (02n-flore.js)
-  if (m !== 'glass' && m !== 'leaf' && !noHole) FX.holes.add(p, n, big ? 1.8 : 1); // pas de trou sur un prop (il bouge) ni sur une haie
+  if (p.y < 2.4) bendBlast(p.x, p.z, big ? 1.8 : 1.1, big ? 4 : 2.2); // the blast of an impact flattens the surrounding grasses (02n-flora.js)
+  if (m !== 'glass' && m !== 'leaf' && !noHole) FX.holes.add(p, n, big ? 1.8 : 1); // no hole on a prop (it moves) or on a hedge
   if (m === 'metal') {
     for (let i = 0; i < 8; i++) FX.add.spawn(p.x, p.y, p.z, nx * rand(2, 6) + rand(-3, 3), ny * rand(2, 6) + rand(-1, 4), nz * rand(2, 6) + rand(-3, 3), rand(0.15, 0.35), 0.03, 0.01, 4, 2.4, 1.0, 1, 0.2, 14, 1);
     FX.flash.spawn(p.x + nx * 0.03, p.y + ny * 0.03, p.z + nz * 0.03, 0, 0, 0, 0.05, 0.25, 0.35, 3, 2.2, 1.2, 1, 0);
@@ -252,15 +252,15 @@ function impactFx(p, n, m, big, noHole) {
     for (let i = 0; i < 6; i++) FX.smoke.spawn(p.x, p.y, p.z, nx * rand(1, 4) + rand(-1.5, 1.5), ny * rand(1, 3) + rand(0, 3), nz * rand(1, 4) + rand(-1.5, 1.5), rand(0.4, 0.8), 0.05, 0.03, 0.28, 0.18, 0.09, 1, 0.8, 12, 1);
     FX.smoke.spawn(p.x, p.y, p.z, nx * 0.5, ny * 0.5 + 0.2, nz * 0.5, 0.9, 0.2, 0.7, 0.45, 0.38, 0.28, 0.4, 0, 0, 1.5);
   } else if (m === 'glass') {
-    // vitrage blindé de la serre : éclats blancs qui rebondissent et petit voile, pas de trou
+    // armored glazing of the greenhouse: white shards that bounce and a small veil, no hole
     for (let i = 0; i < 7; i++) FX.add.spawn(p.x, p.y, p.z, nx * rand(1.5, 4) + rand(-2, 2), ny * rand(1.5, 4) + rand(-1, 3), nz * rand(1.5, 4) + rand(-2, 2), rand(0.12, 0.3), 0.025, 0.01, 1.6, 2.0, 2.4, 1, 0.2, 12, 1);
     FX.smoke.spawn(p.x, p.y, p.z, nx * 0.5, ny * 0.5 + 0.2, nz * 0.5, 0.5, 0.12, 0.45, 0.82, 0.9, 0.9, 0.2, 0, 0, 1.5);
   } else if (m === 'leaf') {
-    // haie ou feuillage : éclats de feuilles vertes projetés, léger nuage de pollen
+    // hedge or foliage: green leaf fragments thrown out, light puff of pollen
     for (let i = 0; i < 9; i++) FX.smoke.spawn(p.x, p.y, p.z, nx * rand(1, 4) + rand(-1.5, 1.5), ny * rand(1, 3) + rand(0, 3), nz * rand(1, 4) + rand(-1.5, 1.5), rand(0.5, 1.0), 0.05, 0.03, rand(0.15, 0.3), rand(0.4, 0.62), 0.1, 1, 0.8, 9, 1);
     FX.smoke.spawn(p.x, p.y, p.z, nx * 0.5, ny * 0.5 + 0.2, nz * 0.5, 0.9, 0.2, 0.7, 0.72, 0.8, 0.42, 0.3, 0, 0, 1.5);
   } else if (m === 'snow' || (m === 'ground' && CURMAP.def.atmo.snow)) {
-    // neige : panache de poudre blanche qui retombe lentement, quelques mottes
+    // snow: plume of white powder that slowly falls back, a few clumps
     FX.smoke.spawn(p.x, p.y, p.z, nx * 1.4, ny * 1.4 + 0.6, nz * 1.4, 1.1, 0.2, 1.1, 0.9, 0.93, 0.97, 0.6, 0, 0.25, 1.4, rand(-1, 1));
     FX.smoke.spawn(p.x, p.y, p.z, nx * 0.5, ny * 0.5 + 0.3, nz * 0.5, 1.8, 0.3, 1.6, 0.88, 0.91, 0.95, 0.32, 0, 0.1, 0.9, rand(-1, 1));
     for (let i = 0; i < 8; i++) FX.smoke.spawn(p.x, p.y, p.z, nx * rand(1, 4) + rand(-1.5, 1.5), ny * rand(1, 4) + rand(0.5, 3), nz * rand(1, 4) + rand(-1.5, 1.5), rand(0.4, 0.9), 0.035, 0.02, 0.95, 0.97, 1.0, 1, 0.8, 9, 0.8);
@@ -269,32 +269,32 @@ function impactFx(p, n, m, big, noHole) {
     FX.smoke.spawn(p.x, p.y, p.z, nx * 1.2, ny * 1.2 + 0.4, nz * 1.2, 1.0, 0.18, 0.9, dust[0], dust[1], dust[2], 0.55, 0, 0, 1.6, rand(-1, 1));
     FX.smoke.spawn(p.x, p.y, p.z, nx * 0.4, ny * 0.4 + 0.2, nz * 0.4, 1.6, 0.25, 1.4, dust[0], dust[1], dust[2], 0.3, 0, 0, 1, rand(-1, 1));
     for (let i = 0; i < 6; i++) FX.smoke.spawn(p.x, p.y, p.z, nx * rand(1, 5) + rand(-2, 2), ny * rand(1, 4) + rand(0, 3), nz * rand(1, 5) + rand(-2, 2), rand(0.3, 0.7), 0.04, 0.02, dust[0] * 0.6, dust[1] * 0.6, dust[2] * 0.6, 1, 0.8, 14, 0.5);
-    // éclats de matière chauds et bref éclair de l'impact sur le béton, la brique et la pierre
+    // hot material fragments and a brief impact flash on concrete, brick and stone
     if (m === 'concrete' || m === 'brick' || m === 'stone') {
       for (let i = 0; i < (big ? 8 : 4); i++) FX.add.spawn(p.x, p.y, p.z, nx * rand(2, 7) + rand(-3, 3), ny * rand(2, 6) + rand(0, 3), nz * rand(2, 7) + rand(-3, 3), rand(0.12, 0.28), 0.03, 0.01, 3.2, 2.2, 1.0, 1, 0, 12, 0.5);
       if (Math.random() < 0.6) FX.flash.spawn(p.x + nx * 0.03, p.y + ny * 0.03, p.z + nz * 0.03, 0, 0, 0, 0.04, 0.16, 0.26, 3, 2.2, 1.3, 1, 0);
     } else if (Math.random() < 0.4) for (let i = 0; i < 3; i++) FX.add.spawn(p.x, p.y, p.z, nx * 3 + rand(-2, 2), ny * 3 + rand(0, 3), nz * 3 + rand(-2, 2), 0.15, 0.025, 0.01, 3, 2, 0.8, 1, 0, 12, 0);
   }
 }
-/* Corps qui s'écrase : nuage de poussière (ou de poudreuse) à ras du sol, proportionné au choc */
+/* Body crashing down: dust cloud (or powder snow) at ground level, proportional to the impact */
 function bodyDustFx(p, k) {
-  const dust = CURMAP.def.atmo.impact, a = 0.38 * k, y = VOID.on ? p.y : gy0(p.x, p.z) + 0.05; // îles flottantes : à la hauteur du choc (pas de sol à 0) ; dunes : sur le sable
+  const dust = CURMAP.def.atmo.impact, a = 0.38 * k, y = VOID.on ? p.y : gy0(p.x, p.z) + 0.05; // floating islands: at the height of the impact (no ground at 0); dunes: on the sand
   FX.smoke.spawn(p.x, y, p.z, 0, 0.35, 0, 1.1, 0.25, 1.1, dust[0], dust[1], dust[2], a, 0, 0, 1.6, rand(-1, 1));
   for (let i = 0; i < 3; i++) { const t = rand(0, TAU); FX.smoke.spawn(p.x, y, p.z, Math.cos(t) * rand(0.6, 1.6) * k, rand(0.1, 0.5), Math.sin(t) * rand(0.6, 1.6) * k, rand(0.7, 1.2), 0.15, 0.7, dust[0], dust[1], dust[2], a * 0.7, 0, 0, 1.2, rand(-1, 1)); }
 }
 function bloodFx(p, dir, head) {
   const n = head ? 22 : 12;
   for (let i = 0; i < n; i++) FX.blood.spawn(p.x, p.y, p.z, dir.x * rand(1, 4) + rand(-1.4, 1.4), rand(-0.5, 2.4), dir.z * rand(1, 4) + rand(-1.4, 1.4), rand(0.3, 0.7), 0.07, 0.03, 0.26, 0.01, 0.01, 1, 0.8, 9, 1);
-  // brume rouge qui s'ouvre derrière l'impact, gouttes plus lourdes qui retombent
+  // red mist that opens up behind the impact, heavier droplets that fall back down
   FX.blood.spawn(p.x, p.y, p.z, dir.x * 0.8, 0.2, dir.z * 0.8, 0.5, 0.25, head ? 1.1 : 0.75, 0.3, 0.02, 0.02, 0.85, 0, 0, 2);
   FX.blood.spawn(p.x, p.y, p.z, dir.x * 1.8, 0.4, dir.z * 1.8, 0.35, 0.12, head ? 0.7 : 0.45, 0.28, 0.02, 0.02, 0.7, 0, 0, 2.5);
   for (let i = 0; i < (head ? 4 : 2); i++) FX.blood.spawn(p.x, p.y, p.z, dir.x * rand(2, 5) + rand(-1, 1), rand(0.5, 2.5), dir.z * rand(2, 5) + rand(-1, 1), rand(0.5, 0.9), 0.09, 0.05, 0.2, 0.0, 0.0, 1, 0.9, 12, 0.5);
-  // éclaboussure sur le mur derrière
+  // splatter on the wall behind
   const h = rayWorld(p.x, p.y, p.z, dir.x, dir.y, dir.z, 3);
   if (h) FX.splats.add(_v3.set(p.x + dir.x * h.t, p.y + dir.y * h.t, p.z + dir.z * h.t), new V3(h.nx, h.ny, h.nz), head ? 1.2 : 0.8);
 }
-/* mute : arme silencieuse, ni flash ni étincelles, un simple filet de fumée ; f : force du flash de l'arme (FEEL.flash, 1 par défaut).
-   Une rosace face à la caméra, puis trois lueurs de plus en plus petites le long du tir : vue de côté, une langue de flamme. */
+/* mute: silenced weapon, no flash or sparks, just a thin wisp of smoke; f: strength of the weapon's flash (FEEL.flash, 1 by default).
+   A rosette facing the camera, then three ever smaller glows along the shot: seen from the side, a tongue of flame. */
 function muzzleWorldFx(p, dir, mute, f = 1) {
   if (mute) { FX.smoke.spawn(p.x, p.y, p.z, dir.x * 0.6 + rand(-0.15, 0.15), 0.3, dir.z * 0.6 + rand(-0.15, 0.15), 0.5, 0.07, 0.4, 0.62, 0.6, 0.58, 0.07, 0, 0, 1.2); return; }
   const k = clamp(0.65 + 0.35 * f, 0.8, 1.6);
@@ -303,7 +303,7 @@ function muzzleWorldFx(p, dir, mute, f = 1) {
   for (let i = 0; i < 2; i++) FX.add.spawn(p.x, p.y, p.z, dir.x * rand(4, 10) + rand(-2, 2), dir.y * rand(4, 10) + rand(-1, 2), dir.z * rand(4, 10) + rand(-2, 2), rand(0.05, 0.12), 0.025, 0.008, 4, 2.4, 1.0, 1, 0, 2, 2);
   FX.smoke.spawn(p.x, p.y, p.z, dir.x * 1.2 + rand(-0.2, 0.2), 0.5, dir.z * 1.2 + rand(-0.2, 0.2), 0.8, 0.1, 0.6, 0.6, 0.58, 0.55, 0.18, 0, 0, 1.2);
 }
-/* Onde de choc au sol : anneau lumineux qui s'élargit vite en s'éteignant (réserve de 4, la plus ancienne est recyclée) */
+/* Ground shockwave: luminous ring that widens quickly while fading (pool of 4, the oldest is recycled) */
 function shockRing(p, r, dur) {
   if (!FX || !FX.rings) return;
   const R = FX.rings; let best = R[0];
@@ -319,42 +319,42 @@ function updateRings(dt) {
     q.mesh.scale.setScalar(Math.max(0.2, q.r * 2 * e)); q.mesh.material.opacity = 0.7 * Math.pow(1 - u, 1.6);
   }
 }
-/* Explosion : éclair, boule de feu, étincelles et braises, anneau de poussière et onde de choc, débris, colonne de fumée
-   noire puis nuage qui s'étale, tache de brûlé, lumière qui s'éteint en deux temps. k = ampleur (1 : grenade) ; replay : rejouée par la
-   killcam (sa brûlure est déjà au sol : sans en poser une seconde) */
+/* Explosion: flash, fireball, sparks and embers, dust ring and shockwave, debris, column of black smoke
+   then spreading cloud, burn mark, light that dies out in two stages. k = scale (1: grenade); replay: replayed by the
+   killcam (its burn is already on the ground: without placing a second one) */
 function explosionFx(p, k = 1, replay = false) {
   const surf = waterSurfaceAt(p.x, p.z);
-  if (surf !== null && p.y < surf + 0.3) { waterBlastFx(p, 1); flashLight(new V3(p.x, surf + 0.5, p.z), 4, 10, 0.2, 0xb0d0ff); return; } // sous l'eau : gerbe
-  // de l'eau tout près (un bassin, la mer au pied du quai) : le souffle la creuse, des anneaux en partent (02mb-ondes.js ; le masque de l'eau
-  // garde les seules cellules mouillées)
+  if (surf !== null && p.y < surf + 0.3) { waterBlastFx(p, 1); flashLight(new V3(p.x, surf + 0.5, p.z), 4, 10, 0.2, 0xb0d0ff); return; } // underwater: spout
+  // water very close (a basin, the sea at the foot of the quay): the blast digs into it, rings spread out from it (02mb-waves.js; the water mask
+  // keeps only the wet cells)
   if (surf !== null || [0, 1, 2, 3, 4, 5, 6, 7].some((i) => waterSurfaceAt(p.x + Math.cos(i * 0.785) * 3.5 * k, p.z + Math.sin(i * 0.785) * 3.5 * k) !== null)) rippleAdd(p.x, p.z, 3.2 * k, -0.06 * k, 0.12);
-  bendBlast(p.x, p.z, 8 * k, 9); // l'onde de choc couche les plantes (02n-flore.js)
+  bendBlast(p.x, p.z, 8 * k, 9); // the shock wave lays the plants flat (02n-flora.js)
   const gy = groundHeight(p.x, p.z, p.y + 0.5), dust = CURMAP.def.atmo.impact, snow = !!CURMAP.def.atmo.snow, low = Math.max(0, p.y - gy) < 1.2;
-  // 1. éclair
+  // 1. flash
   FX.flash.spawn(p.x, p.y + 0.4, p.z, 0, 0, 0, 0.08, 3 * k, 6 * k, 6, 4.5, 2.4, 1, 0);
   FX.flash.spawn(p.x, p.y + 0.5, p.z, 0, 0, 0, 0.24, 2 * k, 6 * k, 6, 3, 1.2, 0.9, 0);
-  // 2. boule de feu : lueurs qui gonflent, montent (flottabilité) et rougissent
+  // 2. fireball: glows that swell, rise (buoyancy) and redden
   for (let i = 0; i < 34; i++) {
     const a = rand(0, TAU), c = rand(-0.4, 1), sp = rand(1.5, 7) * k, h = Math.sqrt(1 - c * c);
     FX.add.spawn(p.x, p.y + 0.5, p.z, Math.cos(a) * h * sp, c * sp + 1.2, Math.sin(a) * h * sp, rand(0.25, 0.65), rand(0.9, 1.5) * k, rand(2.2, 3.8) * k, 1.7, rand(0.5, 0.95), 0.14, 0.5, 0, -2.5, 3.2, rand(-2, 2));
   }
   for (let i = 0; i < 6; i++) FX.add.spawn(p.x + rand(-0.3, 0.3), p.y + 0.5 + rand(0, 0.5), p.z + rand(-0.3, 0.3), rand(-1, 1), rand(0.5, 2), rand(-1, 1), rand(0.12, 0.22), 1.2 * k, 2.4 * k, 2.4, 1.6, 0.6, 0.6, 0, 0, 2);
-  // 3. étincelles (rapides, retombent) et braises (lentes, vacillent en tombant)
+  // 3. sparks (fast, fall back down) and embers (slow, flicker as they fall)
   for (let i = 0; i < 46; i++) FX.add.spawn(p.x, p.y + 0.3, p.z, rand(-18, 18) * k, rand(2, 16), rand(-18, 18) * k, rand(0.4, 1.1), 0.045, 0.015, 4, 2, 0.6, 1, 0.4, 17, 0.35);
   for (let i = 0; i < 18; i++) FX.add.spawn(p.x, p.y + 0.4, p.z, rand(-6, 6) * k, rand(3, 9), rand(-6, 6) * k, rand(1.4, 2.8), 0.07, 0.02, 3.2, 1.2, 0.3, 1, 0, 3.5, 0.9);
-  // 4. anneau de poussière à ras du sol et onde de choc
+  // 4. ground-level dust ring and shockwave
   if (low) {
     for (let i = 0; i < 24; i++) { const a = (i / 24) * TAU + rand(-0.1, 0.1), sp = rand(7, 12) * k; FX.smoke.spawn(p.x, gy + 0.15, p.z, Math.cos(a) * sp, rand(0.3, 1.4), Math.sin(a) * sp, rand(0.9, 1.6), 0.5 * k, rand(1.8, 2.8) * k, dust[0] * 1.1, dust[1] * 1.1, dust[2] * 1.1, 0.55, 0, 0.3, 3.4, rand(-1, 1)); }
     shockRing(p, 9 * k, 0.32);
   }
-  // 5. débris : mottes de sol et éclats qui retombent en tournoyant
+  // 5. debris: clods of ground and fragments that fall back down tumbling
   const dc = snow ? [0.9, 0.93, 0.97] : [dust[0] * 0.55, dust[1] * 0.55, dust[2] * 0.55];
   for (let i = 0; i < 22; i++) FX.smoke.spawn(p.x + rand(-0.4, 0.4), p.y + 0.2, p.z + rand(-0.4, 0.4), rand(-9, 9) * k, rand(4, 13), rand(-9, 9) * k, rand(0.8, 1.7), rand(0.08, 0.16), 0.05, dc[0], dc[1], dc[2], 1, 0.9, 19, 0.3, rand(-6, 6));
-  // 6. colonne de fumée noire qui monte, puis nuage gris qui s'étale
+  // 6. column of black smoke that rises, then gray cloud that spreads out
   for (let i = 0; i < 14; i++) FX.smoke.spawn(p.x + rand(-0.8, 0.8) * k, p.y + rand(0, 1.2), p.z + rand(-0.8, 0.8) * k, rand(-1.2, 1.2), rand(2, 5.5), rand(-1.2, 1.2), rand(2.6, 4.6), rand(1.0, 1.6) * k, rand(3.4, 5.2) * k, 0.13, 0.12, 0.11, 0.78, 0, -1.2, 0.9, rand(-0.5, 0.5));
   for (let i = 0; i < 10; i++) { const a = rand(0, TAU); FX.smoke.spawn(p.x, p.y + rand(1, 2.5), p.z, Math.cos(a) * rand(1.5, 4), rand(1.5, 3.5), Math.sin(a) * rand(1.5, 4), rand(3.2, 5.2), rand(1.2, 2) * k, rand(4.5, 7) * k, 0.34, 0.32, 0.3, 0.5, 0, -0.5, 1.1, rand(-0.4, 0.4)); }
   for (let i = 0; i < 12; i++) FX.smoke.spawn(p.x + rand(-1, 1), p.y + rand(0, 1), p.z + rand(-1, 1), rand(-3, 3), rand(1, 5), rand(-3, 3), rand(2, 4), rand(1.2, 2), rand(4, 7), 0.18, 0.16, 0.14, 0.75, 0, -0.3, 1.2, rand(-0.5, 0.5));
-  // 7. tache de brûlé (grande, puis une petite décentrée) et lumière : coup blanc très bref, puis braise qui s'éteint
+  // 7. burn mark (large, then a small off-center one) and light: very brief white hit, then ember that dies out
   if (low && !replay) { const sp = new V3(p.x, gy + 0.01, p.z); FX.scorch.add(sp, new V3(0, 1, 0), 1.15 * k); FX.scorch.add(new V3(p.x + rand(-0.8, 0.8), gy + 0.012, p.z + rand(-0.8, 0.8)), new V3(0, 1, 0), 0.6 * k); }
   flashLight(new V3(p.x, p.y + 1, p.z), 24 * k, 28, 0.12, 0xffe6b0);
   flashLight(new V3(p.x, p.y + 1.3, p.z), 11 * k, 20, 0.8, 0xff7a2a);

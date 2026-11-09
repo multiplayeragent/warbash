@@ -1,0 +1,217 @@
+{
+ "mapKey": "saintgivre",
+ "naming": "Saint-Givre",
+ "date": "2026-11-09",
+ "measures": {
+  "type": "mid",
+  "meanView": 7.8,
+  "groundShortView": 23.7,
+  "viewsOver60m": 5.8,
+  "plazaShare": 20.2,
+  "elevatedShare": 3.4,
+  "walking": [
+   91.5,
+   97.6
+  ],
+  "routes": 5,
+  "deadEnds": 2,
+  "detour90": 1.9,
+  "junctions": 6,
+  "landmark": 65.5,
+  "chokepoint": {
+   "front": 11,
+   "passages": 8,
+   "detail": [
+    {
+     "whereAt": [
+      -14.5,
+      2.5
+     ],
+     "breadth": 3,
+     "zone": "Gallery"
+    },
+    {
+     "whereAt": [
+      1,
+      7.5
+     ],
+     "breadth": 2,
+     "zone": "High Street"
+    },
+    {
+     "whereAt": [
+      18.5,
+      3.5
+     ],
+     "breadth": 1,
+     "zone": "Sawmill"
+    },
+    {
+     "whereAt": [
+      22.5,
+      5.5
+     ],
+     "breadth": 1,
+     "zone": "Sawmill"
+    },
+    {
+     "whereAt": [
+      -22.5,
+      7.5
+     ],
+     "breadth": 1,
+     "zone": "Gallery"
+    },
+    {
+     "whereAt": [
+      -10.5,
+      7.5
+     ],
+     "breadth": 1,
+     "zone": "Platform"
+    },
+    {
+     "whereAt": [
+      5.5,
+      7.5
+     ],
+     "breadth": 1,
+     "zone": "Station yard"
+    },
+    {
+     "whereAt": [
+      11.5,
+      9.5
+     ],
+     "breadth": 1,
+     "zone": "Village"
+    }
+   ]
+  },
+  "tightTurns": 0,
+  "tightTurnsAt": [],
+  "points": [
+   {
+    "naming": "A",
+    "point": [
+     -11.5,
+     33.5
+    ],
+    "entrances": 4,
+    "walkable": 76,
+    "cover9m": 11,
+    "walking": [
+     22.8,
+     88
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "B",
+    "point": [
+     8.4,
+     0
+    ],
+    "entrances": 2,
+    "walkable": 73,
+    "cover9m": 26,
+    "walking": [
+     52.3,
+     53.3
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "C",
+    "point": [
+     -11.5,
+     -33.5
+    ],
+    "entrances": 4,
+    "walkable": 76,
+    "cover9m": 11,
+    "walking": [
+     88.1,
+     22.7
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ "defects": {
+  "navigation": [],
+  "decor": {
+   "blockedDoors": 0,
+   "pots": 0,
+   "badPosters": 0,
+   "bikes": 0,
+   "bridgeIssues": 0,
+   "sand": 0,
+   "overlapCount": 0,
+   "itemList": []
+  },
+  "slits": {
+   "slits": 0,
+   "bulletPass": 0,
+   "wallHoles": 0,
+   "margins": 36,
+   "marginsOver30cm": 36,
+   "itemList": [
+    "margin 14.39 m (-9.95, 55.2) concrete",
+    "margin 13.92 m (-9.95, -55.2) concrete",
+    "margin 7.32 m (5.13, 44.5) metal",
+    "margin 7.32 m (5.13, -44.5) metal",
+    "margin 7.24 m (2, 25.67) metal",
+    "margin 7.24 m (2, -18.33) metal",
+    "margin 6.7 m (-2.25, 6.78) concrete",
+    "margin 6.7 m (-2.25, -6.78) concrete",
+    "margin 5.4 m (14.5, 2.25) wood",
+    "margin 5.4 m (14.5, -7.75) wood",
+    "margin 4.45 m (20.4, -4.85) metal",
+    "margin 3 m (-21.15, 0.35) metal",
+    "margin 2.7 m (19, 0) metal",
+    "margin 2.6 m (-17.3, -1.35) wood",
+    "margin 2.3 m (13.55, -32.11) wood",
+    "margin 2.2 m (-10.7, -1.15) wood",
+    "margin 1.75 m (4.78, -4.75) concrete",
+    "margin 1.75 m (4.78, 4.75) concrete",
+    "margin 1.6 m (-2, 36.35) wood",
+    "margin 1.6 m (-2, -38.05) wood"
+   ]
+  },
+  "snags": {
+   "snagCount": 0,
+   "pathCount": 160,
+   "itemList": []
+  },
+  "zfight": {
+   "visibleCount": 68,
+   "blocking": 0,
+   "itemList": []
+  },
+  "crossing": {
+   "pairCount": 0,
+   "outOf": 820,
+   "itemList": [],
+   "jumpLinks": []
+  }
+ },
+ "outOfRange": [
+  "mean view (m) 7.8 (9 to 13)",
+  "ground with short sightline (%) 23.7 (5 to 20)",
+  "plaza share (%) 20.2 (25 to 45)",
+  "detour at the 90th percentile 1.9 (1.5 maximum)"
+ ],
+ "waived": [],
+ "blocking": 0,
+ "minutes": 19.1
+}

@@ -1,18 +1,18 @@
 /* ==========================================================================
-   COULOIR DES ANNONCES ET MONTÉE DE NIVEAU EN PARTIE
-   Le couloir (contrat de place du HUD, --lane-top sur #hud) est au centre haut, sous le score : il porte la montée de niveau du joueur (#rankUp,
-   le « Rank Up » de Call of Duty, avec sa fanfare, 05b-rankup-sound.js) et les déblocages (#arsUp : arme qui monte, accessoire, défi, tenue ;
-   arsShow, 09n-armurerie.js). Une seule annonce à la fois, dans une seule file : une montée de niveau passe devant les déblocages (celui qui était
-   affiché reprend ensuite depuis le début) ; rien ne commence pendant une killcam, la pause ou l'annonce de fin, et ce qui était affiché quand
-   elles arrivent revient après (laneSuspend, lanePump) : aucune annonce ne se perd.
-   La montée de niveau : un bandeau compact (filets jaunes qui s'ouvrent depuis le centre), l'insigne hexagonal où le niveau roule de l'ancien au
-   nouveau, « Niveau supérieur » en surtitre et le déblocage en sous-titre, une lueur douce et quelques étincelles. Ni éclair ni rayons : le centre,
-   où l'on vise, reste dégagé. Tout est animé par CSS (transformations et opacité), sans prise sur les touches (pointer-events: none) ; en mouvement
-   réduit, des fondus seulement. Plusieurs niveaux d'un coup se suivent.
+   ANNOUNCEMENT LANE AND IN-MATCH LEVEL-UP
+   The lane (HUD placement contract, --lane-top on #hud) is at top center, below the score: it carries the player's level-up (#rankUp,
+   Call of Duty's "Rank Up", with its fanfare, 05b-rankup-sound.js) and the unlocks (#arsUp: weapon leveling up, attachment, challenge, outfit;
+   arsShow, 09n-armory.js). One announcement at a time, in a single queue: a level-up goes ahead of the unlocks (the one that was
+   displayed then resumes from the start); nothing starts during a killcam, the pause or the end announcement, and what was displayed when
+   they arrive comes back afterwards (laneSuspend, lanePump): no announcement is lost.
+   The level-up: a compact banner (yellow rules opening from the center), the hexagonal badge where the level rolls from the old to the
+   new, "Level up" as the overline and the unlock as the subtitle, a soft glow and a few sparks. No flash or rays: the center,
+   where you aim, stays clear. Everything is animated by CSS (transforms and opacity), with no hold on keys (pointer-events: none); with reduced
+   motion, fades only. Several levels at once follow one another.
    ========================================================================== */
 const RU = { q: [], on: false, t: 0, el: null, cur: null, t0: 0 };
 const RU_MS = 4600, RU_SPARKS = 12;
-const LANE = { t: 0 }; // attente du couloir (killcam, pause, annonce de fin)
+const LANE = { t: 0 }; // waiting for the lane (killcam, pause, end announcement)
 
 function rankUpBuild() {
   const el = $('rankUp'); if (!el || el.dataset.built) return el;
@@ -22,16 +22,16 @@ function rankUpBuild() {
       <div class="ru-txt"><small class="ru-kick"></small><div class="ru-title"><span class="ru-lv"></span><span class="ru-roll"><b class="ru-old"></b><b class="ru-new"></b></span></div><span class="ru-rank"></span><span class="ru-sub"></span></div></div>`;
   return el;
 }
-/* Le couloir attend : décompte du départ, killcam (relecture de mort, en ligne comme en solo), pause, annonce de fin ou résultats */
+/* The lane waits: start countdown, killcam (death replay, online as in solo), pause, end announcement or results */
 function laneHeld() { return playHold() || KC.active || MATCH.state === 'killcam' || MATCH.state === 'paused' || MATCH.state === 'finish' || MATCH.state === 'ended'; }
-/* Annonce suivante : la montée de niveau d'abord, puis les déblocages ; le couloir retenu réessaie un peu plus tard */
+/* Next announcement: the level-up first, then the unlocks; the held lane retries a bit later */
 function lanePump() {
   clearTimeout(LANE.t);
   if (RU.on || ARSQ.on || (!RU.q.length && !ARSQ.list.length)) return;
   if (laneHeld()) { LANE.t = setTimeout(lanePump, 400); return; }
   if (RU.q.length) rankUpNext(); else arsShowNext();
 }
-/* Killcam, pause, annonce de fin : l'annonce affichée s'interrompt et reprendra du début (une montée de niveau bien avancée est considérée vue) */
+/* Killcam, pause, end announcement: the displayed announcement is interrupted and will resume from the start (a well-advanced level-up is considered seen) */
 function laneSuspend() {
   if (ARSQ.on) arsShowStop(true);
   if (RU.on && RU.cur) {
@@ -40,10 +40,10 @@ function laneSuspend() {
     rankUpStop();
   }
 }
-/* Annonce le niveau atteint : slot = indice de l'emplacement de classe personnalisée qu'il débloque (-1 : aucun) */
+/* Announces the level reached: slot = index of the custom class slot it unlocks (-1: none) */
 function rankUpShow(level, slot) {
-  RU.q.push([level, slot]); if (RU.q.length > 3) RU.q.shift(); // plusieurs niveaux d'un coup : les trois derniers
-  if (ARSQ.on) arsShowStop(true); // un déblocage affiché cède la place (il reprendra ensuite)
+  RU.q.push([level, slot]); if (RU.q.length > 3) RU.q.shift(); // several levels at once: the last three
+  if (ARSQ.on) arsShowStop(true); // a displayed unlock gives way (it will resume afterwards)
   if (!RU.on) lanePump();
 }
 function rankUpNext() {
@@ -51,15 +51,15 @@ function rankUpNext() {
   if (!el || !it) { RU.on = false; RU.cur = null; if (el) el.classList.remove('show'); lanePump(); return; }
   RU.on = true; RU.cur = it; RU.t0 = performance.now();
   const [level, slot] = it;
-  const promo = rankIndex(level) !== rankIndex(level - 1); // nouveau grade : « Promotion », et son insigne
+  const promo = rankIndex(level) !== rankIndex(level - 1); // new rank: "Promotion", and its badge
   el.classList.toggle('promo', promo);
-  el.querySelector('.ru-kick').textContent = promo ? _t('Promotion') : _t('Niveau supérieur');
-  el.querySelector('.ru-lv').textContent = _t('Niveau');
+  el.querySelector('.ru-kick').textContent = promo ? _t('Promoted') : _t('Level up');
+  el.querySelector('.ru-lv').textContent = _t('Level');
   rankPaint(el.querySelector('.ru-ins'), level);
   el.querySelector('.ru-rank').textContent = rankName(level);
   el.querySelector('.ru-old').textContent = Math.max(1, level - 1); el.querySelector('.ru-new').textContent = level;
-  el.querySelector('.ru-sub').textContent = slot >= 0 ? _t('Emplacement de classe personnalisée {0} débloqué', slot + 1) : _t('Votre niveau de joueur monte');
-  el.querySelectorAll('.ru-sparks i').forEach((s, i, all) => { // étincelles : quelques-unes, en éventail autour de l'insigne, portée et durée variables
+  el.querySelector('.ru-sub').textContent = slot >= 0 ? _t('Custom class slot {0} unlocked', slot + 1) : _t('Your player level goes up');
+  el.querySelectorAll('.ru-sparks i').forEach((s, i, all) => { // sparks: a few, fanned out around the badge, range and duration varying
     const a = (i / all.length) * Math.PI * 2 + Math.random() * 0.4, d = 7 + Math.random() * 6;
     s.style.setProperty('--dx', (Math.cos(a) * d * 1.3).toFixed(1)); s.style.setProperty('--dy', (Math.sin(a) * d).toFixed(1)); s.style.setProperty('--w', (0.8 + Math.random() * 0.5).toFixed(2) + 's');
   });
@@ -67,10 +67,10 @@ function rankUpNext() {
   rankUpSound();
   clearTimeout(RU.t); RU.t = setTimeout(() => { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); RU.cur = null; RU.t = setTimeout(() => { RU.on = false; lanePump(); }, 250); }, RU_MS);
 }
-/* Interrompt la montée de niveau affichée (sans toucher à la file) */
+/* Interrupts the displayed level-up (without touching the queue) */
 function rankUpStop() {
   RU.on = false; RU.cur = null; clearTimeout(RU.t);
   const el = $('rankUp'); if (el) { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); }
 }
-/* Fin ou abandon de la partie : plus d'annonce en attente */
+/* End or abandonment of the match: no more pending announcement */
 function rankUpClear() { RU.q.length = 0; rankUpStop(); clearTimeout(LANE.t); }

@@ -1,6 +1,6 @@
 /* ==========================================================================
-   DÉMARRAGE : après tous les modules (la fenêtre d'installation, 09r-pwa.js, doit exister). Sur écran tactile dans un navigateur, le jeu
-   ne démarre pas tant que l'installation n'est pas faite ou écartée (voir README, « Version mobile ») ; ailleurs, il démarre aussitôt.
+   STARTUP: after all the modules (the install window, 09r-pwa.js, must exist). On a touch screen in a browser, the game
+   does not start until installation is done or dismissed (see README, "Mobile version"); elsewhere, it starts right away.
    ========================================================================== */
-if (!window.WebGLRenderingContext) $('loadMsg').textContent = _t('WebGL est indisponible sur ce navigateur.');
+if (!window.WebGLRenderingContext) $('loadMsg').textContent = _t('WebGL is not available in this browser.');
 else if (!pwaGate(boot)) boot();

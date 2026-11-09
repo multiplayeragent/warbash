@@ -1,23 +1,23 @@
-/* Banc des ragdolls : tue un soldat avec une force donnée (arme, partie touchée, direction) et suit le corps image par
-   image. Trois séries :
-   - terrain plat : l'effet de chaque arme (distance parcourue, pic de vitesse, sommeil, os étirés) ;
-   - géométrie de la carte : contre un mur, sur une caisse, sur une rampe, en chute libre, explosion contre un mur ;
-   - tirage aléatoire : des centaines de morts (arme, angle, vitesse, lieu) pour traquer ce qui bugge : corps qui ne
-     s'endort pas, qui glisse après le repos, qui traverse un mur, valeurs aberrantes (NaN), os étirés.
-   node ragdoll.js [page=dist/index.html] ; MAP=givre pour l'autre carte ; N=300 : nombre de tirages ;
-   DETAIL=1 : trace seconde par seconde de la série plate ; TRACE=nom T=t0,t1 : trace image par image d'un cas ;
-   RAGSET='{"iters":4}' : réglages de RAG essayés sans reconstruire ; SEED=n : graine du hasard (rejoue les mêmes cas) ; REP=20 : répète la série plate 20 fois (graines différentes). Code de sortie 1 si un défaut est trouvé. */
+/* Ragdoll bench: kills a soldier with a given force (weapon, body part hit, direction) and follows the body frame by
+   frame. Three series:
+   - flat ground: the effect of each weapon (distance travelled, peak speed, sleep, stretched bones);
+   - map geometry: against a wall, on a crate, on a ramp, in free fall, explosion against a wall;
+   - random draw: hundreds of deaths (weapon, angle, speed, place) to hunt what bugs out: body that does not
+     fall asleep, that slides after resting, that goes through a wall, aberrant values (NaN), stretched bones.
+   node ragdoll.js [page=dist/index.html] ; MAP=saintgivre for the other map ; N=300: number of draws ;
+   DETAIL=1: second-by-second trace of the flat series ; TRACE=name T=t0,t1: frame-by-frame trace of a case ;
+   RAGSET='{"iters":4}': RAG settings tried without rebuilding ; SEED=n: random seed (replays the same cases) ; REP=20: repeats the flat series 20 times (different seeds). Exit code 1 if a defect is found. */
 const { openGame } = require('./common');
 const TRACE = process.env.TRACE || '', [TR0, TR1] = (process.env.T || '0,12').split(',').map(Number);
 (async () => {
-  const { browser, page, logs } = await openGame({ page: process.argv[2], w: 480, h: 270, settings: { quality: 'low', difficulty: 1, map: process.env.MAP || 'sable' }, noHdri: true });
+  const { browser, page, logs } = await openGame({ page: process.argv[2], w: 480, h: 270, settings: { quality: 'low', difficulty: 1, map: process.env.MAP || 'chergui' }, noHdri: true });
   const out = await page.evaluate(([detail, N, TR, TR0, TR1, SET, SEED, REP, ANOM]) => {
-    let sd = +SEED; Math.random = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296); // graine fixe : les cas se rejouent à l'identique
+    let sd = +SEED; Math.random = () => ((sd = (sd * 1664525 + 1013904223) >>> 0) / 4294967296); // fixed seed: cases replay identically
     LOCK.fallback = true; startMatch({});
     MATCH.state = 'playing';
     if (SET) Object.assign(RAG, JSON.parse(SET));
     const bot = entities.find((e) => !e.isPlayer), dt = 1 / 60;
-    // ---- une mort, suivie pendant `secs` secondes ----
+    // ---- one death, followed for `secs` seconds ----
     const run = (s) => {
       const FLAT = [400, 400];
       const at = s.at || FLAT;
@@ -25,7 +25,7 @@ const TRACE = process.env.TRACE || '', [TR0, TR1] = (process.env.T || '0,12').sp
       const vel = s.vel || 0, yaw = bot.yaw;
       bot.vel.set(-Math.sin(yaw) * vel, 0, -Math.cos(yaw) * vel); bot.sprinting = vel > 4;
       for (let i = 0; i < 40; i++) { bot.pos.x += bot.vel.x * dt; bot.pos.z += bot.vel.z * dt; if (s.at) collideCircle(bot.pos, 0.34, 1.75); animSoldier(bot, dt); }
-      bot.model.gun.visible = !!s.gun; // un bot tué lâche son arme (dropKilledWeapon) : elle ne suit pas le corps ; la killcam du joueur la garde
+      bot.model.gun.visible = !!s.gun; // a killed bot drops its weapon (dropKilledWeapon): it does not follow the body; the player's killcam keeps it
       bot.lastForce = { dir: new V3(...s.dir).normalize(), mag: s.mag, lift: s.lift, part: s.part || 'body', radial: !!s.radial };
       bot.alive = false;
       const p0 = bot.model.J[J_PEL].clone(); let last = p0.clone(), path = 0, vmax = 0, sleepT = -1, maxStretch = 0, stretchAt = '', maxPen = 0, atRest = null, drift = 0, nan = false, minY = 9;
@@ -36,7 +36,7 @@ const TRACE = process.env.TRACE || '', [TR0, TR1] = (process.env.T || '0,12').sp
         const step = Math.hypot(pel.x - last.x, pel.z - last.z); path += step; vmax = Math.max(vmax, step / dt); last.copy(pel);
         for (let k = 0; k < 15; k++) {
           minY = Math.min(minY, J[k].y);
-          // enfoncement dans les boîtes (pleines) : profondeur jusqu'à la face la plus proche, au-delà de la tolérance
+          // penetration into (solid) boxes: depth to the nearest face, beyond the tolerance
           for (const c of queryBoxes(J[k].x - 1, J[k].z - 1, J[k].x + 1, J[k].z + 1)) {
             if (c.ray) continue; const r = RAG_RAD[k];
             const d = Math.min(J[k].x - (c.x0 - r), c.x1 + r - J[k].x, J[k].y - (c.y0 - r), c.y1 + r - J[k].y, J[k].z - (c.z0 - r), c.z1 + r - J[k].z);
@@ -56,24 +56,24 @@ const TRACE = process.env.TRACE || '', [TR0, TR1] = (process.env.T || '0,12').sp
       }
       const pe = bot.model.J[J_PEL];
       if (atRest) drift = Math.hypot(pe.x - atRest.x, pe.z - atRest.z) + Math.abs(pe.y - atRest.y);
-      return { name: s.name, aller: +Math.hypot(pe.x - p0.x, pe.z - p0.z).toFixed(2), chemin: +path.toFixed(2), vmax: +vmax.toFixed(1), sommeil: +sleepT.toFixed(2), derive: +drift.toFixed(4), enfonce: +maxPen.toFixed(3), basY: +minY.toFixed(2), etire: +maxStretch.toFixed(3), etireOu: stretchAt, spec: s.dump ? JSON.stringify({ at: s.at, yaw: s.yaw, dir: s.dir, mag: s.mag, lift: s.lift, part: s.part, radial: s.radial, vel: s.vel }) : undefined, nan, finY: +pe.y.toFixed(2), trace, anom, penInfo };
+      return { name: s.name, travel: +Math.hypot(pe.x - p0.x, pe.z - p0.z).toFixed(2), pathway: +path.toFixed(2), vmax: +vmax.toFixed(1), sleepTime: +sleepT.toFixed(2), derive: +drift.toFixed(4), sunk: +maxPen.toFixed(3), lowY: +minY.toFixed(2), stretched: +maxStretch.toFixed(3), stretchedAt: stretchAt, spec: s.dump ? JSON.stringify({ at: s.at, yaw: s.yaw, dir: s.dir, mag: s.mag, lift: s.lift, part: s.part, radial: s.radial, vel: s.vel }) : undefined, nan, outroY: +pe.y.toFixed(2), trace, anom, penInfo };
     };
     const W = (name, o) => Object.assign({ name, dir: [0, 0, 1], mag: 5.4, lift: 3, secs: 12 }, o);
     const flat = [
-      W('fusil face', {}), W('fusil dos', { dir: [0, 0, -1] }), W('fusil côté', { dir: [1, 0, 0] }), W('fusil tête', { part: 'head', mag: 6.2 }), W('fusil jambes', { part: 'legs' }),
-      W('pistolet-mitrailleur', { mag: 3, lift: 1.2 }), W('pompe', { mag: 8.2, lift: 4.4 }), W('sniper', { mag: 7.4, lift: 4.2 }), W('couteau', { mag: 6, lift: 1.4 }),
-      W('avec arme (killcam) fusil', { gun: 1 }), W('avec arme (killcam) pompe', { gun: 1, mag: 8.2, lift: 4.4 }), W('avec arme (killcam) course dos', { gun: 1, dir: [0, 0, -1], vel: 5.5 }),
-      W('explosion', { mag: 14, lift: 12, radial: true }), W('explosion proche', { mag: 17, lift: 16, radial: true }), W('course face', { vel: 5.5 }), W('course dos', { dir: [0, 0, -1], vel: 5.5 }), W('sans force', { mag: 2.5, lift: 0.6 }),
+      W('rifle front', {}), W('rifle back', { dir: [0, 0, -1] }), W('rifle side', { dir: [1, 0, 0] }), W('rifle head', { part: 'head', mag: 6.2 }), W('rifle legs', { part: 'legs' }),
+      W('submachine-gun', { mag: 3, lift: 1.2 }), W('shotgun', { mag: 8.2, lift: 4.4 }), W('sniper', { mag: 7.4, lift: 4.2 }), W('knife', { mag: 6, lift: 1.4 }),
+      W('with weapon (killcam) rifle', { gun: 1 }), W('with weapon (killcam) shotgun', { gun: 1, mag: 8.2, lift: 4.4 }), W('with weapon (killcam) running back', { gun: 1, dir: [0, 0, -1], vel: 5.5 }),
+      W('explosion', { mag: 14, lift: 12, radial: true }), W('close explosion', { mag: 17, lift: 16, radial: true }), W('running front', { vel: 5.5 }), W('running back', { dir: [0, 0, -1], vel: 5.5 }), W('no force', { mag: 2.5, lift: 0.6 }),
     ].map((sp) => {
       const rs = []; for (let k = 0; k < REP; k++) { sd = (+SEED + 101 * k) >>> 0; rs.push(run(sp)); }
       const worst = (f) => rs.reduce((a, b) => (f(b) > f(a) ? b : a));
-      const w = worst((r) => r.vmax / 10 + r.etire + Math.max(0, r.sommeil - 3)), m = rs.reduce((t, r) => t + r.aller, 0) / rs.length;
-      return Object.assign({}, w, { aller: +m.toFixed(2), reps: rs.length, vmaxMax: Math.max(...rs.map((r) => r.vmax)), sommeilMax: Math.max(...rs.map((r) => r.sommeil)), etireMax: Math.max(...rs.map((r) => r.etire)) });
+      const w = worst((r) => r.vmax / 10 + r.stretched + Math.max(0, r.sleepTime - 3)), m = rs.reduce((t, r) => t + r.travel, 0) / rs.length;
+      return Object.assign({}, w, { travel: +m.toFixed(2), reps: rs.length, vmaxMax: Math.max(...rs.map((r) => r.vmax)), sleepTimeMax: Math.max(...rs.map((r) => r.sleepTime)), stretchedMax: Math.max(...rs.map((r) => r.stretched)) });
     });
-    // ---- géométrie de la carte ----
+    // ---- map geometry ----
     const geo = [];
     const boxes = COL.filter((c) => !c.ray);
-    // mur : une face verticale haute et longue, dégagée devant ; le soldat se tient à 0,7 m, tourné vers le large, tiré vers le mur
+    // wall: a tall, long vertical face, clear in front; the soldier stands 0.7 m away, turned toward the open, pushed toward the wall
     const faceCand = [];
     for (const c of boxes) {
       if (c.y1 < 2.5 || c.y0 > 0.1 || c.x1 - c.x0 < 3) continue;
@@ -84,27 +84,27 @@ const TRACE = process.env.TRACE || '', [TR0, TR1] = (process.env.T || '0,12').sp
       }
     }
     for (const [x, z, sgn] of faceCand.slice(0, 3)) {
-      geo.push(run(W(`vers un mur (fusil) ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z], dir: [0, 0, -sgn] })));
-      geo.push(run(W(`vers un mur (pompe) ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z], dir: [0, 0, -sgn], mag: 8.2, lift: 4.4 })));
-      geo.push(run(W(`explosion contre un mur ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z], dir: [0, 0, -sgn], mag: 17, lift: 16, radial: true })));
-      geo.push(run(W(`course contre un mur ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z + sgn * 4], dir: [0, 0, -sgn], vel: 6, yaw: sgn < 0 ? Math.PI : 0 })));
+      geo.push(run(W(`toward a wall (rifle) ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z], dir: [0, 0, -sgn] })));
+      geo.push(run(W(`toward a wall (shotgun) ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z], dir: [0, 0, -sgn], mag: 8.2, lift: 4.4 })));
+      geo.push(run(W(`explosion against a wall ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z], dir: [0, 0, -sgn], mag: 17, lift: 16, radial: true })));
+      geo.push(run(W(`running into a wall ${x.toFixed(0)},${z.toFixed(0)}`, { at: [x, z + sgn * 4], dir: [0, 0, -sgn], vel: 6, yaw: sgn < 0 ? Math.PI : 0 })));
     }
-    // dessus de caisse : un grand plateau bas (0,3 à 1,6 m), le soldat debout au milieu
+    // crate top: a large low platform (0.3 to 1.6 m), the soldier standing in the middle
     const tops = boxes.filter((c) => c.y1 > 0.3 && c.y1 < 1.6 && c.x1 - c.x0 > 2 && c.z1 - c.z0 > 2).slice(0, 3);
     for (const c of tops) {
       const x = (c.x0 + c.x1) / 2, z = (c.z0 + c.z1) / 2, tag = `${x.toFixed(0)},${z.toFixed(0)} h${c.y1.toFixed(1)}`;
-      geo.push(run(W(`sur un plateau, sans force ${tag}`, { at: [x, z], y: c.y1, stand: 1, mag: 2.5, lift: 0.6 })));
-      geo.push(run(W(`sur un plateau, fusil ${tag}`, { at: [x, z], y: c.y1, stand: 1 })));
+      geo.push(run(W(`on a platform, no force ${tag}`, { at: [x, z], y: c.y1, stand: 1, mag: 2.5, lift: 0.6 })));
+      geo.push(run(W(`on a platform, rifle ${tag}`, { at: [x, z], y: c.y1, stand: 1 })));
     }
-    // rampes : milieu de la rampe, sans force puis avec un tir dans la pente
+    // ramps: middle of the ramp, without force then with a shot along the slope
     for (const rp of RAMPS.slice(0, 2)) {
       const x = (rp.x0 + rp.x1) / 2, z = (rp.z0 + rp.z1) / 2, h = rampHeight(rp, x, z), tag = `${x.toFixed(0)},${z.toFixed(0)}`;
-      geo.push(run(W(`sur une rampe, sans force ${tag}`, { at: [x, z], y: h, stand: 1, mag: 2.5, lift: 0.6 })));
-      geo.push(run(W(`sur une rampe, fusil ${tag}`, { at: [x, z], y: h, stand: 1, dir: [0, 0, 1] })));
-      geo.push(run(W(`sur une rampe, fusil en travers ${tag}`, { at: [x, z], y: h, stand: 1, dir: [1, 0, 0] })));
+      geo.push(run(W(`on a ramp, no force ${tag}`, { at: [x, z], y: h, stand: 1, mag: 2.5, lift: 0.6 })));
+      geo.push(run(W(`on a ramp, rifle ${tag}`, { at: [x, z], y: h, stand: 1, dir: [0, 0, 1] })));
+      geo.push(run(W(`on a ramp, rifle sideways ${tag}`, { at: [x, z], y: h, stand: 1, dir: [1, 0, 0] })));
     }
-    geo.push(run(W('chute de 4 m (tué en l\'air)', { y: 4, stand: 1, mag: 2.5, lift: 0.6 })));
-    // ---- tirage aléatoire sur la carte ----
+    geo.push(run(W('4 m fall (killed midair)', { y: 4, stand: 1, mag: 2.5, lift: 0.6 })));
+    // ---- random draw on the map ----
     const WP = [[3, 1.2], [3.5, 1.4], [4.8, 2.4], [5.4, 3], [7.4, 4.2], [8.2, 4.4], [6, 1.4]], rnd = [];
     let seed = 12345; const R = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
     const clearAt = (x, z) => { for (const c of queryBoxes(x - 0.45, z - 0.45, x + 0.45, z + 0.45)) if (!c.ray && c.y1 > 0.5 && c.y0 < 1.8) return false; return true; };
@@ -112,32 +112,32 @@ const TRACE = process.env.TRACE || '', [TR0, TR1] = (process.env.T || '0,12').sp
       let x, z, tries = 0; do { x = MAP.x0 + 2 + R() * (MAP.x1 - MAP.x0 - 4); z = MAP.z0 + 2 + R() * (MAP.z1 - MAP.z0 - 4); } while (!clearAt(x, z) && ++tries < 50);
       if (tries >= 50) continue;
       const w = WP[Math.floor(R() * WP.length)], a = R() * 2 * Math.PI, part = ['body', 'body', 'body', 'head', 'legs'][Math.floor(R() * 5)], rad = R() < 0.08;
-      const r = run({ dump: 1, name: `tirage ${k}`, at: [x, z], yaw: R() * 2 * Math.PI, dir: [Math.sin(a), 0, Math.cos(a)], mag: rad ? 8 + R() * 10 : w[0], lift: rad ? 6 + R() * 10 : w[1], part: rad ? 'body' : part, radial: rad, vel: R() < 0.4 ? R() * 6 : 0, secs: 12 });
+      const r = run({ dump: 1, name: `draw ${k}`, at: [x, z], yaw: R() * 2 * Math.PI, dir: [Math.sin(a), 0, Math.cos(a)], mag: rad ? 8 + R() * 10 : w[0], lift: rad ? 6 + R() * 10 : w[1], part: rad ? 'body' : part, radial: rad, vel: R() < 0.4 ? R() * 6 : 0, secs: 12 });
       r.at = [+x.toFixed(1), +z.toFixed(1)]; r.radial = rad; rnd.push(r);
     }
     return { flat, geo, rnd };
   }, [!!process.env.DETAIL, +(process.env.N || 150), TRACE, TR0, TR1, process.env.RAGSET || '', process.env.SEED || '987', +(process.env.REP || 1), !!process.env.ANOM]);
   const fmt = (r) => { const { trace, name, at, radial, spec, anom, penInfo, ...m } = r; return `${name.padEnd(40)} ${JSON.stringify(m)}`; };
   console.log('--- terrain plat'); for (const r of out.flat) { console.log(fmt(r)); if (r.anom) for (const a of r.anom) console.log('   ANOM', JSON.stringify(a)); if (r.trace && r.trace.length) console.log('  ' + r.trace.map((t) => t.join(' ')).join('\n  ')); }
-  console.log('--- géométrie de la carte'); for (const r of out.geo) { console.log(fmt(r)); if (TRACE && r.name.includes(TRACE) && r.trace.length) console.log('  ' + r.trace.map((t) => t.join(' ')).join('\n  ')); }
-  // ---- défauts ----
+  console.log('--- map geometry'); for (const r of out.geo) { console.log(fmt(r)); if (TRACE && r.name.includes(TRACE) && r.trace.length) console.log('  ' + r.trace.map((t) => t.join(' ')).join('\n  ')); }
+  // ---- defects ----
   const bad = [], warn = [];
   const chk = (r, ctx) => {
-    if (r.nan) bad.push(`${ctx} ${r.name} : valeurs non finies`);
-    if (r.sommeil < 0 || r.sommeil > 6) bad.push(`${ctx} ${r.name} : ne s'endort pas (${r.sommeil}) ${r.spec || ''}`);
-    if (r.derive > 0.002) bad.push(`${ctx} ${r.name} : bouge après le sommeil (${r.derive})`);
-    if (r.enfonce > 0.06 && r.penInfo && r.penInfo.t > 0.05) bad.push(`${ctx} ${r.name} : enfoncé de ${r.enfonce} m dans une boîte ${JSON.stringify(r.penInfo)} ${r.spec || ''}`);
-    if (r.basY < -0.02) bad.push(`${ctx} ${r.name} : passe sous le sol (${r.basY})`);
-    if (r.etire > 0.2) bad.push(`${ctx} ${r.name} : os étiré de ${(r.etire * 100).toFixed(0)} cm (${r.etireOu}) ${r.spec || ''}`);
-    else if (r.etire > 0.08) warn.push(`${ctx} ${r.name} : os étiré de ${(r.etire * 100).toFixed(0)} cm (${r.etireOu})`);
+    if (r.nan) bad.push(`${ctx} ${r.name}: non-finite values`);
+    if (r.sleepTime < 0 || r.sleepTime > 6) bad.push(`${ctx} ${r.name}: does not fall asleep (${r.sleepTime}) ${r.spec || ''}`);
+    if (r.derive > 0.002) bad.push(`${ctx} ${r.name}: moves after sleeping (${r.derive})`);
+    if (r.sunk > 0.06 && r.penInfo && r.penInfo.t > 0.05) bad.push(`${ctx} ${r.name}: sunk by ${r.sunk} m into a box ${JSON.stringify(r.penInfo)} ${r.spec || ''}`);
+    if (r.lowY < -0.02) bad.push(`${ctx} ${r.name}: goes below the floor (${r.lowY})`);
+    if (r.stretched > 0.2) bad.push(`${ctx} ${r.name}: bone stretched by ${(r.stretched * 100).toFixed(0)} cm (${r.stretchedAt}) ${r.spec || ''}`);
+    else if (r.stretched > 0.08) warn.push(`${ctx} ${r.name}: bone stretched by ${(r.stretched * 100).toFixed(0)} cm (${r.stretchedAt})`);
   };
-  for (const r of out.flat) chk(r, 'plat'); for (const r of out.geo) chk(r, 'carte');
-  for (const r of out.rnd) { chk(r, 'tirage'); if (TRACE && r.name === TRACE && r.trace.length) console.log(r.name + '\n  ' + r.trace.map((t) => t.join(' ')).join('\n  ')); }
-  const nonRad = out.rnd.filter((r) => !r.radial), st = (a, f) => { const v = a.map(f).sort((x, y) => x - y); return v.length ? `moy ${(v.reduce((s, x) => s + x, 0) / v.length).toFixed(2)} med ${v[Math.floor(v.length / 2)].toFixed(2)} p95 ${v[Math.floor(v.length * 0.95)].toFixed(2)} max ${v[v.length - 1].toFixed(2)}` : '-'; };
-  console.log(`--- ${out.rnd.length} tirages (dont ${out.rnd.length - nonRad.length} explosions)`);
-  console.log('distance (hors explosion) :', st(nonRad, (r) => r.aller)); console.log('sommeil (s)               :', st(out.rnd, (r) => r.sommeil)); console.log('os étirés (m)             :', st(out.rnd, (r) => r.etire)); console.log('enfoncement boîtes (m)    :', st(out.rnd, (r) => r.enfonce));
-  if (warn.length) console.log(`avertissements (${warn.length}) : os étirés de plus de 8 cm\n  ` + warn.slice(0, 10).join('\n  '));
-  console.log(bad.length ? `DÉFAUTS (${bad.length}) :\n  ` + bad.slice(0, 40).join('\n  ') : 'aucun défaut');
+  for (const r of out.flat) chk(r, 'flat'); for (const r of out.geo) chk(r, 'map');
+  for (const r of out.rnd) { chk(r, 'draw'); if (TRACE && r.name === TRACE && r.trace.length) console.log(r.name + '\n  ' + r.trace.map((t) => t.join(' ')).join('\n  ')); }
+  const nonRad = out.rnd.filter((r) => !r.radial), st = (a, f) => { const v = a.map(f).sort((x, y) => x - y); return v.length ? `mean ${(v.reduce((s, x) => s + x, 0) / v.length).toFixed(2)} med ${v[Math.floor(v.length / 2)].toFixed(2)} p95 ${v[Math.floor(v.length * 0.95)].toFixed(2)} max ${v[v.length - 1].toFixed(2)}` : '-'; };
+  console.log(`--- ${out.rnd.length} draws (of which ${out.rnd.length - nonRad.length} explosions)`);
+  console.log('distance (non-explosions) :', st(nonRad, (r) => r.travel)); console.log('sleep (s)                 :', st(out.rnd, (r) => r.sleepTime)); console.log('stretched bones (m)       :', st(out.rnd, (r) => r.stretched)); console.log('box penetration (m)       :', st(out.rnd, (r) => r.sunk));
+  if (warn.length) console.log(`warnings (${warn.length}): bones stretched by more than 8 cm\n  ` + warn.slice(0, 10).join('\n  '));
+  console.log(bad.length ? `DEFECTS (${bad.length}):\n  ` + bad.slice(0, 40).join('\n  ') : 'no defects');
   if (logs.length) console.log(logs.filter((l) => !l.includes('HDRI')).slice(0, 20).join('\n'));
   await browser.close();
   if (bad.length) process.exit(1);

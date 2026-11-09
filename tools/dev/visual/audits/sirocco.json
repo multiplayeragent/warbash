@@ -1,0 +1,234 @@
+{
+ "mapKey": "sirocco",
+ "naming": "Sirocco",
+ "date": "2026-11-09",
+ "measures": {
+  "type": "open",
+  "meanView": 19.7,
+  "groundShortView": 0.9,
+  "viewsOver60m": 46,
+  "plazaShare": 70.9,
+  "elevatedShare": 3.8,
+  "walking": [
+   111.9,
+   122.4
+  ],
+  "routes": 6,
+  "deadEnds": 1,
+  "detour90": 1.25,
+  "junctions": 8,
+  "landmark": 87.4,
+  "chokepoint": {
+   "front": 66,
+   "passages": 15,
+   "detail": [
+    {
+     "whereAt": [
+      -10.5,
+      3.5
+     ],
+     "breadth": 11,
+     "zone": "Oasis"
+    },
+    {
+     "whereAt": [
+      27.6,
+      8.4
+     ],
+     "breadth": 9,
+     "zone": "Rocks"
+    },
+    {
+     "whereAt": [
+      9,
+      8.5
+     ],
+     "breadth": 8,
+     "zone": "Oasis"
+    },
+    {
+     "whereAt": [
+      39,
+      10.5
+     ],
+     "breadth": 8,
+     "zone": "Rocks"
+    },
+    {
+     "whereAt": [
+      -66.5,
+      1.5
+     ],
+     "breadth": 5,
+     "zone": "Dune sea"
+    },
+    {
+     "whereAt": [
+      53.5,
+      9.5
+     ],
+     "breadth": 5,
+     "zone": "Rocks"
+    },
+    {
+     "whereAt": [
+      20,
+      6.5
+     ],
+     "breadth": 4,
+     "zone": "Oasis"
+    },
+    {
+     "whereAt": [
+      66,
+      10.3
+     ],
+     "breadth": 4,
+     "zone": "Rocks"
+    }
+   ]
+  },
+  "tightTurns": 0,
+  "tightTurnsAt": [],
+  "points": [
+   {
+    "naming": "A",
+    "point": [
+     37.5,
+     40.5
+    ],
+    "entrances": 2,
+    "walkable": 95,
+    "cover9m": 37,
+    "walking": [
+     44.5,
+     117.5
+    ],
+    "seenFromSpawns": [
+     8,
+     0
+    ]
+   },
+   {
+    "naming": "B",
+    "point": [
+     0,
+     0
+    ],
+    "entrances": 2,
+    "walkable": 81,
+    "cover9m": 30,
+    "walking": [
+     66.6,
+     65.9
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "C",
+    "point": [
+     -26,
+     -42
+    ],
+    "entrances": "open",
+    "walkable": 55,
+    "cover9m": 20,
+    "walking": [
+     111.5,
+     33.3
+    ],
+    "seenFromSpawns": [
+     0,
+     15
+    ]
+   }
+  ]
+ },
+ "defects": {
+  "navigation": [],
+  "decor": {
+   "blockedDoors": 0,
+   "pots": 0,
+   "badPosters": 0,
+   "bikes": 0,
+   "bridgeIssues": 0,
+   "sand": 0,
+   "overlapCount": 0,
+   "itemList": []
+  },
+  "slits": {
+   "slits": 0,
+   "bulletPass": 0,
+   "wallHoles": 0,
+   "margins": 403,
+   "marginsOver30cm": 401,
+   "itemList": [
+    "margin 11.66 m (61.75, -6.05) concrete",
+    "margin 10.7 m (-41.85, -1.48) metal",
+    "margin 10.7 m (-41.85, 2.48) metal",
+    "margin 6.74 m (-36.83, 42) metal",
+    "margin 6.74 m (-36.83, -42) metal",
+    "margin 6 m (63, -3.05) concrete",
+    "margin 4.9 m (-43.95, -1.48) metal",
+    "margin 4.9 m (-43.95, 2.48) metal",
+    "margin 1.83 m (57.46, -25.5) concrete",
+    "margin 1.53 m (61.05, 0) concrete",
+    "margin 1.11 m (-47.29, 1.13) wood",
+    "margin 0.86 m (-57.45, 0.5) metal",
+    "margin 0.86 m (-32.74, -41.96) concrete",
+    "margin 0.86 m (-32.38, -42.19) concrete",
+    "margin 0.86 m (-32.02, -42.41) concrete",
+    "margin 0.86 m (-31.62, -40.81) concrete",
+    "margin 0.85 m (22.12, -61.23) concrete",
+    "margin 0.85 m (21.86, -60.9) concrete",
+    "margin 0.85 m (23.14, -60.1) concrete",
+    "margin 0.85 m (21.93, -59.77) concrete"
+   ]
+  },
+  "snags": {
+   "snagCount": 0,
+   "pathCount": 160,
+   "itemList": []
+  },
+  "zfight": {
+   "visibleCount": 59,
+   "blocking": 0,
+   "itemList": []
+  },
+  "crossing": {
+   "pairCount": 0,
+   "outOf": 741,
+   "itemList": [],
+   "jumpLinks": [
+    "(2.5, 25.5) step-over from 2.29 to 2.29 m: 5",
+    "(3.5, -24.5) step-over from 2.29 to 2.29 m: 5",
+    "(44.5, -15.5) drop from 4.68 to 3.95 m: 3",
+    "(44.5, 15.5) drop from 4.72 to 3.94 m: 3",
+    "(0.5, -4.5) step-over from 1.25 to 0.76 m: 3",
+    "(43.5, 15.5) drop from 4.91 to 4.08 m: 3",
+    "(3.5, 25.5) step-over from 2.29 to 2.29 m: 3",
+    "(3.5, 27.5) step-over from 2.29 to 2.29 m: 3",
+    "(3.5, -27.5) step-over from 2.29 to 2.29 m: 3",
+    "(36.5, -16.5) drop from 4.54 to 3.81 m: 3"
+   ]
+  }
+ },
+ "outOfRange": [
+  "A at 44.5 m of walking from its base (20 to 30)",
+  "A seen from more than a third of its side's spawns",
+  "C walkable at 55 % (70 minimum)",
+  "C at 33.3 m of walking from its base (20 to 30)",
+  "C seen from more than a third of its side's spawns"
+ ],
+ "waived": [
+  "mean view (m) 19.7 (12 to 18)",
+  "views over 60 m (%) 46 (15 to 30)",
+  "elevated network (%) 3.8 (5 to 12)",
+  "walk from one side to the other 111.9 to 122.4 m (90 to 105)"
+ ],
+ "blocking": 0,
+ "minutes": 17.8
+}

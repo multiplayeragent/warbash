@@ -1,30 +1,30 @@
 /* ==========================================================================
-   SERVEUR DE JEU (transport des salons en ligne)
-   Tout passe par le serveur de jeu : le navigateur de chaque joueur ouvre une seule connexion (WebSocket, HTTPS) vers la salle du
-   serveur qui porte son salon, et la logique de cette salle (mp/room-relay.js) fait suivre les messages entre l'hôte et ses invités,
-   comme le faisait le relais du projet d'origine. La logique du jeu ne change pas : les connexions imitent l'interface d'une
-   connexion de données (send, close, on('open' | 'data' | 'close' | 'hostdown' | 'rehost'), open, peer, code).
-   - Salles : une réserve fixe (la logique d'une salle se déploie sous son nom exact) ; le premier caractère du code d'un salon nomme
-     sa salle (netrRoom), le reste sert de mot de passe, vérifié par le serveur. Lettres : salons privés ; chiffres : les parties
-     publiques de « Jouer maintenant », aux codes fixes 2BASH à 9BASH (NETR_PUB).
-   - Limites du serveur : 2048 caractères par message (un message plus long part en morceaux, recollés à l'arrivée) et 60 messages
-     par seconde et par joueur (budget à jetons : un état publié, renvoyé sans cesse, saute son tour plutôt que d'attendre ; les
-     autres messages attendent leur tour, dans l'ordre).
-   - L'état publié par un invité (« p ») est diffusé à toute la salle par le serveur lui-même (et non plus relayé par l'hôte) :
-     l'hôte n'envoie pas un message par invité et par état, il resterait sous la limite des 60 messages par seconde.
-   - Reconnexion : le serveur garde la place d'un joueur coupé une trentaine de secondes et la connexion reprend d'elle-même ; au-delà,
-     elle se ferme (code 1006) et le jeu suit son chemin habituel (reprise de la partie, ou départ).
-   Configuration : window.MP_CONFIG (mp.config.js, et la vraie clé dans mp.config.local.js, hors dépôt) et le module du serveur
-   (window.MP), chargés par la page avant le jeu. Sans eux (page ouverte depuis un fichier, clé absente) : pas de mode en ligne.
+   GAME SERVER (online lobby transport)
+   Everything goes through the game server: each player's browser opens a single connection (WebSocket, HTTPS) to the server room
+   that carries their lobby, and that room's logic (mp/room-relay.js) forwards messages between the host and its guests,
+   as the original project's relay did. The game logic doesn't change: connections imitate the interface of a
+   data connection (send, close, on('open' | 'data' | 'close' | 'hostdown' | 'rehost'), open, peer, code).
+   - Rooms: a fixed pool (a room's logic is deployed under its exact name); the first character of a lobby's code names
+     its room (netrRoom), the rest serves as a password, checked by the server. Letters: private lobbies; digits: the public
+     matches of "Play now", with fixed codes 2BASH to 9BASH (NETR_PUB).
+   - Server limits: 2048 characters per message (a longer message is split into pieces, glued back together on arrival) and 60 messages
+     per second per player (token budget: a published state, constantly resent, skips its turn rather than waiting; other
+     messages wait their turn, in order).
+   - A guest's published state ("p") is broadcast to the whole room by the server itself (and no longer relayed by the host):
+     the host doesn't send one message per guest per state, it would stay under the limit of 60 messages per second.
+   - Reconnection: the server keeps a cut-off player's spot for about thirty seconds and the connection resumes by itself; beyond that,
+     it closes (code 1006) and the game takes its usual course (match takeover, or departure).
+   Configuration: window.MP_CONFIG (mp.config.js, and the real key in mp.config.local.js, outside the repo) and the server module
+   (window.MP), loaded by the page before the game. Without them (page opened from a file, key missing): no online mode.
    ========================================================================== */
 const NETR = { openTimeout: 10000, hostGrace: 15000, srvGrace: 45000, dead: 35000, relink: 90000, retry: [300, 1000, 2000, 4000, 8000], gkey: '', rate: 50, burst: 90, part: 1500, room: 'wb-' };
-const NETR_PUB = '23456789', NETR_PUB_TAIL = 'BASH'; // parties publiques : 2BASH ... 9BASH
+const NETR_PUB = '23456789', NETR_PUB_TAIL = 'BASH'; // public matches: 2BASH ... 9BASH
 
 function netrCfg() {
   const c = window.MP_CONFIG;
   return c && typeof c.key === 'string' && /^pk_(live|test)_[A-Za-z0-9]{16,}$/.test(c.key) && typeof c.endpoint === 'string' ? c : null;
 }
-/* Le mode en ligne est-il disponible ? (module du serveur chargé, clé configurée) ; 'mpa' : valeur non vide, comme l'ancienne adresse du relais */
+/* Is online mode available? (server module loaded, key configured); 'mpa': non-empty value, like the old relay address */
 function netrUrl() { return window.MP && typeof window.MP.join === 'function' && netrCfg() ? 'mpa' : ''; }
 function netViaServer() { return !!netrUrl(); }
 function netRelayOnly() { return !!netrUrl(); }
@@ -32,11 +32,11 @@ function netrRandom(n) { const a = new Uint8Array(n); crypto.getRandomValues(a);
 function netrRoom(code) { return NETR.room + String(code).charAt(0); }
 function netrPubCodes() { return [...NETR_PUB].map((d) => d + NETR_PUB_TAIL); }
 function netrIsPub(code) { return NETR_PUB.includes(String(code).charAt(0)); }
-/* Messages qu'on peut laisser tomber quand le budget est épuisé : ils sont renvoyés au prochain tour (état publié, battement) */
+/* Messages that can be dropped when the budget is exhausted: they are resent on the next turn (published state, heartbeat) */
 function netrSoft(m) { return !!m && (m.t === 'p' || m.t === 'ps' || m.t === 'ping'); }
 
-/* Une connexion à une salle du serveur : présentation, envoi à budget et en morceaux, réception recollée.
-   onEv(type, data) reçoit les messages du serveur (sync, join, leave, host, refuse, m) ; onLink('drop' | 'back' | 'dead') suit la liaison. */
+/* A connection to a server room: introduction, budgeted and chunked sending, reassembled reception.
+   onEv(type, data) receives the server's messages (sync, join, leave, host, refuse, m); onLink('drop' | 'back' | 'dead') tracks the link. */
 class NetrLink {
   constructor(code, hello, onEv, onLink) {
     this.code = code; this.hello = hello; this.onEv = onEv; this.onLink = onLink;
@@ -46,15 +46,15 @@ class NetrLink {
     const c = netrCfg();
     let mp;
     try { mp = await window.MP.join({ key: c.key, room: netrRoom(this.code), endpoint: c.endpoint, apiUrl: c.apiUrl }); } catch (e) { if (!this.closed) this.onLink('dead', 1006); return; }
-    if (this.closed) { try { mp.leave(); } catch (e) { /* déjà partie */ } return; }
+    if (this.closed) { try { mp.leave(); } catch (e) { /* already gone */ } return; }
     this.mp = mp;
     for (const ev of ['sync', 'join', 'leave', 'host', 'refuse']) mp.on(ev, (d, from) => { if (from === 'server' && !this.closed) this.onEv(ev, d || {}); });
     mp.on('m', (d, from) => { if (from === 'server' && !this.closed && d && typeof d.f === 'string') this.recv(d); });
     mp.onDisconnect(() => { if (this.closed) return; this.onLink('drop'); clearTimeout(this.deadT); this.deadT = setTimeout(() => { if (!this.closed) { this.close(); this.onLink('dead', 1006); } }, NETR.dead); });
     mp.onReconnect(() => { clearTimeout(this.deadT); if (!this.closed) this.onLink('back'); });
-    try { mp.send('hello', this.hello); } catch (e) { /* la liaison retombe d'elle-même */ }
+    try { mp.send('hello', this.hello); } catch (e) { /* the link recovers by itself */ }
   }
-  /* Un message reçu, entier ou en morceaux (c : { k, i, n, s }) ; renvoie l'objet complet à onEv('m', { f, d, x }) */
+  /* A message received, whole or in pieces (c: { k, i, n, s }); returns the complete object to onEv('m', { f, d, x }) */
   recv(d) {
     if (!d.c) { this.onEv('m', d); return; }
     const c = d.c, key = d.f + '/' + c.k;
@@ -67,9 +67,9 @@ class NetrLink {
     let m; try { m = JSON.parse(p.s.join('')); } catch (e) { return; }
     this.onEv('m', { f: d.f, d: m, x: d.x });
   }
-  /* Budget : jetons rendus à NETR.rate par seconde, jusqu'à NETR.burst */
+  /* Budget: tokens restored at NETR.rate per second, up to NETR.burst */
   refill() { const now = performance.now(); this.tok = Math.min(NETR.burst, this.tok + (now - this.tT) * NETR.rate / 1000); this.tT = now; }
-  /* Envoi d'un message du jeu (m) ; extra : { to: [ids] } (hôte) ou { p: 1 } (état d'un invité, diffusé par le serveur) */
+  /* Sending a game message (m); extra: { to: [ids] } (host) or { p: 1 } (a guest's state, broadcast by the server) */
   send(m, extra) {
     if (this.closed || !this.mp) return;
     const s = JSON.stringify(m), frames = [];
@@ -81,29 +81,29 @@ class NetrLink {
     }
     this.refill();
     if (!this.q.length && this.tok >= frames.length) { this.tok -= frames.length; for (const f of frames) this.raw('m', f); return; }
-    if (netrSoft(m)) return; // état renvoyé au prochain tour : inutile d'attendre
+    if (netrSoft(m)) return; // state resent on the next turn: no point waiting
     this.q.push(...frames.map((f) => ['m', f])); this.pump();
   }
-  /* Messages de commande (kick, ban), qui passent par le même budget */
+  /* Command messages (kick, ban), which go through the same budget */
   event(type, data) { if (this.closed || !this.mp) return; this.q.push([type, data]); this.pump(); }
   pump() {
     this.refill();
     while (this.q.length && this.tok >= 1) { const [t, f] = this.q.shift(); this.tok -= 1; this.raw(t, f); }
-    if (this.q.length > 600) this.q.splice(0, this.q.length - 600); // liaison saturée : on ne garde que le plus récent
+    if (this.q.length > 600) this.q.splice(0, this.q.length - 600); // saturated link: we only keep the most recent
     if (this.q.length && !this.qT) this.qT = setTimeout(() => { this.qT = 0; this.pump(); }, 40);
   }
-  raw(type, data) { try { this.mp.send(type, data); } catch (e) { /* liaison en cours de reprise */ } }
-  /* Départ voulu : le serveur le dit tout de suite aux autres (sans « bye », un départ ressemble à une coupure, gardée 25 s) */
+  raw(type, data) { try { this.mp.send(type, data); } catch (e) { /* link being resumed */ } }
+  /* Intentional departure: the server tells the others right away (without "bye", a departure looks like a cut, kept for 25 s) */
   bye() { if (!this.closed && this.mp) this.raw('bye', {}); this.close(); }
   close() {
     if (this.closed) return;
     this.closed = true; clearTimeout(this.deadT); clearTimeout(this.qT); this.q.length = 0;
     const mp = this.mp; this.mp = null;
-    if (mp) { try { mp.leave(); } catch (e) { /* déjà partie */ } }
+    if (mp) { try { mp.leave(); } catch (e) { /* already gone */ } }
   }
 }
 
-/* Connexion vue du jeu : même interface que la connexion de données d'origine. send prend l'objet du message (tx l'emballe). */
+/* Connection as seen by the game: same interface as the original data connection. send takes the message object (tx wraps it). */
 class RelayConn {
   constructor(peer, tx, end) { this.peer = peer; this.open = false; this.relay = true; this.done = false; this.code = 0; this.ls = {}; this.tx = tx; this.end = end; }
   on(e, f) { (this.ls[e] || (this.ls[e] = [])).push(f); return this; }
@@ -113,17 +113,17 @@ class RelayConn {
   finish() { this.open = false; if (this.done) return; this.done = true; this.emit('close'); }
 }
 
-/* Invité : se connecte au salon. La connexion est « ouverte » quand le serveur annonce l'hôte présent. */
+/* Guest: connects to the lobby. The connection is "open" when the server announces the host present. */
 function netrJoin(code, id) {
   let grace = 0, guard = 0, link = null;
   const c = new RelayConn(NET_PREFIX + code, (m) => link && link.send(m, m.t === 'p' ? { p: 1 } : undefined), () => link && link.bye());
-  const gk = NETR.gkey || (NETR.gkey = netrRandom(24)); // clé d'invité, la même pour toute la page : le serveur ne rend l'identifiant qu'à elle
+  const gk = NETR.gkey || (NETR.gkey = netrRandom(24)); // guest key, the same for the whole page: the server only returns the identifier to it
   const stop = () => { clearTimeout(grace); clearTimeout(guard); };
   const end = (code2) => { stop(); if (!c.code) c.code = code2 || 1006; if (link) link.close(); c.finish(); };
   guard = setTimeout(() => { if (!c.open) end(1006); }, NETR.openTimeout);
-  /* Liaison perdue après l'entrée dans le salon (page longtemps bloquée par la construction de la carte, réseau qui cale au-delà de la
-     reprise du serveur) : une nouvelle liaison, même identifiant et même clé (le serveur la rend), puis « rehost » : le jeu se présente de
-     nouveau à l'hôte, qui lui rend sa place (netHostMsg, joueur absent qui revient). Abandon au bout de NETR.relink ms. */
+  /* Link lost after entering the lobby (page blocked for a long time by map construction, network stalling beyond the server's
+     resume window): a new link, same identifier and same key (the server returns it), then "rehost": the game introduces itself
+     again to the host, who gives it its place back (netHostMsg, absent player returning). Give up after NETR.relink ms. */
   let relinkT0 = 0, relinkN = 0;
   const relink = () => {
     if (c.done) return;
@@ -137,12 +137,12 @@ function netrJoin(code, id) {
     if (ev === 'host') {
       clearTimeout(grace);
       if (d.up) { relinkT0 = 0; relinkN = 0; if (!c.open && !c.done) { clearTimeout(guard); c.open = true; c.emit('open'); } else if (c.down) c.emit('rehost'); c.down = false; }
-      else if (c.open) { c.down = true; c.emit('hostdown'); grace = setTimeout(() => end(4004), c.grace || NETR.hostGrace); } // l'hôte a peut-être seulement changé de connexion
-      else { clearTimeout(guard); guard = setTimeout(() => { if (!c.open) end(4004); }, c.grace || NETR.hostGrace); } // salon dont l'hôte revient peut-être
+      else if (c.open) { c.down = true; c.emit('hostdown'); grace = setTimeout(() => end(4004), c.grace || NETR.hostGrace); } // the host may have only changed connection
+      else { clearTimeout(guard); guard = setTimeout(() => { if (!c.open) end(4004); }, c.grace || NETR.hostGrace); } // lobby whose host may be returning
     } else if (ev === 'refuse') end(Number(d.code) || 4001);
     else if (ev === 'm') {
       if (d.f === id || !c.open) return;
-      if (d.x) { if (d.d && d.d.t === 'p') c.emit('data', { t: 'ps', l: [[d.f, d.d.p]] }); return; } // état d'un autre invité, diffusé par le serveur
+      if (d.x) { if (d.d && d.d.t === 'p') c.emit('data', { t: 'ps', l: [[d.f, d.d.p]] }); return; } // another guest's state, broadcast by the server
       c.emit('data', d.d);
     }
   }, (st, code2) => { if (st === 'dead') { if (c.open) relink(); else end(code2); } });
@@ -150,8 +150,8 @@ function netrJoin(code, id) {
   return c;
 }
 
-/* Hôte : tient le salon ouvert et présente chaque invité comme une connexion. onConn(conn) pour chaque nouvel invité ;
-   onState('up' | 'down' | 'fail' | 'taken', détail) suit la liaison. fanout : le serveur diffuse lui-même l'état des invités. */
+/* Host: keeps the lobby open and presents each guest as a connection. onConn(conn) for each new guest;
+   onState('up' | 'down' | 'fail' | 'taken', detail) tracks the link. fanout: the server itself broadcasts the guests' state. */
 class RelayHost {
   constructor(code, onConn, onState, key) {
     this.code = code; this.id = NET_PREFIX + code; this.key = key || netrRandom(24); this.onConn = onConn; this.onState = onState;
@@ -169,10 +169,10 @@ class RelayHost {
         for (const id of ids) this.join(id);
         for (const id of [...this.conns.keys()]) if (!ids.has(id)) this.leave(id);
       } else if (ev === 'join') this.join(d.id);
-      else if (ev === 'leave') { const c = this.conns.get(d.id); if (c && d.bye) c.bye = true; this.leave(d.id); } // bye : parti de lui-même (pas une coupure)
+      else if (ev === 'leave') { const c = this.conns.get(d.id); if (c && d.bye) c.bye = true; this.leave(d.id); } // bye: left on their own (not a cut)
       else if (ev === 'refuse') {
         this.closed = true; link.close();
-        if (Number(d.code) === 4011) this.onState('taken'); else this.onState('fail', _t('salon refusé'));
+        if (Number(d.code) === 4011) this.onState('taken'); else this.onState('fail', _t('lobby refused'));
       } else if (ev === 'm') { const c = this.conns.get(d.f); if (c && d.d && typeof d.d === 'object') c.emit('data', d.d); }
     }, (st) => {
       if (this.link !== link || this.closed) return;
@@ -184,12 +184,12 @@ class RelayHost {
     this.guard = setTimeout(() => { if (!up && this.link === link) { link.close(); this.lost(); } }, NETR.openTimeout);
     link.open();
   }
-  /* Liaison perdue : nouvel essai avec délai croissant, sans limite (le salon peut revenir tant que l'onglet vit) */
+  /* Link lost: new attempt with increasing delay, no limit (the lobby may come back as long as the tab lives) */
   lost() {
     if (this.closed) return;
     clearTimeout(this.guard);
     this.fails++;
-    if (this.everUp) this.onState('down'); else if (this.fails === 3) this.onState('fail', _t('serveur injoignable'));
+    if (this.everUp) this.onState('down'); else if (this.fails === 3) this.onState('fail', _t('server unreachable'));
     const wait = NETR.retry[Math.min(this.fails - 1, NETR.retry.length - 1)];
     this.timer = setTimeout(() => this.connect(), wait);
   }
@@ -201,11 +201,11 @@ class RelayHost {
     c.emit('open');
   }
   leave(id) { const c = this.conns.get(id); if (c) { this.conns.delete(id); c.finish(); } }
-  pub() { /* plus de liste des parties publiques : « Jouer maintenant » essaie les salles publiques une à une */ }
+  pub() { /* no more list of public matches: "Play now" tries the public rooms one by one */ }
   kick(id) { this.conns.delete(id); if (this.link) this.link.event('kick', { id }); }
   ban(id) { if (this.link) this.link.event('ban', { id }); }
   sendTo(id, m) { if (this.link) this.link.send(m, { to: [id] }); }
-  /* Un seul envoi pour plusieurs invités : le serveur fait la distribution */
+  /* A single send for several guests: the server does the distribution */
   sendMany(ids, m) {
     const ok = ids.filter((id) => { const c = this.conns.get(id); return c && c.open; });
     for (let i = 0; i < ok.length; i += 16) if (this.link) this.link.send(m, { to: ok.slice(i, i + 16) });

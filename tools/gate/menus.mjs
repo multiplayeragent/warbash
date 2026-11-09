@@ -1,5 +1,5 @@
 // Boot and menus: the page reaches the main menu, every main screen opens and closes without a page error, and the War Bash
-// identity is in place (logo, rank chip, no upstream name). node tools/gate/menus.mjs ; GPU=soft (default) | any | dgpu | igpu
+// identity is in place (logo, rank chip, no upstream name). node tools/gate/menus.mjs; GPU=soft (default) | any | dgpu | igpu
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { openGame, serve, OUT } from './lib.mjs';
@@ -22,13 +22,16 @@ try {
   ok(/War Bash/.test(id.title), 'page title says War Bash', id.title);
   ok(id.logo, 'logo is drawn');
   ok(id.chip, 'rank chip shown on the main menu');
-  ok(!/Riposte/i.test(id.text.replace(/D'après Riposte: Frontline|Based on Riposte: Frontline/g, '')), 'no upstream name in visible text (credit line aside)');
+  ok(!/Riposte/i.test(id.text.replace(/Based on Riposte: Frontline/g, '')), 'no upstream name in visible text (credit line aside)');
   ok(!/PeerJS|WebRTC|Multiplayer Agent|Colyseus/i.test(id.text), 'no networking tech name in visible text');
   for (const scr of ['play', 'classes', 'skins', 'options', 'multi', 'news', 'legal']) {
     await page.evaluate((n) => uiGo(n), scr);
     await page.waitForTimeout(600);
     const st = await page.evaluate((n) => ({ on: UI.screen === n, text: (document.getElementById('scr-' + n) || {}).innerText || '' }), scr);
     ok(st.on && st.text.trim().length > 20, `screen ${scr} opens`);
+    // the maps carry War Bash's own names: the upstream ones never show
+    const old = st.text.match(/Khamsin|Val-Blanc|Kervénec|Hortus|Meltem|Tephra|Stratus|Simoun|French Dream/);
+    if (old) ok(false, `screen ${scr} shows an upstream map name (${old[0]})`);
     if (/PeerJS|WebRTC|Multiplayer Agent|Colyseus/i.test(st.text)) ok(false, `screen ${scr} names the networking tech`);
     await page.screenshot({ path: join(OUT, `menu-${scr}.png`) });
     await page.evaluate(() => uiGo('main'));

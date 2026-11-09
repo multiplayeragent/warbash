@@ -1,101 +1,100 @@
 #!/bin/bash
-# War Bash sur Steam Deck : installation dans Steam, en mode Bureau (README « Steam Deck »).
-# Lancé par le fichier « Installer War Bash » que le jeu télécharge (bouton du menu principal sur Steam Deck), ou à la main :
+# War Bash on Steam Deck: installs the game into Steam, from Desktop Mode (README "Steam Deck").
+# Run by the "Install War Bash" file the game downloads (main menu button on Steam Deck), or by hand:
 #   curl -fsSL __SITE__/deck/installer.sh | bash
-#   bash installer.sh [adresse du jeu] [--desinstaller]
-# Il installe Chrome (Flathub, pour l'utilisateur, sans mot de passe) et lui donne accès à la manette, écrit un lanceur qui ouvre le jeu en
-# ligne en plein écran (?deck=1 : mode Deck du jeu), ferme Steam, ajoute le raccourci (shortcuts.vdf) avec ses images (dossier grid) et la
-# disposition « manette » des commandes, puis revient au mode Jeu. Le jeu se met à jour comme la version web : le lanceur ouvre le site.
-# Le fichier des raccourcis n'est réécrit que si sa relecture redonne exactement les mêmes octets (sinon rien n'est touché), avec une
-# sauvegarde à côté. Relancer l'installation remplace le raccourci au lieu d'en ajouter un. WARBASH_DECK_TEST=1 : sans Flatpak, sans
-# arrêt de Steam ni retour au mode Jeu (contrôle hors Steam Deck).
+#   bash installer.sh [game address] [--uninstall]
+# It installs Chrome (Flathub, per user, no password) and gives it access to the controller, writes a launcher that opens the online
+# game fullscreen (?deck=1: the game's Deck mode), closes Steam, adds the shortcut (shortcuts.vdf) with its artwork (grid folder) and
+# the gamepad controller layout, then goes back to Gaming Mode. The game updates like the web version: the launcher opens the site.
+# The shortcuts file is rewritten only if reading it back gives exactly the same bytes (otherwise nothing is touched), with a
+# backup next to it. Running the installer again replaces the shortcut instead of adding one. WARBASH_DECK_TEST=1: no Flatpak, no
+# Steam shutdown and no return to Gaming Mode (for testing off a Steam Deck).
 set -u
 SITE="__SITE__"
 MODE=install
 for a in "$@"; do
   case "$a" in
-    --desinstaller|--uninstall) MODE=uninstall ;;
+    --uninstall) MODE=uninstall ;;
     http://*|https://*) SITE="${a%/}" ;;
   esac
 done
-# https seulement (http pour un essai sur cette machine : tools/dev/check_deck.py) : le lanceur et ce qu'il télécharge ne passent pas en clair
-if ! [[ "$SITE" =~ ^https://[A-Za-z0-9.:-]+$ || "$SITE" =~ ^http://(127\.0\.0\.1|localhost)(:[0-9]+)?$ ]]; then echo "Adresse invalide : $SITE"; exit 1; fi
+# https only (http for a test on this machine: tools/dev/check_deck.py): the launcher and what it downloads never travel in clear
+if ! [[ "$SITE" =~ ^https://[A-Za-z0-9.:-]+$ || "$SITE" =~ ^http://(127\.0\.0\.1|localhost)(:[0-9]+)?$ ]]; then echo "Invalid address: $SITE"; exit 1; fi
 APP="War Bash"
 DIR="$HOME/.local/share/war-bash"
 TEST="${WARBASH_DECK_TEST:-}"
-FR=; case "${LANG:-}${LC_ALL:-}" in fr*|*fr_*) FR=1 ;; esac
-t() { if [ -n "$FR" ]; then printf '%s\n' "$1"; else printf '%s\n' "$2"; fi; }
-pause() { [ -n "$TEST" ] && return; [ -t 0 ] || [ -e /dev/tty ] || return; t "Appuyez sur Entrée pour fermer cette fenêtre." "Press Enter to close this window."; read -r _ < /dev/tty || true; }
-fail() { echo; t "ÉCHEC : $1" "FAILED: $2"; pause; exit 1; }
+t() { printf '%s\n' "$1"; }
+pause() { [ -n "$TEST" ] && return; [ -t 0 ] || [ -e /dev/tty ] || return; t "Press Enter to close this window."; read -r _ < /dev/tty || true; }
+fail() { echo; t "FAILED: $1"; pause; exit 1; }
 
 echo "=== $APP ==="
-command -v python3 >/dev/null || fail "python3 introuvable." "python3 not found."
-command -v curl >/dev/null || fail "curl introuvable." "curl not found."
+command -v python3 >/dev/null || fail "python3 not found."
+command -v curl >/dev/null || fail "curl not found."
 
-# Steam : l'installation habituelle de SteamOS, sinon ~/.steam/steam
+# Steam: the usual SteamOS install, otherwise ~/.steam/steam
 STEAM=""
 for d in "$HOME/.local/share/Steam" "$HOME/.steam/steam"; do [ -d "$d/userdata" ] && { STEAM="$(readlink -f "$d")"; break; }; done
-[ -n "$STEAM" ] || fail "Steam introuvable. Lancez Steam une fois, connectez-vous, puis relancez l'installation." "Steam not found. Start Steam once, sign in, then run the installer again."
+[ -n "$STEAM" ] || fail "Steam not found. Start Steam once, sign in, then run the installer again."
 
 if [ "$MODE" = install ]; then
-  # 1. Chrome (Flatpak) et la manette
+  # 1. Chrome (Flatpak) and the controller
   if [ -z "$TEST" ]; then
-    command -v flatpak >/dev/null || fail "Flatpak introuvable." "Flatpak not found."
+    command -v flatpak >/dev/null || fail "Flatpak not found."
     if ! flatpak info com.google.Chrome >/dev/null 2>&1; then
-      t "Installation de Google Chrome depuis Flathub (quelques minutes)..." "Installing Google Chrome from Flathub (a few minutes)..."
-      flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || fail "Flathub injoignable." "Cannot reach Flathub."
-      flatpak install --user -y flathub com.google.Chrome || fail "l'installation de Chrome a échoué." "Chrome installation failed."
+      t "Installing Google Chrome from Flathub (a few minutes)..."
+      flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo || fail "Cannot reach Flathub."
+      flatpak install --user -y flathub com.google.Chrome || fail "Chrome installation failed."
     fi
-    # sans accès à /run/udev, Chrome en Flatpak ne voit pas la manette du Steam Deck
-    flatpak override --user --filesystem=/run/udev:ro com.google.Chrome || fail "accès de Chrome à la manette refusé." "Could not give Chrome access to the controller."
+    # without access to /run/udev, Chrome in Flatpak does not see the Steam Deck's controller
+    flatpak override --user --filesystem=/run/udev:ro com.google.Chrome || fail "Could not give Chrome access to the controller."
   fi
 
-  # 2. Lanceur et images
-  mkdir -p "$DIR" || fail "dossier $DIR impossible à créer." "Cannot create $DIR."
-  t "Téléchargement des images du jeu..." "Downloading the game artwork..."
-  for f in jaquette.jpg capsule.jpg hero.jpg logo.png icone.png; do
-    curl -fsSL "$SITE/deck/$f" -o "$DIR/$f" || fail "téléchargement de $f impossible." "Could not download $f."
+  # 2. Launcher and artwork
+  mkdir -p "$DIR" || fail "Cannot create $DIR."
+  t "Downloading the game artwork..."
+  for f in cover.jpg capsule.jpg hero.jpg logo.png icon.png; do
+    curl -fsSL "$SITE/deck/$f" -o "$DIR/$f" || fail "Could not download $f."
   done
-  # profil de Chrome réservé au jeu : sa progression et ses réglages à part, et une fenêtre à lui (un Chrome déjà ouvert ne la prend pas)
+  # a Chrome profile for the game alone: its own progress and settings, and its own window (a Chrome already open does not take it)
   cat > "$DIR/warbash.sh" <<EOF
 #!/bin/bash
-# Lanceur de $APP sur Steam Deck, écrit par l'installeur ($SITE/deck/installer.sh) : le jeu en ligne, en plein écran, à la manette.
+# $APP launcher on Steam Deck, written by the installer ($SITE/deck/installer.sh): the online game, fullscreen, with the controller.
 exec flatpak run --branch=stable --arch=x86_64 --command=/app/bin/chrome com.google.Chrome \\
   --user-data-dir="\$HOME/.var/app/com.google.Chrome/data/war-bash" --kiosk --no-first-run --no-default-browser-check \\
   --password-store=basic --autoplay-policy=no-user-gesture-required --hide-crash-restore-bubble --disable-features=Translate \\
   "$SITE/?deck=1"
 EOF
   chmod +x "$DIR/warbash.sh"
-  # aussi dans le menu des applications du mode Bureau
+  # also in the Desktop Mode application menu
   mkdir -p "$HOME/.local/share/applications"
   cat > "$HOME/.local/share/applications/war-bash.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=$APP
 Exec="$DIR/warbash.sh"
-Icon=$DIR/icone.png
+Icon=$DIR/icon.png
 Categories=Game;
 EOF
 fi
 
-# 3. Steam fermé pendant l'écriture (il réécrit ses fichiers en quittant)
+# 3. Steam closed while writing (it rewrites its files when it quits)
 if [ -z "$TEST" ] && pgrep -x steam >/dev/null; then
-  t "Fermeture de Steam..." "Closing Steam..."
+  t "Closing Steam..."
   steam -shutdown >/dev/null 2>&1 &
   for _ in $(seq 60); do pgrep -x steam >/dev/null || break; sleep 1; done
-  pgrep -x steam >/dev/null && fail "Steam ne s'est pas fermé. Quittez Steam puis relancez l'installation." "Steam did not close. Quit Steam, then run the installer again."
+  pgrep -x steam >/dev/null && fail "Steam did not close. Quit Steam, then run the installer again."
 fi
 
-# 4. Raccourci, images, disposition des commandes (Python : le fichier des raccourcis est binaire)
+# 4. Shortcut, artwork, controller layout (Python: the shortcuts file is binary)
 PY="$(mktemp)"
 cat > "$PY" <<'PYEOF'
 import glob, os, re, shutil, struct, sys, zlib
 mode, steam, d, app = sys.argv[1:5]
 exe = '"%s/warbash.sh"' % d
-appid = zlib.crc32((exe + app).encode('utf-8')) | 0x80000000  # identifiant du raccourci, écrit dans shortcuts.vdf : les images en portent le nom
-names = [app.lower(), app.lower().replace(':', '')]            # clé du raccourci dans les dispositions des commandes (sans le deux-points selon les versions)
+appid = zlib.crc32((exe + app).encode('utf-8')) | 0x80000000  # shortcut id, written in shortcuts.vdf: the artwork files are named after it
+names = [app.lower(), app.lower().replace(':', '')]            # shortcut key in the controller layouts (without the colon in some versions)
 
-# --- VDF binaire (shortcuts.vdf) : 00 table, 01 chaîne, 02 entier 32 bits, 03 flottant, 07 entier 64 bits, 08 fin de table
+# --- binary VDF (shortcuts.vdf): 00 table, 01 string, 02 32-bit integer, 03 float, 07 64-bit integer, 08 end of table
 def bparse(b):
     pos = 0
     def rmap():
@@ -111,7 +110,7 @@ def bparse(b):
             elif ty == 7: out.append([k, ty, b[pos:pos + 8]]); pos += 8
             else: raise ValueError('type %d' % ty)
     root = rmap()
-    if pos != len(b): raise ValueError('fin inattendue')
+    if pos != len(b): raise ValueError('unexpected end')
     return root
 def bdump(m):
     o = bytearray()
@@ -124,7 +123,7 @@ def field(e, name):
         if f[0].decode('utf-8', 'replace').lower() == name.lower(): return f
     return None
 
-# --- VDF texte (dispositions des commandes) : chaînes entre guillemets et accolades, gardées telles quelles
+# --- text VDF (controller layouts): quoted strings and braces, kept as they are
 def tparse(s):
     toks = re.findall(r'"((?:[^"\\]|\\.)*)"|([{}])', re.sub(r'//[^\n]*', '', s))
     pos = 0
@@ -146,11 +145,11 @@ def tdump(m, ind=0):
     return o
 
 def backup(f):
-    if os.path.exists(f) and not os.path.exists(f + '.warbash-sauvegarde'): shutil.copyfile(f, f + '.warbash-sauvegarde')
+    if os.path.exists(f) and not os.path.exists(f + '.warbash-backup'): shutil.copyfile(f, f + '.warbash-backup')
 
 users = [u for u in glob.glob(os.path.join(steam, 'userdata', '*')) if os.path.basename(u).isdigit() and os.path.basename(u) != '0']
 if not users: print('NOUSER'); sys.exit(3)
-# disposition « manette avec trackpad souris » : prise parmi les modèles de cette installation de Steam (le nom varie selon les versions)
+# "gamepad with mouse trackpad" layout: picked among this Steam install's templates (the name varies between versions)
 tpl = sorted(os.path.basename(f) for f in glob.glob(os.path.join(steam, 'controller_base', 'templates', '*.vdf')))
 pick = next((f for f in tpl if 'neptune' in f and 'gamepad' in f and 'mouse' in f), None)
 ok = 0
@@ -161,12 +160,12 @@ for u in users:
     raw = open(sf, 'rb').read() if os.path.exists(sf) else b'\x00shortcuts\x00\x08\x08'
     try:
         root = bparse(raw)
-        if bdump(root) != raw: raise ValueError('relecture différente')
-        if not root or root[0][1] != 0: raise ValueError('pas de table shortcuts')
+        if bdump(root) != raw: raise ValueError('read-back differs')
+        if not root or root[0][1] != 0: raise ValueError('no shortcuts table')
         sc = root[0][2]
     except Exception as e:
         print('SKIP %s %s' % (uid, e)); continue
-    # notre raccourci : par son nom ou par son lanceur
+    # our shortcut: by its name or by its launcher
     mine = [e for e in sc if e[1] == 0 and ((field(e[2], 'AppName') and field(e[2], 'AppName')[2].decode('utf-8', 'replace').lower() == app.lower())
             or (field(e[2], 'Exe') and b'war-bash/warbash.sh' in field(e[2], 'Exe')[2]))]
     olds = [struct.unpack('<I', field(e[2], 'appid')[2])[0] for e in mine if field(e[2], 'appid')]
@@ -175,23 +174,23 @@ for u in users:
         s = lambda v: v.encode('utf-8')
         i32 = lambda v: struct.pack('<I', v & 0xffffffff)
         entry = [[b'appid', 2, i32(appid)], [b'AppName', 1, s(app)], [b'Exe', 1, s(exe)], [b'StartDir', 1, s('"%s"' % d)],
-                 [b'icon', 1, s(d + '/icone.png')], [b'ShortcutPath', 1, b''], [b'LaunchOptions', 1, b''], [b'IsHidden', 2, i32(0)],
+                 [b'icon', 1, s(d + '/icon.png')], [b'ShortcutPath', 1, b''], [b'LaunchOptions', 1, b''], [b'IsHidden', 2, i32(0)],
                  [b'AllowDesktopConfig', 2, i32(1)], [b'AllowOverlay', 2, i32(1)], [b'OpenVR', 2, i32(0)], [b'Devkit', 2, i32(0)],
                  [b'DevkitGameID', 1, b''], [b'DevkitOverrideAppID', 2, i32(0)], [b'LastPlayTime', 2, i32(0)], [b'FlatpakAppID', 1, b''],
                  [b'tags', 0, []]]
         sc.append([b'', 0, entry])
-    for n, e in enumerate(sc): e[0] = str(n).encode()  # index 0, 1, 2... sans trou
+    for n, e in enumerate(sc): e[0] = str(n).encode()  # index 0, 1, 2... with no gap
     backup(sf)
     open(sf + '.tmp', 'wb').write(bdump(root)); os.replace(sf + '.tmp', sf)
-    # images : jaquette (p), capsule horizontale, bandeau (_hero), logo ; celles d'un ancien identifiant sont retirées
+    # artwork: cover (p), horizontal capsule, banner (_hero), logo; those of an old id are removed
     grid = os.path.join(cfg, 'grid'); os.makedirs(grid, exist_ok=True)
     for a in set(olds) | {appid}:
         for f in glob.glob(os.path.join(grid, '%d*' % a)):
             if re.fullmatch(r'%d(p|_hero|_logo)?\.(png|jpg|jpeg|webp)' % a, os.path.basename(f)): os.remove(f)
     if mode == 'install':
-        for src, dst in (('jaquette.jpg', '%dp.jpg'), ('capsule.jpg', '%d.jpg'), ('hero.jpg', '%d_hero.jpg'), ('logo.png', '%d_logo.png')):
+        for src, dst in (('cover.jpg', '%dp.jpg'), ('capsule.jpg', '%d.jpg'), ('hero.jpg', '%d_hero.jpg'), ('logo.png', '%d_logo.png')):
             shutil.copyfile(os.path.join(d, src), os.path.join(grid, dst % appid))
-    # disposition des commandes : sans elle, Steam peut donner au raccourci une disposition clavier et souris, que Chrome ne lit pas
+    # controller layout: without it, Steam may give the shortcut a keyboard and mouse layout, which Chrome does not read
     cc = os.path.join(steam, 'steamapps', 'common', 'Steam Controller Configs', uid, 'config')
     cf = os.path.join(cc, 'configset_controller_neptune.vdf')
     if pick or os.path.exists(cf):
@@ -214,20 +213,20 @@ PYEOF
 OUT="$(python3 "$PY" "$MODE" "$STEAM" "$DIR" "$APP")"; RC=$?
 rm -f "$PY"
 echo "$OUT" | grep -E '^(SKIP|NOTPL)' || true
-[ $RC -eq 3 ] && fail "aucun compte Steam sur cet appareil. Connectez-vous à Steam une fois, puis relancez l'installation." "No Steam account on this device. Sign in to Steam once, then run the installer again."
-[ $RC -ne 0 ] && fail "le raccourci Steam n'a pas pu être écrit." "The Steam shortcut could not be written."
+[ $RC -eq 3 ] && fail "No Steam account on this device. Sign in to Steam once, then run the installer again."
+[ $RC -ne 0 ] && fail "The Steam shortcut could not be written."
 if [ "$MODE" = uninstall ]; then
   rm -rf "$DIR" "$HOME/.local/share/applications/war-bash.desktop"
-  t "$APP est retiré de Steam." "$APP has been removed from Steam."
+  t "$APP has been removed from Steam."
 else
-  echo "$OUT" | grep -q '^TEMPLATE -$' && t "Disposition des commandes : à choisir dans Steam (Manette avec trackpad souris) si la manette ne répond pas en jeu." "Controller layout: pick Gamepad with Mouse Trackpad in Steam if the controller does not respond in game."
-  t "$APP est installé dans Steam." "$APP is installed in Steam."
+  echo "$OUT" | grep -q '^TEMPLATE -$' && t "Controller layout: pick Gamepad with Mouse Trackpad in Steam if the controller does not respond in game."
+  t "$APP is installed in Steam."
 fi
 
-# 5. Retour au mode Jeu (SteamOS), sinon Steam relancé
+# 5. Back to Gaming Mode (SteamOS), otherwise Steam restarted
 [ -n "$TEST" ] && exit 0
 if command -v steamos-session-select >/dev/null; then
-  t "Retour au mode Jeu dans 5 secondes..." "Returning to Gaming Mode in 5 seconds..."
+  t "Returning to Gaming Mode in 5 seconds..."
   sleep 5
   steamos-session-select
 else

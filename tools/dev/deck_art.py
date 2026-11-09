@@ -1,12 +1,12 @@
-"""Images du raccourci Steam (version Steam Deck, voir README « Steam Deck ») : tirées de l'illustration du menu (assets/menu-bg.webp,
-1916 x 821, le soldat à 72 % de la largeur) et du logo (assets/logo.webp), écrites dans assets/deck/ (build.py les copie dans dist/deck/,
-d'où l'installeur les télécharge vers le dossier grid de Steam).
-  jaquette.jpg  600 x 900   capsule verticale de la bibliothèque (logo en bas, sur les rochers sombres)
-  capsule.jpg   920 x 430   capsule horizontale (logo à gauche, dans le ciel sombre)
-  hero.jpg      1920 x 620  bandeau de la page du jeu (sans logo : Steam pose le sien par-dessus)
-  logo.png      1000 x 230  logo détouré, posé par Steam sur le bandeau
-  icone.png     256 x 256   icône du raccourci
-À relancer après une retouche de l'illustration ou du logo : python3 tools/dev/deck_art.py (depuis la racine, Pillow)."""
+"""Images for the Steam shortcut (Steam Deck version, see README "Steam Deck"): taken from the menu illustration (assets/menu-bg.webp,
+1916 x 821, the soldier at 72% of the width) and the logo (assets/logo.webp), written to assets/deck/ (build.py copies them to dist/deck/,
+from where the installer downloads them to Steam's grid folder).
+  cover.jpg  600 x 900   vertical library capsule (logo at the bottom, on the dark rocks)
+  capsule.jpg   920 x 430   horizontal capsule (logo on the left, in the dark sky)
+  hero.jpg      1920 x 620  banner of the game page (no logo: Steam puts its own on top)
+  logo.png      1000 x 230  cut-out logo, placed by Steam on the banner
+  icon.png     256 x 256   shortcut icon
+Rerun after touching up the illustration or the logo: python3 tools/dev/deck_art.py (from the root, Pillow)."""
 import os
 from PIL import Image, ImageDraw
 
@@ -15,11 +15,11 @@ os.makedirs(OUT, exist_ok=True)
 bg = Image.open("assets/menu-bg.webp").convert("RGB")
 logo = Image.open("assets/logo.webp").convert("RGBA")
 W, H = bg.size
-SOLDIER = 0.72 * W  # abscisse du soldat dans l'illustration
+SOLDIER = 0.72 * W  # x position of the soldier in the illustration
 
 
 def shade(img, box, top_a, bottom_a):
-    """Dégradé sombre vertical sur une bande (lisibilité du logo)"""
+    """Vertical dark gradient over a strip (logo legibility)"""
     x0, y0, x1, y1 = box
     ov = Image.new("RGBA", img.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(ov)
@@ -35,7 +35,7 @@ def put_logo(img, width, cx, cy):
 
 
 def crop(aspect, cx, cy=None):
-    """Plus grand cadre de proportions aspect (largeur / hauteur) centré au mieux sur (cx, cy)"""
+    """Largest frame with aspect ratio aspect (width / height) centered as well as possible on (cx, cy)"""
     if W / H > aspect:
         h = H; w = round(H * aspect)
     else:
@@ -45,24 +45,24 @@ def crop(aspect, cx, cy=None):
     return bg.crop((x0, y0, x0 + w, y0 + h))
 
 
-# jaquette : le soldat en pied, logo en bas
+# cover: the soldier full-length, logo at the bottom
 j = crop(600 / 900, SOLDIER).resize((600, 900), Image.LANCZOS)
 j = shade(j, (0, 640, 600, 900), 0, 210)
 put_logo(j, 500, 300, 812)
-j.convert("RGB").save(f"{OUT}/jaquette.jpg", quality=90)
+j.convert("RGB").save(f"{OUT}/cover.jpg", quality=90)
 
-# capsule horizontale : cadre calé à droite (soldat vers 70 %), logo dans le ciel sombre de gauche
+# horizontal capsule: frame pushed to the right (soldier at about 70%), logo in the dark sky on the left
 c = crop(920 / 430, W).resize((920, 430), Image.LANCZOS)
 c = Image.alpha_composite(c.convert("RGBA"), Image.new("RGBA", c.size, (0, 0, 0, 0)))
 put_logo(c, 400, 235, 200)
 c.convert("RGB").save(f"{OUT}/capsule.jpg", quality=90)
 
-# bandeau : panorama, de la tête aux genoux du soldat
+# banner: panorama, from the soldier's head to knees
 h = crop(1920 / 620, W / 2, 0.52 * H).resize((1920, 620), Image.LANCZOS)
 h.save(f"{OUT}/hero.jpg", quality=90)
 
 logo.save(f"{OUT}/logo.png", optimize=True)
-Image.open("assets/icon/icon-512.png").convert("RGBA").resize((256, 256), Image.LANCZOS).save(f"{OUT}/icone.png", optimize=True)
+Image.open("assets/icon/icon-512.png").convert("RGBA").resize((256, 256), Image.LANCZOS).save(f"{OUT}/icon.png", optimize=True)
 for f in sorted(os.listdir(OUT)):
     if f.endswith((".jpg", ".png")):
-        print(f, Image.open(f"{OUT}/{f}").size, os.path.getsize(f"{OUT}/{f}") // 1024, "Ko")
+        print(f, Image.open(f"{OUT}/{f}").size, os.path.getsize(f"{OUT}/{f}") // 1024, "KB")

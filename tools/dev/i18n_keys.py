@@ -1,7 +1,6 @@
-"""Extrait les clés de traduction de src/*.js : textes passés à _t('...') et à _tn(n, '...', '...').
-Utilisé par check_i18n.py ; en ligne de commande, liste « fichier:ligne<TAB>clé »."""
+"""Extracts the translation keys from src/*.js: texts passed to _t('...') and to _tn(n, '...', '...').
+Used by check_text.py and check_english.py; on the command line, lists "file:line<TAB>key"."""
 import re,glob,os,sys
-FRW=re.compile(r"[àâäçéèêëîïôöùûüœÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŒ]|\b(le|la|les|un|une|des|du|de|et|ou|vous|votre|vos|sur|pour|avec|dans|est|pas|plus|par|au|aux|ce|cette|qui|que|en|se|sa|son|ses|il|elle|nous|ne)\b",re.I)
 def js_unescape(raw):
     out=[];i=0
     while i<len(raw):
@@ -45,7 +44,7 @@ def regex_start(src,i):
     pc=src[k] if k>=0 else ''
     return pc in '(,=:[!&|?{};' or src[max(0,k-5):k+1].strip().endswith(('return','typeof'))
 def literals(src):
-    """(début, fin, valeur, genre) de chaque chaîne entre apostrophes ou guillemets, hors commentaires et expressions rationnelles"""
+    """(start, end, value, kind) of each string between apostrophes or quotes, excluding comments and regular expressions"""
     i=0;n=len(src);res=[]
     while i<n:
         c=src[i]
@@ -54,7 +53,7 @@ def literals(src):
         if c in '\'"':
             j=skip_string(src,i); res.append((i,j,js_unescape(src[i+1:j-1]),'s')); i=j; continue
         if c=='`':
-            # modèle : les chaînes de ses expressions sont aussi des littéraux
+            # template literal: the strings of its expressions are also literals
             j=skip_template(src,i); k=i+1
             while k<j-1:
                 if src[k]=='\\': k+=2; continue
@@ -85,7 +84,7 @@ def literals(src):
     return res
 CALL=re.compile(r"\b_t\(\s*$|\b_tn\(\s*[^,()]*(?:\([^()]*\))?[^,()]*,\s*$|\b_tn\(\s*[^,()]*(?:\([^()]*\))?[^,()]*,\s*'(?:[^'\\]|\\.)*',\s*$")
 def keys_of(src):
-    """liste (ligne, clé) des textes passés à _t / _tn"""
+    """list of (line, key) of the texts passed to _t / _tn"""
     out=[]
     for a,b,v,g in sorted(literals(src)):
         pre=src[max(0,a-200):a]
@@ -102,7 +101,7 @@ if __name__=='__main__':
     for k,w in d.items(): print(w[0]+'\t'+k.replace('\n','\\n'))
 
 def shell_keys(root='.'):
-    """Textes statiques de shell.html (nœuds de texte et attributs aria-label, placeholder, title, alt), traduits à l'exécution par i18nDom"""
+    """Static texts of shell.html (text nodes and aria-label, placeholder, title, alt attributes), translated at runtime by i18nDom"""
     from html.parser import HTMLParser
     out={}
     class P(HTMLParser):
@@ -121,7 +120,7 @@ def shell_keys(root='.'):
     return out
 
 def template_static(src,i):
-    """texte statique d'un modèle commençant en src[i] (les expressions ${...} en sont retirées) et position de fin"""
+    """static text of a template literal starting at src[i] (its ${...} expressions are removed) and end position"""
     n=len(src); j=i+1; out=[]
     while j<n:
         ch=src[j]
@@ -142,7 +141,7 @@ def template_static(src,i):
     return ''.join(out),n
 
 def templates(src,base=0):
-    """tous les modèles de src, imbriqués compris : (position, texte statique, début de ce qui précède)"""
+    """all the template literals of src, nested ones included: (position, static text, start of what precedes)"""
     out=[]; i=0; n=len(src)
     while i<n:
         c=src[i]

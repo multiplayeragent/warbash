@@ -1,5 +1,5 @@
 // A bot match on a real GPU: the map loads, the clock runs, bots move and fight, the player moves and shoots, and the end-of-match
-// flow (results, XP) works. node tools/gate/match.mjs [seconds=25] ; GPU=any (default) | dgpu | igpu | soft ; MAP=<id>
+// flow (results, XP) works. node tools/gate/match.mjs [seconds=25]; GPU=any (default) | dgpu | igpu | soft; MAP=<id>
 import { openGame, serve } from './lib.mjs';
 
 const SECS = +(process.argv[2] || 25);
@@ -41,7 +41,7 @@ try {
   ok(after.kills + after.deaths > 0, 'bots fight (kills or deaths happened)', `${after.kills} kills, ${after.deaths} deaths`);
   // end of match: results screen and XP for the match
   await page.evaluate(() => { MATCH.timeLeft = 0.5; });
-  const ended = await page.waitForFunction(() => MATCH.state === 'ended' || MATCH.state === 'finish' || MATCH.fin, null, { timeout: 30000, polling: 300 }).then(() => true, () => false);
+  const ended = await page.waitForFunction(() => MATCH.state === 'ended' || MATCH.state === 'finish' || MATCH.outro, null, { timeout: 30000, polling: 300 }).then(() => true, () => false);
   ok(ended, 'match ends when the clock runs out');
   ok(!logs.filter((l) => !/Failed to load resource/.test(l)).length, 'no page errors', logs.slice(0, 3).join(' | '));
 } catch (e) { ok(false, 'bot match run', e.message); }

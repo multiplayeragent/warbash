@@ -1,39 +1,39 @@
-/* Z-fighting du décor d'une carte : node zfight.js [--json]   (MAP=meltem ; PAGE=autre version construite ; TOP=40 lignes au plus)
-   Relève, avant leur envoi au GPU (finalizeWorld enveloppé), les triangles du décor fusionné (DECOR) qui se superposent dans un même plan et
-   regardent du même côté : deux surfaces confondues que la carte graphique départage au hasard, image après image, d'où le scintillement.
-   - plan commun : normales à moins de 1,5° l'une de l'autre, à moins de 3 mm l'une de l'autre sur toute la partie commune (et pas seulement à
-     l'origine : deux plans presque parallèles s'y croisent et s'écartent plus loin) ; une face double (matière DoubleSide) compte aussi
-     tournée à l'envers ;
-   - recouvrement : aire de l'intersection des deux triangles, projetés sur le plan, d'au moins 20 cm² ;
-   - écartés : les matières qui se décalent exprès (polygonOffset : décalques, enseignes), les cartes de feuillage, d'herbe et de filet
-     (découpées, elles se croisent sans se voir), les triangles de moins de 4 cm².
-   - vu : un endroit compte s'il se voit en jouant, depuis les yeux (1,6 m) d'un point du réseau principal de navigation à moins de 40 m, du côté
-     où la face regarde, sans boîte de collision entre les deux (rayWorld) ; sinon il est « caché » (dessous d'un plancher posé au sol,
-     façade tournée vers l'extérieur de la carte, face prise dans un mur).
-   Sortie : les endroits les plus touchés (cases de 2 m), avec les matières en cause, la hauteur, l'orientation du plan, l'aire recouverte
-   et le nombre de points d'où on le voit (VUS=1 : seulement ceux qui se voient ; DETAIL=1 : étendue des faces en cause, par matière, pour
-   retrouver l'objet) ; code d'erreur s'il reste un recouvrement visible de
-   plus de 0,1 m² entre deux matières différentes. */
+/* Z-fighting of a map's scenery: node zfight.js [--json]   (MAP=notos; PAGE=other built version; TOP=40 lines at most)
+   Records, before they are sent to the GPU (finalizeWorld wrapped), the triangles of the merged scenery (DECOR) that overlap in the same plane and
+   face the same way: two coincident surfaces that the graphics card arbitrates at random, frame after frame, hence the flicker.
+   - common plane: normals within 1.5° of each other, within 3 mm of each other over the whole common part (and not only at
+     the origin: two nearly parallel planes cross there and diverge further away); a double-sided face (DoubleSide material) also counts
+     turned the other way;
+   - overlap: area of the intersection of the two triangles, projected on the plane, of at least 20 cm²;
+   - excluded: materials that are offset on purpose (polygonOffset: decals, signs), foliage, grass and net cards
+     (cut out, they cross without being seen), triangles under 4 cm².
+   - seen: a spot counts if it can be seen while playing, from the eyes (1.6 m) of a point of the main navigation network within 40 m, from the side
+     the face looks toward, with no collision box between the two (rayWorld); otherwise it is "hidden" (underside of a floor laid on the ground,
+     facade turned toward the outside of the map, face caught inside a wall).
+   Output: the most affected spots (2 m cells), with the materials involved, the height, the orientation of the plane, the overlapped area
+   and the number of points from which it is seen (SEEN=1: only those that are seen; DETAIL=1: extent of the faces involved, per material, to
+   find the object); error code if a visible overlap of
+   more than 0.1 m² remains between two different materials. */
 const { openGame } = require('./common');
 const json = process.argv.includes('--json');
 (async () => {
-  const map = process.env.MAP || 'sable', TOP = +(process.env.TOP || 40);
+  const map = process.env.MAP || 'chergui', TOP = +(process.env.TOP || 40);
   const { browser, page } = await openGame({ w: 480, h: 270, page: process.env.PAGE, noMap: true, noHdri: true, settings: { quality: 'low', difficulty: 1, map } });
   const R = await page.evaluate(async (map) => {
     const bufs = [];
-    const fin = finalizeWorld;
-    // finalizeWorld est appelée par la construction de la carte : on relève les tampons juste avant
-    window.finalizeWorld = function () { for (const b of WORLD.bufs.values()) if (b.g.ni) bufs.push({ mat: b.mat, cls: b.cls, ck: b.ck, P: b.g.P.slice(0, b.g.nv * 3), I: b.g.I.slice(0, b.g.ni) }); return fin.apply(this, arguments); };
-    Settings.map = map; await mapEnsure(map); LOCK.fallback = true; startMatch({}); // le réseau de navigation : d'où l'on voit
+    const outro = finalizeWorld;
+    // finalizeWorld is called by the map construction: the buffers are recorded just before
+    window.finalizeWorld = function () { for (const b of WORLD.bufs.values()) if (b.g.ni) bufs.push({ mat: b.mat, cls: b.cls, ck: b.ck, P: b.g.P.slice(0, b.g.nv * 3), I: b.g.I.slice(0, b.g.ni) }); return outro.apply(this, arguments); };
+    Settings.map = map; await mapEnsure(map); LOCK.fallback = true; startMatch({}); // the navigation network: from where things are seen
     const SKIP = /decal|sign|fol|leaf|conifer|grass|net|herb|ivy|vine|reed|flora|cyfol|cut|glassLit|bulb|lamp/i;
-    // deux passes (des millions de triangles) : clés de plan d'abord (normale à 0,05 près, distance à 1 cm), puis on ne garde que les
-    // triangles dont le plan est partagé par deux tampons différents (matières ou tronçons)
+    // two passes (millions of triangles): plane keys first (normal within 0.05, distance to 1 cm), then keep only the
+    // triangles whose plane is shared by two different buffers (materials or sections)
     const keyOf = (nx, ny, nz, d) => (((Math.round(nx * 20) + 21) * 43 + Math.round(ny * 20) + 21) * 43 + Math.round(nz * 20) + 21) * 1e7 + Math.round(d * 100) + 5e6;
     const tri = (b, t, out) => {
       const P = b.P, I = b.I, a = I[t] * 3, c = I[t + 1] * 3, d = I[t + 2] * 3;
       const ux = P[c] - P[a], uy = P[c + 1] - P[a + 1], uz = P[c + 2] - P[a + 2], vx = P[d] - P[a], vy = P[d + 1] - P[a + 1], vz = P[d + 2] - P[a + 2];
       let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const l = Math.hypot(nx, ny, nz);
-      if (l < 0.0008) return false; // aire < 4 cm²
+      if (l < 0.0008) return false; // area < 4 cm²
       out.nx = nx / l; out.ny = ny / l; out.nz = nz / l; out.d = out.nx * P[a] + out.ny * P[a + 1] + out.nz * P[a + 2]; out.a = a; out.c = c; out.e = d;
       return true;
     };
@@ -58,10 +58,10 @@ const json = process.argv.includes('--json');
         for (const kk of dbl ? [k, kr] : [k]) { let g = G.get(kk); if (!g) G.set(kk, g = []); g.push(o); }
       }
     }
-    // aire de l'intersection de deux triangles projetés sur le plan (axes : les deux plus grands de la normale)
+    // area of the intersection of two triangles projected on the plane (axes: the two largest of the normal)
     const proj = (t, ax) => [[t.p[ax[0]], t.p[ax[1]]], [t.p[3 + ax[0]], t.p[3 + ax[1]]], [t.p[6 + ax[0]], t.p[6 + ax[1]]]];
     const area = (Q) => { let s = 0; for (let i = 0; i < Q.length; i++) { const a = Q[i], b = Q[(i + 1) % Q.length]; s += a[0] * b[1] - b[0] * a[1]; } return s / 2; };
-    const clip = (S, C) => { // Sutherland-Hodgman : S découpé par le convexe C (sens trigonométrique)
+    const clip = (S, C) => { // Sutherland-Hodgman: S clipped by the convex C (counterclockwise)
       let out = S;
       for (let i = 0; i < C.length && out.length; i++) {
         const A = C[i], B = C[(i + 1) % C.length], inp = out; out = [];
@@ -84,45 +84,45 @@ const json = process.argv.includes('--json');
         if (Math.abs(A.d - Math.sign(dot) * B.d) > 0.003) continue;
         const an = [Math.abs(A.nx), Math.abs(A.ny), Math.abs(A.nz)], drop = an.indexOf(Math.max(...an)), ax = [0, 1, 2].filter((k) => k !== drop);
         let a = proj(A, ax), b = proj(B, ax); if (area(a) < 0) a = a.reverse(); if (area(b) < 0) b = b.reverse();
-        // boîtes englobantes d'abord
+        // bounding boxes first
         const bx = (Q, k) => [Math.min(Q[0][k], Q[1][k], Q[2][k]), Math.max(Q[0][k], Q[1][k], Q[2][k])];
         const a0 = bx(a, 0), b0 = bx(b, 0), a1 = bx(a, 1), b1 = bx(b, 1);
         if (a0[1] <= b0[0] || b0[1] <= a0[0] || a1[1] <= b1[0] || b1[1] <= a1[0]) continue;
         const poly = clip(a, b), ar = Math.abs(area(poly));
         if (ar < 0.002) continue;
-        // deux plans presque parallèles (moins de 1,5°) peuvent avoir la même distance à l'origine et s'écarter de plusieurs centimètres là où
-        // ils se recouvrent (un volet entrouvert devant un mur, loin de l'origine) : l'écart se mesure aux sommets de la partie commune
+        // two nearly parallel planes (under 1.5°) can have the same distance from the origin and diverge by several centimeters where
+        // they overlap (a half-open shutter in front of a wall, far from the origin): the gap is measured at the vertices of the common part
         const nB = [B.nx, B.ny, B.nz].map((v) => v * Math.sign(dot)), dB = B.d * Math.sign(dot), nA0 = [A.nx, A.ny, A.nz];
         const off = (q, n, d) => (d - n[ax[0]] * q[0] - n[ax[1]] * q[1]) / n[drop];
         if (poly.some((q) => Math.abs(off(q, nA0, A.d) - off(q, nB, dB)) * Math.abs(nA0[drop]) > 0.003)) continue;
         pairs++;
-        // centre de la partie commune (et non du grand triangle) : ramené du plan de projection sur le plan des deux faces
+        // center of the common part (not of the large triangle): brought from the projection plane back to the plane of the two faces
         const c3 = [0, 0, 0], nA = [A.nx, A.ny, A.nz];
         for (const q of poly) { c3[ax[0]] += q[0] / poly.length; c3[ax[1]] += q[1] / poly.length; }
         c3[drop] = (A.d - nA[ax[0]] * c3[ax[0]] - nA[ax[1]] * c3[ax[1]]) / nA[drop];
         const [cx, cy, cz] = c3;
         const ma = bufs[A.bi].mat, mb = bufs[B.bi].mat, mats = [ma, mb].sort().join(' + ');
-        // un endroit : une case de 2 m, deux matières, une orientation (la visibilité se juge du côté de cette face)
+        // a spot: a 2 m cell, two materials, one orientation (visibility is judged from the side of this face)
         const k = `${Math.floor(cx / 2)},${Math.floor(cz / 2)},${mats},${Math.round(A.nx * 10)},${Math.round(A.ny * 10)},${Math.round(A.nz * 10)}`;
         let h = hits.get(k); if (!h) hits.set(k, h = { x: 0, y: 0, z: 0, n: 0, area: 0, mats, same: ma === mb, dA: A.dbl, dB: B.dbl, sd: Math.sign(dot), nrm: [+A.nx.toFixed(2), +A.ny.toFixed(2), +A.nz.toFixed(2)], pts: [] });
         h.x += cx * ar; h.y += cy * ar; h.z += cz * ar; h.n += ar; h.area += ar;
         h.pts.push([ar, cx, cy, cz]); if (h.pts.length > 8) { h.pts.sort((a, b) => b[0] - a[0]); h.pts.length = 6; }
-        // étendue des faces en cause, par matière (DETAIL=1) : de quoi retrouver l'objet qui les pose
+        // extent of the faces involved, per material (DETAIL=1): enough to find the object that places them
         const grow = (bb, T) => { for (let q = 0; q < 9; q++) { const k3 = q % 3; bb[k3 * 2] = Math.min(bb[k3 * 2], T.p[q]); bb[k3 * 2 + 1] = Math.max(bb[k3 * 2 + 1], T.p[q]); } };
         if (!h.bb) h.bb = {}; for (const [T, m] of [[A, ma], [B, mb]]) { const key = m + (m === ma && m === mb && T === B ? "'" : ''); if (!h.bb[key]) h.bb[key] = [1e9, -1e9, 1e9, -1e9, 1e9, -1e9]; grow(h.bb[key], T); }
       }
     }
-    // vu en jouant : des yeux d'un point du réseau de navigation (un sur trois, à moins de 40 m), du côté de la face, sans boîte entre les deux
+    // seen while playing: from the eyes of a navigation network point (one in three, within 40 m), from the face's side, with no box between the two
     const N = NAV.count, seen = (h) => {
       const nx = h.nrm[0], ny = h.nrm[1], nz = h.nrm[2]; let v = 0;
       for (const [, px, py, pz] of h.pts.sort((a, b) => b[0] - a[0]).slice(0, 4)) {
         for (let i = 0; i < N && v < 5; i += 3) {
-          if (NAV.comp[i] !== NAV.mainComp) continue; // un toit sans accès, un recoin fermé : personne ne s'y tient
+          if (NAV.comp[i] !== NAV.mainComp) continue; // a roof with no access, a closed nook: nobody stands there
           const ex = NAV.nx[i], ey = NAV.ny[i] + 1.6, ez = NAV.nz[i], dx = ex - px, dy = ey - py, dz = ez - pz, d = Math.hypot(dx, dy, dz);
           if (d > 40 || d < 0.3) continue;
-          // les deux faces doivent être dessinées de ce côté (une face simple tournée de l'autre côté est éliminée)
+          // both faces must be drawn on that side (a single-sided face turned the other way is culled)
           const f = (dx * nx + dy * ny + dz * nz) / d; if (Math.abs(f) < 0.05 || (f < 0 && !h.dA) || (f * h.sd < 0 && !h.dB)) continue;
-          // visée à 5 cm devant la face, du côté de l'œil : une face prise entre deux volumes (deux bâtiments accolés) reste cachée
+          // aim at 5 cm in front of the face, on the eye's side: a face caught between two volumes (two adjoining buildings) stays hidden
           const k = Math.sign(f) * 0.05, qx = px + nx * k - ex, qy = py + ny * k - ey, qz = pz + nz * k - ez, dq = Math.hypot(qx, qy, qz);
           const r = rayWorld(ex, ey, ez, qx / dq, qy / dq, qz / dq, dq);
           if (!r || r.t > dq - 0.02) v++;
@@ -131,17 +131,17 @@ const json = process.argv.includes('--json');
       }
       return v;
     };
-    const list = [...hits.values()].sort((a, b) => b.area - a.area).map((h, i) => ({ x: +(h.x / h.n).toFixed(1), y: +(h.y / h.n).toFixed(2), z: +(h.z / h.n).toFixed(1), area: +h.area.toFixed(3), mats: h.mats, same: h.same, nrm: h.nrm, bb: h.bb, vu: h.area > 0.02 || i < 300 ? seen(h) : -1 }));
-    return { map, total, kept, pairs, list, bad: list.filter((h) => !h.same && h.area > 0.1 && h.vu > 0).length };
+    const list = [...hits.values()].sort((a, b) => b.area - a.area).map((h, i) => ({ x: +(h.x / h.n).toFixed(1), y: +(h.y / h.n).toFixed(2), z: +(h.z / h.n).toFixed(1), area: +h.area.toFixed(3), mats: h.mats, same: h.same, nrm: h.nrm, bb: h.bb, seenBy: h.area > 0.02 || i < 300 ? seen(h) : -1 }));
+    return { map, total, kept, pairs, list, bad: list.filter((h) => !h.same && h.area > 0.1 && h.seenBy > 0).length };
   }, map);
   if (json) console.log(JSON.stringify(R));
   else {
-    console.log(`${R.map} : ${R.total} triangles, ${R.kept} examinés, ${R.pairs} paires qui se recouvrent, ${R.list.length} endroits`);
-    const L = process.env.VUS ? R.list.filter((h) => h.vu > 0) : R.list;
-    console.log(`${R.list.filter((h) => h.vu > 0).length} se voient en jouant, ${R.bad} de plus de 0,1 m² entre deux matières`);
+    console.log(`${R.map}: ${R.total} triangles, ${R.kept} examined, ${R.pairs} overlapping pairs, ${R.list.length} spots`);
+    const L = process.env.SEEN ? R.list.filter((h) => h.seenBy > 0) : R.list;
+    console.log(`${R.list.filter((h) => h.seenBy > 0).length} are seen while playing, ${R.bad} of more than 0.1 m² between two materials`);
     for (const h of L.slice(0, TOP)) {
-      console.log(`${h.area.toFixed(3).padStart(7)} m²  (${h.x}, ${h.y}, ${h.z})  normale ${h.nrm.join(',')}  ${h.mats}${h.same ? '  (même matière)' : ''}  ${h.vu > 0 ? 'vu' + (h.vu >= 5 ? '' : ' de ' + h.vu + ' point' + (h.vu > 1 ? 's' : '')) : h.vu < 0 ? '' : 'caché'}`);
-      if (process.env.DETAIL && h.bb) for (const [m, b] of Object.entries(h.bb)) console.log(`           ${m} : x ${b[0].toFixed(2)} à ${b[1].toFixed(2)}, y ${b[2].toFixed(2)} à ${b[3].toFixed(2)}, z ${b[4].toFixed(2)} à ${b[5].toFixed(2)}`);
+      console.log(`${h.area.toFixed(3).padStart(7)} m²  (${h.x}, ${h.y}, ${h.z})  normal ${h.nrm.join(',')}  ${h.mats}${h.same ? '  (same material)' : ''}  ${h.seenBy > 0 ? 'seen' + (h.seenBy >= 5 ? '' : ' from ' + h.seenBy + ' point' + (h.seenBy > 1 ? 's' : '')) : h.seenBy < 0 ? '' : 'hidden'}`);
+      if (process.env.DETAIL && h.bb) for (const [m, b] of Object.entries(h.bb)) console.log(`           ${m}: x ${b[0].toFixed(2)} to ${b[1].toFixed(2)}, y ${b[2].toFixed(2)} to ${b[3].toFixed(2)}, z ${b[4].toFixed(2)} to ${b[5].toFixed(2)}`);
     }
   }
   await browser.close();

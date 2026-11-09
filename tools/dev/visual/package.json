@@ -1,7 +1,7 @@
 {
   "name": "cod-visual",
   "private": true,
-  "description": "Captures de la carte, comparaison des collisions et simulation de partie (Chromium sans interface)",
+  "description": "Map screenshots, collision comparison and match simulation (headless Chromium)",
   "dependencies": {
     "@pmndrs/assets": "1.7.0",
     "playwright-core": "1.56.0",

@@ -1,7 +1,7 @@
 {
-  "name": "war-bash-outils",
+  "name": "war-bash-tools",
   "private": true,
-  "description": "Outils de développement facultatifs (banc de mesure du rendu : bench.js ; test de l'API des comptes : api-test.js ; contrôle du code réduit : check_minif.js)",
+  "description": "Optional development tools (render benchmark: bench.js; accounts API test: api-test.js; minified code check: check_minif.js)",
   "dependencies": {
     "@pmndrs/assets": "1.7.0",
     "playwright-core": "1.63.0",

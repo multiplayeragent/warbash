@@ -1,22 +1,22 @@
 /* ==========================================================================
-   SQUELETTES RIGIDES : regroupement des maillages pour le rendu
-   Les modèles restent décrits pièce par pièce (boîtes, cylindres, sphères posées dans des groupes), ce qui
-   les garde faciles à modifier. Une fois construits, bakeRig réunit toutes les pièces fixes d'une hiérarchie
-   en un seul maillage par matière : chaque groupe qui porte des pièces devient un os d'un squelette rigide
-   (un sommet suit un seul os, avec un poids de 1). On continue d'animer les groupes exactement comme avant,
-   les sommets suivent ; un modèle de 150 pièces passe de 150 appels de rendu à quelques-uns.
+   RIGID SKELETONS: merging meshes for rendering
+   Models stay described piece by piece (boxes, cylinders, spheres placed in groups), which keeps them
+   easy to modify. Once built, bakeRig merges all the fixed pieces of a hierarchy
+   into a single mesh per material: each group that carries pieces becomes a bone of a rigid skeleton
+   (a vertex follows a single bone, with a weight of 1). Groups are still animated exactly as before,
+   the vertices follow; a 150-piece model goes from 150 draw calls to a handful.
    ========================================================================== */
 const _RIG_ID = new THREE.Matrix4();
-/* Matière des maillages qui ne servent qu'à projeter une ombre (rien n'est écrit à l'écran) */
+/* Material of meshes that only cast a shadow (nothing is written to the screen) */
 const SHADOW_ONLY_MAT = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
-/* Matière des cartes d'ombre pour les maillages animés. three.js en partage une seule entre tous les objets : chaque
-   passage d'un maillage animé (soldat) à un maillage fixe (son arme, le décor) l'obligeait à rechoisir son programme,
-   des dizaines de fois par image (trois cascades). Une matière à part pour les maillages animés supprime ces bascules. */
+/* Shadow map material for animated meshes. three.js shares a single one between all objects: each
+   switch from an animated mesh (soldier) to a fixed mesh (its weapon, the scenery) forced it to pick its program again,
+   dozens of times per frame (three cascades). A separate material for animated meshes removes these switches. */
 const SKIN_DEPTH_MAT = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
 
-/* Squelette dont les os sont des groupes ordinaires. Un os caché (lui ou un parent jusqu'à la racine du
-   modèle) a sa matrice mise à zéro : ses sommets se replient en un point et ne sont plus dessinés, ce qui
-   préserve les bascules de visibilité des sous-groupes (chargeur, pièces masquées). */
+/* Skeleton whose bones are ordinary groups. A hidden bone (itself or a parent up to the model root)
+   has its matrix zeroed: its vertices collapse to a point and are no longer drawn, which
+   preserves the visibility toggles of subgroups (magazine, hidden pieces). */
 function rigidSkeleton(bones, root) {
   const sk = new THREE.Skeleton(bones, bones.map(() => new THREE.Matrix4()));
   const up = sk.update.bind(sk);
@@ -32,8 +32,8 @@ function rigidSkeleton(bones, root) {
   return sk;
 }
 
-/* Géométrie d'une liste de pièces { geo, matrix (dans l'espace de son os), bone } : attributs communs
-   position / normale / uv (+ couleur si demandé), indices conservés (cache de sommets du GPU), os par sommet. */
+/* Geometry of a list of pieces { geo, matrix (in the space of its bone), bone }: shared position /
+   normal / uv attributes (+ color if requested), indices kept (GPU vertex cache), bone per vertex. */
 function rigGeometry(items, withColor) {
   let nv = 0, ni = 0;
   for (const it of items) { nv += it.geo.attributes.position.count; ni += it.geo.index ? it.geo.index.count : it.geo.attributes.position.count; }
@@ -64,35 +64,35 @@ function rigGeometry(items, withColor) {
   return geo;
 }
 
-/* Maillage rigide lié à un squelette. Mode « attached » avec des inverses identité : un sommet exprimé dans
-   l'espace de son os se retrouve à boneWorld × sommet, où que soit rangé le maillage lui-même. */
+/* Rigid mesh bound to a skeleton. "attached" mode with identity inverses: a vertex expressed in
+   its bone's space ends up at boneWorld × vertex, wherever the mesh itself is stored. */
 function rigMesh(geo, mat, skel) {
   const m = new THREE.SkinnedMesh(geo, mat);
   m.bind(skel, _RIG_ID); m.customDepthMaterial = SKIN_DEPTH_MAT;
   return m;
 }
 
-/* Arme en main : pièces fixes réunies par matière ; chargeur, culasse, glissière et pompe restent des os
-   animés, le réticule des viseurs (m.keep) reste une pièce à part. */
+/* Weapon in hand: fixed pieces merged by material; magazine, bolt, slide and pump remain
+   animated bones, the sight reticle (m.keep) remains a separate piece. */
 function vmGunModel(key) {
   const m = buildGunModel(key);
   bakeRig(m.group, { keep: m.keep });
   return m;
 }
 
-/* Matière d'un maillage lié à un squelette : une copie de celle des pièces. Le programme d'un maillage animé par os n'est pas celui d'un
-   maillage simple ; partagée entre les pièces fixes réunies (rigMesh) et les pièces mobiles restées à part (chargeur, culasse), une matière de
-   l'arme en main changeait de programme deux fois par image, et three.js recalculait sa clé chaque fois (saccades.js, octobre 2026). La copie
-   garde le patch de la matière (onBeforeCompile) et ses uniformes (userData partagé) ; une par matière, gardée pour la session. */
+/* Material of a mesh bound to a skeleton: a copy of the pieces' material. The program of a bone-animated mesh is not that of a plain
+   mesh; shared between the merged fixed pieces (rigMesh) and the moving pieces left separate (magazine, bolt), a weapon-in-hand
+   material switched program twice per frame, and three.js recomputed its key each time (stutters.js, October 2026). The copy
+   keeps the material's patch (onBeforeCompile) and its uniforms (shared userData); one per material, kept for the session. */
 const SKIN_TWINS = new Map();
 function skinTwin(m) {
   let c = SKIN_TWINS.get(m); if (c) return c;
   c = m.clone(); c.onBeforeCompile = m.onBeforeCompile; c.userData = m.userData; c.customProgramCacheKey = m.customProgramCacheKey;
   SKIN_TWINS.set(m, c); return c;
 }
-/* Réunit les pièces fixes de la hiérarchie root. Une pièce est une feuille Mesh ordinaire, visible, à matière
-   unique, ni référencée dans opts.keep ni marquée userData.dyn (pièce animée ou modifiée individuellement :
-   elle reste telle quelle). Sans sous-groupe mobile, le résultat est un maillage ordinaire fusionné. */
+/* Merges the fixed pieces of the root hierarchy. A piece is an ordinary, visible leaf Mesh with a
+   single material, neither referenced in opts.keep nor marked userData.dyn (piece animated or modified individually:
+   it stays as is). With no moving subgroup, the result is an ordinary merged mesh. */
 function bakeRig(root, opts = {}) {
   const keep = new Set((opts.keep || []).filter(Boolean));
   root.updateMatrixWorld(true);
@@ -100,7 +100,7 @@ function bakeRig(root, opts = {}) {
   const visit = (n) => {
     for (const c of n.children) {
       if (keep.has(c)) continue;
-      const leaf = c.isMesh && !c.isSkinnedMesh && !c.isInstancedMesh && c.children.length === 0 && c.visible && !c.userData.dyn && !Array.isArray(c.material) && c.geometry.attributes.normal; // les groupes de faces (boîtes, cylindres) ne comptent qu'avec plusieurs matières
+      const leaf = c.isMesh && !c.isSkinnedMesh && !c.isInstancedMesh && c.children.length === 0 && c.visible && !c.userData.dyn && !Array.isArray(c.material) && c.geometry.attributes.normal; // face groups (boxes, cylinders) only matter with several materials
       if (leaf) {
         if (!boneOf.has(n)) { boneOf.set(n, bones.length); bones.push(n); }
         const list = byMat.get(c.material) || []; if (!list.length) byMat.set(c.material, list);
@@ -113,7 +113,7 @@ function bakeRig(root, opts = {}) {
   visit(root);
   if (!taken.length) return [];
   for (const c of taken) c.parent.remove(c);
-  const rigid = bones.length === 1 && bones[0] === root; // tout est fixe : maillage ordinaire, sans squelette
+  const rigid = bones.length === 1 && bones[0] === root; // everything is fixed: ordinary mesh, no skeleton
   const skel = rigid ? null : rigidSkeleton(bones, root);
   const out = [];
   for (const [mat, list] of byMat) {
@@ -129,16 +129,16 @@ function bakeRig(root, opts = {}) {
 }
 
 /* ==========================================================================
-   MAILLAGES LISSÉS : surfaces continues déformées par plusieurs os
-   Corps, bras et mains ne sont plus des assemblages de pièces rigides mais des surfaces continues (sections
-   lofées, surfaces paramétriques), construites dans une pose de repos. Chaque sommet suit jusqu'à quatre os,
-   avec des poids qui se fondent aux articulations (skinning linéaire). Les os restent des groupes ordinaires,
-   animés comme avant ; leur matrice de repos, inversée, ramène chaque sommet dans l'espace de son os.
+   SMOOTH MESHES: continuous surfaces deformed by several bones
+   Body, arms and hands are no longer assemblies of rigid pieces but continuous surfaces (lofted
+   sections, parametric surfaces), built in a rest pose. Each vertex follows up to four bones,
+   with weights that blend at the joints (linear skinning). Bones remain ordinary groups,
+   animated as before; their inverted rest matrix brings each vertex back into its bone's space.
    ========================================================================== */
 class SkinBuilder {
   constructor() { this.p = []; this.n = []; this.uv = []; this.c = []; this.si = []; this.sw = []; this.idx = []; this.v0 = 0; this.i0 = 0; }
   get count() { return this.p.length / 3; }
-  /* w : indice d'os, ou liste [[os, poids], ...] (les quatre plus forts, normalisés) ; col : THREE.Color (1 par défaut) */
+  /* w: bone index, or list [[bone, weight], ...] (the four strongest, normalized); col: THREE.Color (1 by default) */
   vert(x, y, z, u, v, col, w) {
     this.p.push(x, y, z); this.n.push(0, 0, 0); this.uv.push(u, v);
     if (col) this.c.push(col.r, col.g, col.b); else this.c.push(1, 1, 1);
@@ -149,7 +149,7 @@ class SkinBuilder {
     return this.count - 1;
   }
   tri(a, b, c) { this.idx.push(a, b, c); }
-  /* une pièce : ses normales sont lissées entre ses seules faces, coutures comprises (sommets confondus) */
+  /* one piece: its normals are smoothed among its own faces only, seams included (coincident vertices) */
   begin() { this.v0 = this.count; this.i0 = this.idx.length; }
   end(weld = true) {
     const P = this.p, N = this.n, I = this.idx, v0 = this.v0;
@@ -176,7 +176,7 @@ class SkinBuilder {
       N[i * 3] = x / l; N[i * 3 + 1] = y / l; N[i * 3 + 2] = z / l;
     }
   }
-  /* ajoute une géométrie three.js (normales conservées) transformée par m ; poids et couleur fixes, ou fonctions de la position */
+  /* adds a three.js geometry (normals kept) transformed by m; fixed weight and color, or functions of the position */
   geo(g, m, w, col, uv) {
     this.begin();
     const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, v0 = this.count, nm = new THREE.Matrix3().getNormalMatrix(m), t = new V3();
@@ -202,9 +202,9 @@ class SkinBuilder {
     return g;
   }
 }
-/* Surface paramétrique en grille : f(u, v, out) remplit out = { x, y, z, w, col, U, V } pour u et v de 0 à 1.
-   wrapU : la grille fait le tour (couture confondue). La face avant est choisie pour que la normale s'éloigne du centre
-   de la pièce (o.out = true ou false pour l'imposer). */
+/* Parametric surface on a grid: f(u, v, out) fills out = { x, y, z, w, col, U, V } for u and v from 0 to 1.
+   wrapU: the grid wraps around (seam coincident). The front face is chosen so the normal points away from the center
+   of the piece (o.out = true or false to force it). */
 const _sf = { x: 0, y: 0, z: 0, w: 0, col: null, U: 0, V: 0 };
 function skinSurf(B, nu, nv, f, o = {}) {
   B.begin();
@@ -217,7 +217,7 @@ function skinSurf(B, nu, nv, f, o = {}) {
   const at = (i, j) => v0 + j * (nu + 1) + i, P = B.p;
   let flip = o.out === false;
   if (o.out === undefined) {
-    // sens des faces : la normale doit s'éloigner du centre de la pièce
+    // face orientation: the normal must point away from the center of the piece
     let cx = 0, cy = 0, cz = 0; const n = (nu + 1) * (nv + 1);
     for (let k = v0; k < v0 + n; k++) { cx += P[k * 3]; cy += P[k * 3 + 1]; cz += P[k * 3 + 2]; }
     cx /= n; cy /= n; cz /= n; let s = 0;
@@ -235,15 +235,15 @@ function skinSurf(B, nu, nv, f, o = {}) {
   B.end(o.weld !== false);
   return v0;
 }
-/* Tube lofté le long de sections { c : centre, X, Y : axes du profil, r : rayon ou [x+, x-, y+, y-], n : exposant de
-   superellipse (2 = ellipse, plus = plus carré), w : poids (tableau ou fonction (p, a)), col, v : abscisse de texture }.
-   o.wp(p, a, s) : poids selon la position (remplace ceux des sections) ;
-   o.bump(a, k) : rayon ajouté (m) à l'angle a sur la section k ; o.cap0 / o.cap1 : longueur d'un bout arrondi ;
-   o.uv(u, v) : coordonnées de texture ; o.col(a, k, p) : couleur par sommet ; o.a0 : angle de la couture. */
+/* Tube lofted along sections { c: center, X, Y: profile axes, r: radius or [x+, x-, y+, y-], n: superellipse
+   exponent (2 = ellipse, higher = squarer), w: weights (array or function (p, a)), col, v: texture abscissa }.
+   o.wp(p, a, s): weights by position (replaces those of the sections);
+   o.bump(a, k): radius added (m) at angle a on section k; o.cap0 / o.cap1: length of a rounded end;
+   o.uv(u, v): texture coordinates; o.col(a, k, p): per-vertex color; o.a0: seam angle. */
 const _lp = new V3(), _la = new V3(), _lq = new V3();
 function skinLoft(B, S, seg, o = {}) {
   const rings = S.slice();
-  // bouts arrondis : sections supplémentaires qui se referment en quart d'ellipse
+  // rounded ends: extra sections that close up as a quarter ellipse
   const capRings = (end, len) => {
     const s = end ? S[S.length - 1] : S[0], p = end ? S[S.length - 2] : S[1];
     const ax = _la.subVectors(s.c, p.c).normalize().clone(), out = [];
@@ -271,21 +271,21 @@ function skinLoft(B, S, seg, o = {}) {
     const uv = o.uv ? o.uv(u, s.v || 0, s, px, py) : null; out.U = uv ? uv[0] : u; out.V = uv ? uv[1] : s.v || 0;
   }, { out: !flip, weld: true });
 }
-/* Maillage lissé : sommets exprimés dans l'espace de repos, rest[i] = matrice de repos de l'os i dans ce même espace */
+/* Smooth mesh: vertices expressed in rest space, rest[i] = rest matrix of bone i in that same space */
 function skinnedMesh(geo, mat, bones, rest) {
   const sk = new THREE.Skeleton(bones, rest.map((m) => m.clone().invert()));
   const m = new THREE.SkinnedMesh(geo, mat);
   m.bind(sk, _RIG_ID); m.customDepthMaterial = SKIN_DEPTH_MAT;
   return m;
 }
-/* Matrice d'un os relativement à la racine du modèle (pose courante) */
+/* Matrix of a bone relative to the model root (current pose) */
 function restMatrix(bone, root) {
   const m = new THREE.Matrix4(); let o = bone;
   while (o && o !== root) { o.updateMatrix(); m.premultiply(o.matrix); o = o.parent; }
   return m;
 }
-/* Occlusion ambiante cuite dans les couleurs de sommets : chaque sphère { x, y, z, r } assombrit les surfaces qui la
-   regardent (facteur de forme d'une sphère), ce qui creuse les plis entre les pièces (sous le gilet, les poches, le casque). */
+/* Ambient occlusion baked into vertex colors: each sphere { x, y, z, r } darkens the surfaces facing
+   it (form factor of a sphere), which carves out the creases between pieces (under the vest, the pockets, the helmet). */
 function skinBakeAO(B, spheres, k = 1, from = 0, to = B.count) {
   const P = B.p, N = B.n, C = B.c;
   for (let i = from; i < to; i++) {
@@ -301,8 +301,8 @@ function skinBakeAO(B, spheres, k = 1, from = 0, to = B.count) {
     C[i * 3] *= f; C[i * 3 + 1] *= f; C[i * 3 + 2] *= f;
   }
 }
-/* Poids d'une chaîne d'os le long d'une abscisse s (membre droit au repos) : autour de chaque articulation j (s, h, a, m, b),
-   l'os a cède la place à l'os b sur ±h, l'os d'aide m (orienté à mi-chemin) prenant jusqu'à la moitié du poids. */
+/* Weights of a bone chain along an abscissa s (straight limb at rest): around each joint j (s, h, a, m, b),
+   bone a gives way to bone b over ±h, the helper bone m (oriented halfway) taking up to half the weight. */
 function chainW(s, J, first) {
   for (const j of J) {
     if (s <= j.s - j.h) return [[j.a, 1]];
@@ -313,10 +313,10 @@ function chainW(s, J, first) {
   }
   return [[J.length ? J[J.length - 1].b : first, 1]];
 }
-/* Balayage le long d'une chaîne d'os au repos : chain = [{ M : matrice de repos (espace racine), L : longueur }], l'axe du
-   membre étant ax et le profil portant sur les axes px, py (repère local des os). Aux articulations, la ligne médiane suit
-   un congé (courbe de Bézier de demi-longueur H[k]) et le profil pivote progressivement : la géométrie de repos d'un doigt
-   plié ne se pince pas. S : sections { d : abscisse depuis l'origine du premier os, r, n, col } ; o.w(d) : poids. */
+/* Sweep along a rest bone chain: chain = [{ M: rest matrix (root space), L: length }], the limb axis
+   being ax and the profile lying on axes px, py (local frame of the bones). At joints, the center line follows
+   a fillet (Bézier curve of half-length H[k]) and the profile rotates gradually: the rest geometry of a bent
+   finger does not pinch. S: sections { d: abscissa from the origin of the first bone, r, n, col }; o.w(d): weights. */
 function skinSweep(B, chain, H, ax, px, py, S, seg, o = {}) {
   const F = chain.map((c) => { const q = new THREE.Quaternion(), p = new V3(), s = new V3(); c.M.decompose(p, q, s); return { q, p, a: ax.clone().applyQuaternion(q) }; });
   const sj = []; let acc = 0; for (const c of chain) { acc += c.L; sj.push(acc); }

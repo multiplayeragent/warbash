@@ -1,22 +1,22 @@
 /* ==========================================================================
-   PLAN D'ÉQUIPE EN DOMINATION
-   Les bots ne choisissent plus un point au hasard : toutes les 1,5 s (et dès qu'un point change de main), chaque équipe refait son
-   plan. Chaque point a un besoin (combien de soldats, et l'urgence) :
-     - à l'adversaire : 3 soldats (attaque) ; neutre : 2 (attaque) ;
-     - à nous et contesté : 2 (défense) ; à nous et calme : 1 sentinelle ; un adversaire repéré près d'un point à nous (appel à la
-       radio d'un coéquipier, SQ.intel) en ajoute un ;
-     - en retard au score, on pèse l'attaque ; en avance, la défense ; le joueur, sur un point, compte comme un soldat de l'équipe.
-   L'affectation est gloutonne sur le meilleur couple soldat/point (urgence moins distance), avec de l'inertie : un bot qui garde déjà
-   son point, ou qui est en train de le capturer ou de s'y battre, ne le quitte pas pour un gain marginal. Un point pris, ses
-   attaquants ne s'y attardent pas : le besoin tombe à une sentinelle et les autres se font réaffecter (rotation) vers le point suivant.
-   Les surnuméraires renforcent le point le plus urgent. Un bot qui a un plan n'est pas téléguidé : il se bat normalement dès qu'il
-   voit un adversaire, et revient à son point ensuite (decideTactic limite la traque loin de lui).
+   TEAM PLAN IN DOMINATION
+   Bots no longer pick a point at random: every 1.5 s (and as soon as a point changes hands), each team redoes its
+   plan. Each point has a need (how many soldiers, and the urgency):
+     - enemy-held: 3 soldiers (attack); neutral: 2 (attack);
+     - ours and contested: 2 (defense); ours and quiet: 1 sentinel; an opponent spotted near one of our points (a teammate's radio
+       call, SQ.intel) adds one;
+     - behind on score, attack is weighted; ahead, defense; the player, on a point, counts as a soldier of the team.
+   Assignment is greedy on the best soldier/point pair (urgency minus distance), with inertia: a bot that already holds
+   its point, or is capturing it or fighting there, doesn't leave it for a marginal gain. Once a point is taken, its
+   attackers don't linger: the need drops to a sentinel and the others are reassigned (rotation) to the next point.
+   Surplus soldiers reinforce the most urgent point. A bot with a plan is not remote-controlled: it fights normally as soon as it
+   sees an opponent, and returns to its point afterward (decideTactic limits the hunt far from it).
    ========================================================================== */
 const SQ = { at: [-99, -99], intel: [null, null], rev: 0 };
 function squadDirty() { SQ.at[0] = SQ.at[1] = -99; }
-/* Début de partie : le dernier signalement de la partie d'avant ne vaut plus (son heure, MATCH.time, passait pour récente : l'horloge repart de zéro) */
+/* Match start: the last sighting from the previous match no longer counts (its time, MATCH.time, would pass for recent: the clock restarts from zero) */
 function squadReset() { SQ.intel[0] = SQ.intel[1] = null; squadDirty(); }
-/* Un bot qui repère un adversaire le signale à son équipe : position et instant (sans suivi : le plan s'en sert pour renforcer) */
+/* A bot that spots an opponent reports it to its team: position and moment (no tracking: the plan uses it to reinforce) */
 function squadIntel(b, foe, now) { SQ.intel[b.team] = { x: foe.pos.x, z: foe.pos.z, t: now }; }
 function squadMaybe(t, now) { if (now < SQ.at[t] - 0.01 || now - SQ.at[t] >= 1.5) squadPlan(t, now); }
 
@@ -38,16 +38,16 @@ function squadPlan(t, now) {
   const score = (b, nd) => {
     const p = pts[nd.i], d = hyp(p.x - b.pos.x, p.z - b.pos.z);
     let sc = nd.pr - d / 30;
-    if (b.sq && b.sq.p === nd.i) sc += 0.8;                                        // inertie
-    if (b.sq && b.sq.p === nd.i && d < DOM.rad && p.owner !== t) sc += 1.5;         // en pleine capture : il finit
-    if (b.sq && b.sq.p === nd.i && b.visible) sc += 2;                               // en plein combat devant le point
+    if (b.sq && b.sq.p === nd.i) sc += 0.8;                                        // inertia
+    if (b.sq && b.sq.p === nd.i && d < DOM.rad && p.owner !== t) sc += 1.5;         // mid-capture: it finishes
+    if (b.sq && b.sq.p === nd.i && b.visible) sc += 2;                               // in the middle of a fight in front of the point
     return sc;
   };
   const free = bots.slice(), pick = new Map();
   while (free.length) {
     let bb = null, bn = null, bs = -1e9;
     for (const b of free) for (const nd of need) if (nd.n > 0) { const sc = score(b, nd); if (sc > bs) { bs = sc; bb = b; bn = nd; } }
-    if (!bb) { // tous les besoins sont couverts : les autres renforcent le point le plus urgent, sans l'encombrer
+    if (!bb) { // all needs are covered: the others reinforce the most urgent point, without crowding it
       for (const b of free) {
         let best = null, bw = -1e9;
         for (const nd of need) { const sc = score(b, nd) - nd.got * 0.7; if (sc > bw) { bw = sc; best = nd; } }
@@ -60,8 +60,8 @@ function squadPlan(t, now) {
   for (const [b, nd] of pick) if (!b.sq || b.sq.p !== nd.i || b.sq.role !== nd.role) b.sq = { p: nd.i, role: nd.role, rev: ++SQ.rev };
 }
 
-/* Où aller : l'attaquant entre dans la zone et y reste quelques secondes (il en change à chaque fois, pour couvrir les angles) ;
-   le défenseur prend un couvert qui tient la zone, face à l'arrivée adverse, et y reste plus longtemps */
+/* Where to go: the attacker enters the zone and stays a few seconds (it changes spot each time, to cover the angles);
+   the defender takes a cover that holds the zone, facing the enemy's arrival, and stays longer */
 function squadGoal(b, now) {
   if (!b.sq) squadPlan(b.team, now);
   const a = b.sq; if (!a) return null;

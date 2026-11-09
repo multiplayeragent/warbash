@@ -1,27 +1,26 @@
-/* Comparaison des animations cuites (src/06ab-anim.js, tools/dev/anim/cuire.mjs) avec leur clip d'origine (pack Mixamo, /anim-source/).
-   node tools/dev/visual/anim.js [dossier de captures] ; ANIMS=fusil/debout/marche-avant,actions/glissade pour quelques clips (par défaut, tous) ;
-   CAPTURES=marche-avant,glissade (morceaux de noms) pour les captures, ou CAPTURES=tous ; PAGE=... pour une autre version.
-   Pour chaque clip, rejoué avec le décodeur du jeu sur un soldat (bassin, buste, tête et chevilles du clip, jambes en IK avec les longueurs de
-   SD, comme le fera poseSoldier) :
-   - valeurs non finies ; écart des données décodées à la référence (quantification, interpolation) ;
-   - glissement du pied d'appui : pendant chaque appui, le talon et la plante de la ranger (repère du monde, le corps avançant à la vitesse
-     du clip) ne doivent pas bouger de plus de 2 cm (SEUIL_PIED) ;
-   - genoux et tête du soldat contre ceux du clip mis à l'échelle (proportions : le soldat n'a pas tout à fait celles du X Bot) ;
-   - hauteur de la tête (J_HEAD) ;
-   puis le soldat du jeu en situation (06ac-loco.js) : déplacement debout, accroupi et au pistolet (glissement des pieds, au plus 3 cm avec
-   les mélanges de directions et d'allures, hauteur de la tête), trois sauts (semelle sous le sol à la réception, au plus 3 cm), une
-   glissade (tête vers 0,85 m), un lancer de grenade, un rechargement et quatre coups reçus ; LOCO=0 pour passer ; AVANT=page plus
-   ancienne (par exemple d'avant les clips) pour les mêmes mesures en regard. Puis le coût de poseSoldier et layoutSoldier pour 12
-   soldats, et des captures : le clip à gauche (squelette du X Bot, lignes) et le soldat à droite, au même instant, de face et de profil.
-   Code 1 si un seuil est dépassé. */
+/* Comparison of the baked animations (src/06ab-anim.js, tools/dev/anim/bake.mjs) with their original clip (Mixamo pack, /anim-source/).
+   node tools/dev/visual/anim.js [captures folder]; ANIMS=rifle/standing/walk-forward,actions/slide for a few clips (default: all);
+   CAPTURES=walk-forward,slide (name fragments) for the captures, or CAPTURES=all; PAGE=... for another version.
+   For each clip, replayed with the game's decoder on a soldier (pelvis, torso, head and ankles of the clip, legs in IK with the lengths of
+   SD, as poseSoldier will do):
+   - non-finite values; gap between the decoded data and the reference (quantization, interpolation);
+   - slipping of the stance foot: during each stance, the boot's heel and ball (world frame, the body advancing at the clip
+     speed) must not move by more than 2 cm (THRESHOLD_FOOT);
+   - the soldier's knees and head against those of the scaled clip (proportions: the soldier does not quite have those of the X Bot);
+   - head height (J_HEAD);
+   then the game's soldier in situation (06ac-loco.js): movement standing, crouched and with the pistol (foot slipping, at most 3 cm with
+   the blends of directions and gaits, head height), three jumps (sole below the ground on landing, at most 3 cm), a
+   slide (head around 0.85 m), a grenade throw, a reload and four hits taken; LOCO=0 to skip; BEFORE=older page (for example from before the clips) for the same measurements side by side. Then the cost of poseSoldier and layoutSoldier for 12
+   soldiers, and captures: the clip on the left (X Bot skeleton, lines) and the soldier on the right, at the same instant, front and side view.
+   Code 1 if a threshold is exceeded. */
 const path = require('path'), fs = require('fs');
 const { openGame } = require('./common');
 const out = process.argv[2];
-const SEUIL_PIED = 0.02;
+const THRESHOLD_FOOT = 0.02;
 (async () => {
   const lib = await import('../anim/lib.mjs');
   const only = process.env.ANIMS ? process.env.ANIMS.split(',') : null;
-  const clips = lib.manifest().clips.filter((c) => !only || only.includes(c.fichier.replace(/\.glb$/, '')));
+  const clips = lib.manifest().clips.filter((c) => !only || only.includes(c.filepath.replace(/\.glb$/, '')));
   const ref = [];
   for (const c of clips) {
     const b = await lib.bakeClip(c);
@@ -31,11 +30,11 @@ const SEUIL_PIED = 0.02;
   const SEG = [['Hips', 'Spine2'], ['Spine2', 'Neck'], ['Neck', 'Head'], ['Head', 'HeadTop_End'], ['Neck', 'LeftArm'], ['LeftArm', 'LeftForeArm'], ['LeftForeArm', 'LeftHand'], ['Neck', 'RightArm'], ['RightArm', 'RightForeArm'], ['RightForeArm', 'RightHand'],
     ['Hips', 'LeftUpLeg'], ['LeftUpLeg', 'LeftLeg'], ['LeftLeg', 'LeftFoot'], ['LeftFoot', 'LeftToeBase'], ['Hips', 'RightUpLeg'], ['RightUpLeg', 'RightLeg'], ['RightLeg', 'RightFoot'], ['RightFoot', 'RightToeBase']].map(([a, b]) => [bi(a), bi(b)]);
   const cap = process.env.CAPTURES ? process.env.CAPTURES.split(',') : [];
-  const g = await openGame({ w: 960, h: 600, settings: { quality: out && cap.length ? 'medium' : 'low', map: 'sable' }, page: process.env.PAGE, noMap: !(out && cap.length), noHdri: true });
+  const g = await openGame({ w: 960, h: 600, settings: { quality: out && cap.length ? 'medium' : 'low', map: 'chergui' }, page: process.env.PAGE, noMap: !(out && cap.length), noHdri: true });
   const { page } = g;
   await page.evaluate(() => { document.querySelectorAll('body > *:not(canvas)').forEach((e) => { e.style.display = 'none'; }); MATCH.state = 'capture'; for (const e of entities) if (e.model) e.model.root.visible = false; });
-  // soldier posé d'après une pose cuite : comme le fera poseSoldier (hanches par le bassin, cou et épaules par le buste, tête, jambes en IK
-  // vers les chevilles, genou vers la pointe du pied) ; bras le long du corps (ils restent pilotés par l'arme dans le jeu)
+  // soldier posed from a baked pose: as poseSoldier will do (hips from the pelvis, neck and shoulders from the torso, head, legs in IK
+  // toward the ankles, knee toward the toe) ; arms along the body (they stay driven by the weapon in the game)
   await page.evaluate(() => {
     window.__pose = (S, m, pos) => {
       const L = []; for (let i = 0; i < 15; i++) L.push(new V3());
@@ -61,26 +60,26 @@ const SEUIL_PIED = 0.02;
     };
   });
   let fails = 0;
-  // version de référence (AVANT=chemin d'une page construite plus ancienne, par exemple d'avant les clips) : mêmes mesures, pour comparer
-  const avant = async (fn) => {
-    if (!process.env.AVANT) return null;
-    const g = await openGame({ w: 400, h: 300, settings: { quality: 'low', map: 'sable' }, page: path.resolve(process.env.AVANT), noMap: true, noHdri: true });
+  // reference version (BEFORE=path of an older built page, for example from before the clips): same measurements, to compare
+  const forward = async (fn) => {
+    if (!process.env.BEFORE) return null;
+    const g = await openGame({ w: 400, h: 300, settings: { quality: 'low', map: 'chergui' }, page: path.resolve(process.env.BEFORE), noMap: true, noHdri: true });
     const r = await fn(g.page); await g.browser.close(); return r;
   };
   const lines = [];
   for (const r of ref) {
-    const res = await page.evaluate(([r, SEUIL]) => {
-      const c = animClip(r.id); if (!c) return { err: 'clip absent des données cuites' };
+    const res = await page.evaluate(([r, THRESHOLD]) => {
+      const c = animClip(r.id); if (!c) return { err: 'clip missing from the baked data' };
       const m = animSmp(), o = { nan: 0, dec: 0, slip: [0, 0], steps: [0, 0], knee: 0, head: [9, -9], dhead: 0 };
-      // décodage : chaque image contre la référence
+      // decoding: each frame against the reference
       for (let f = 0; f < c.n; f++) {
         animRead(c, f, m); const q = r.Q[f];
         for (const v of [m.pel.x, m.pel.y, m.pel.z, m.qP.w, m.qT.w, m.qH.w, m.ft[0].y, m.ft[1].y, m.fp[0], m.fy[0]]) if (!Number.isFinite(v)) o.nan++;
         o.dec = Math.max(o.dec, m.pel.distanceTo(new V3(...q.pel)), m.ft[0].distanceTo(new V3(...q.ft[0])), m.ft[1].distanceTo(new V3(...q.ft[1])));
       }
-      // glissement du pied d'appui : le soldat, posé d'après le clip, avance à la vitesse du clip (deux cycles à 120 images par seconde) ;
-      // on suit le talon et la plante de chaque ranger (sous l'os des orteils, qui se replie au déroulé) tant qu'ils touchent le sol
-      // (à moins de 8 mm du plus bas de la semelle) ; la cheville, elle, roule sur le talon puis la plante
+      // slipping of the stance foot: the soldier, posed from the clip, advances at the clip speed (two cycles at 120 frames per second);
+      // we track the heel and ball of each boot (under the toe bone, which folds in the roll-off) as long as they touch the ground
+      // (within 8 mm of the lowest point of the sole); the ankle, for its part, rolls over the heel then the ball
       const S = window.__S || (window.__S = makeSoldier('assault', 0, 'm4'));
       if (c.loop && c.v > 0.3) {
         const gv = new V3(...r.gv), dt = 1 / 120, T = c.dur * 2, ft = [SB.FTL, SB.FTR], to = [SB.TOL, SB.TOR], track = [[[], []], [[], []]];
@@ -104,7 +103,7 @@ const SEUIL_PIED = 0.02;
           }
         }
       }
-      // soldat posé : genoux et tête contre le clip
+      // posed soldier: knees and head against the clip
       for (let f = 0; f < c.n; f++) {
         animRead(c, f, m); window.__pose(S, m, new V3());
         const R = r.R[f], kl = new V3(...R[12]), kr = new V3(...R[16]);
@@ -113,27 +112,27 @@ const SEUIL_PIED = 0.02;
         o.dhead = Math.max(o.dhead, Math.abs(hy - r.Q[f].head[1]));
       }
       return o;
-    }, [r, SEUIL_PIED]);
-    if (res.err) { fails++; lines.push(`ECHEC : ${r.id} : ${res.err}`); continue; }
+    }, [r, THRESHOLD_FOOT]);
+    if (res.err) { fails++; lines.push(`FAIL  : ${r.id}: ${res.err}`); continue; }
     const bad = [];
-    if (res.nan) bad.push(`${res.nan} valeurs non finies`);
-    if (res.dec > 0.002) bad.push(`décodage à ${(res.dec * 1000).toFixed(1)} mm`);
-    if (Math.max(...res.slip) > SEUIL_PIED) bad.push(`pied d'appui qui glisse de ${(Math.max(...res.slip) * 100).toFixed(1)} cm`);
+    if (res.nan) bad.push(`${res.nan} non-finite values`);
+    if (res.dec > 0.002) bad.push(`decoding at ${(res.dec * 1000).toFixed(1)} mm`);
+    if (Math.max(...res.slip) > THRESHOLD_FOOT) bad.push(`stance foot slipping by ${(Math.max(...res.slip) * 100).toFixed(1)} cm`);
     if (bad.length) fails++;
-    const slip = res.steps[0] + res.steps[1] ? `glissement g ${(res.slip[0] * 100).toFixed(1)} d ${(res.slip[1] * 100).toFixed(1)} cm` : 'glissement -';
-    lines.push(`${bad.length ? 'ECHEC' : 'ok   '} : ${r.id.padEnd(34)} ${slip.padEnd(30)} genoux ${(res.knee * 100).toFixed(1)} cm  tête ${res.head[0].toFixed(2)}-${res.head[1].toFixed(2)} m (écart ${(res.dhead * 100).toFixed(1)} cm)${bad.length ? '  ' + bad.join(', ') : ''}`);
+    const slip = res.steps[0] + res.steps[1] ? `slip L ${(res.slip[0] * 100).toFixed(1)} d ${(res.slip[1] * 100).toFixed(1)} cm` : 'slip -';
+    lines.push(`${bad.length ? 'FAIL ' : 'ok   '} : ${r.id.padEnd(34)} ${slip.padEnd(30)} knees ${(res.knee * 100).toFixed(1)} cm  head ${res.head[0].toFixed(2)}-${res.head[1].toFixed(2)} m (gap ${(res.dhead * 100).toFixed(1)} cm)${bad.length ? '  ' + bad.join(', ') : ''}`);
     console.log(lines[lines.length - 1]);
   }
-  // déplacement des bots (06ac-loco.js) : un bot avance dans 8 directions à plusieurs allures, visée ou non, à 60 images par seconde ;
-  // glissement de ses pieds au sol (talon et plante de la ranger, comme plus haut), hauteur de la tête, valeurs non finies ; puis la même
-  // hauteur avec une version plus ancienne (AVANT) pour comparer. LOCO=0 pour passer.
+  // bot movement (06ac-loco.js): a bot moves in 8 directions at several gaits, aiming or not, at 60 frames per second;
+  // slipping of its feet on the ground (boot heel and ball, as above), head height, non-finite values; then the same
+  // height with an older version (BEFORE) to compare. LOCO=0 to skip.
   if (process.env.LOCO !== '0') {
     const CASES = [];
     for (const [v, sp] of [[1.6, 0], [2.6, 0], [3.3, 0], [5, 0], [5.8, 1]]) for (let d = 0; d < 8; d++) if (!sp || d <= 1 || d === 7) for (const aim of sp ? [0] : [0, 1]) CASES.push({ v, sp, d, aim, c: 0 });
     for (const [v, aim] of [[1.5, 0], [2.2, 1]]) for (let d = 0; d < 8; d++) CASES.push({ v, sp: 0, d, aim, c: 1 });
     for (const c of [0, 1]) for (const aim of [0, 1]) CASES.push({ v: 0, sp: 0, d: 0, aim, c });
     for (const v of [2.4, 4.5]) for (let d = 0; d < 8; d++) CASES.push({ v, sp: 0, d, aim: 1, c: 0, w: 'm9' });
-    const run = (pg) => pg.evaluate(([CASES, SEUIL]) => {
+    const run = (pg) => pg.evaluate(([CASES, THRESHOLD]) => {
       const out = [], HEEL = new V3(0, -0.075, 0.07), PAD = new V3(0, -0.023, -0.03), dt = 1 / 60;
       for (const k of CASES) {
         const th = (k.d * Math.PI) / 4, M = makeSoldier('assault', 1, k.w || 'm4');
@@ -157,21 +156,21 @@ const SEUIL_PIED = 0.02;
         out.push({ slip, nan, h: [Math.min(...hy), hy.reduce((a, b) => a + b, 0) / hy.length, Math.max(...hy)], on: typeof locoInit === 'function' && !!locoInit() });
       }
       return out;
-    }, [CASES, SEUIL_PIED]);
+    }, [CASES, THRESHOLD_FOOT]);
     const R1 = await run(page);
-    const R0 = await avant(run);
-    const DN = ['avant', 'avant-gauche', 'gauche', 'arriere-gauche', 'arriere', 'arriere-droite', 'droite', 'avant-droite'];
-    const SEUIL_LOCO = 0.03;
+    const R0 = await forward(run);
+    const DN = ['forward', 'forward-left', 'left', 'backward-left', 'backward', 'backward-right', 'right', 'forward-right'];
+    const THRESHOLD_LOCO = 0.03;
     CASES.forEach((k, i) => {
-      const a = R1[i], b = R0 && R0[i], bad = a.nan || a.slip > SEUIL_LOCO;
+      const a = R1[i], b = R0 && R0[i], bad = a.nan || a.slip > THRESHOLD_LOCO;
       if (bad) fails++;
-      console.log(`${bad ? 'ECHEC' : 'ok   '} : bot ${k.w ? 'pistolet ' : ''}${k.c ? 'accroupi ' : ''}${String(k.v).padStart(3)} m/s${k.sp ? ' sprint' : k.aim ? ' visée ' : '       '} ${(k.v ? DN[k.d] : 'arrêt').padEnd(15)} glissement ${(a.slip * 100).toFixed(1).padStart(4)} cm  tête ${a.h.map((x) => x.toFixed(2)).join('/')} ${b ? `(avant ${b.h.map((x) => x.toFixed(2)).join('/')})` : ''}${a.nan ? '  valeurs non finies' : ''}${a.on ? '' : '  (clips inactifs)'}`);
+      console.log(`${bad ? 'FAIL ' : 'ok   '} : bot ${k.w ? 'pistol ' : ''}${k.c ? 'crouched ' : ''}${String(k.v).padStart(3)} m/s${k.sp ? ' sprint' : k.aim ? ' aiming ' : '       '} ${(k.v ? DN[k.d] : 'stop').padEnd(15)} slip ${(a.slip * 100).toFixed(1).padStart(4)} cm  head ${a.h.map((x) => x.toFixed(2)).join('/')} ${b ? `(before: ${b.h.map((x) => x.toFixed(2)).join('/')})` : ''}${a.nan ? '  non-finite values' : ''}${a.on ? '' : '  (clips inactive)'}`);
     });
   }
-  // saut (06ac-loco.js) : sur place, en courant, chute de 3 m ; valeurs non finies, semelle sous le sol après la réception (au plus 3 cm),
-  // hauteur de la tête au plus bas de la réception
+  // jump (06ac-loco.js): in place, running, 3 m fall; non-finite values, sole below the ground after landing (at most 3 cm),
+  // head height at the lowest point of the landing
   if (process.env.LOCO !== '0') {
-    const JUMPS = [{ n: 'saut sur place', vy: 6.3, v: 0, y0: 0 }, { n: 'saut en courant', vy: 6.3, v: 5, y0: 0 }, { n: 'chute de 3 m', vy: 0, v: 0, y0: 3 }];
+    const JUMPS = [{ n: 'standing jump', vy: 6.3, v: 0, y0: 0 }, { n: 'running jump', vy: 6.3, v: 5, y0: 0 }, { n: '3 m fall', vy: 0, v: 0, y0: 3 }];
     const jrun = (pg) => pg.evaluate((JUMPS) => JUMPS.map((k) => {
       const M = makeSoldier('assault', 1, 'm4'), dt = 1 / 60, HEEL = new V3(0, -0.075, 0.07), PAD = new V3(0, -0.023, -0.03);
       const e = { model: M, pos: new V3(0, 0, 0), vel: new V3(0, 0, -k.v), yaw: 0, pitch: 0, alive: true, crouchAmt: 0, onGround: true, isPlayer: false, sprinting: false, visible: false, target: null, lastShotT: -99, lastSeenT: -99, arms: { adsW: 0 }, recoil: 0, vy: 0 };
@@ -194,15 +193,15 @@ const SEUIL_PIED = 0.02;
       return { nan, sink, hMin, tuck };
     }), JUMPS);
     const J1 = await jrun(page);
-    const J0 = await avant(jrun);
+    const J0 = await forward(jrun);
     JUMPS.forEach((k, i) => {
       const a = J1[i], b = J0 && J0[i], bad = a.nan || a.sink > 0.03;
       if (bad) fails++;
-      console.log(`${bad ? 'ECHEC' : 'ok   '} : ${k.n.padEnd(16)} semelle sous le sol ${(a.sink * 100).toFixed(1)} cm, pieds repliés jusqu'à ${a.tuck.toFixed(2)} m, tête au plus bas ${a.hMin.toFixed(2)} m ${b ? `(avant ${(b.sink * 100).toFixed(1)} cm, ${b.tuck.toFixed(2)} m, ${b.hMin.toFixed(2)} m)` : ''}${a.nan ? '  valeurs non finies' : ''}`);
+      console.log(`${bad ? 'FAIL ' : 'ok   '} : ${k.n.padEnd(16)} sole below ground ${(a.sink * 100).toFixed(1)} cm, feet tucked up to ${a.tuck.toFixed(2)} m, head lowest at ${a.hMin.toFixed(2)} m ${b ? `(before: ${(b.sink * 100).toFixed(1)} cm, ${b.tuck.toFixed(2)} m, ${b.hMin.toFixed(2)} m)` : ''}${a.nan ? '  non-finite values' : ''}`);
     });
   }
-  // glissade (06ac-loco.js) : 0,8 s de 8 à 3,4 m/s, accroupi ; hauteur de la tête au cœur de la glissade (vers 0,85 m, la caméra du joueur),
-  // semelle sous le sol (au plus 3 cm), valeurs non finies
+  // slide (06ac-loco.js): 0.8 s from 8 to 3.4 m/s, crouched; head height at the middle of the slide (around 0.85 m, the player's camera),
+  // sole below the ground (at most 3 cm), non-finite values
   if (process.env.LOCO !== '0') {
     const srun = (pg) => pg.evaluate(() => {
       const M = makeSoldier('assault', 1, 'm4'), dt = 1 / 60, HEEL = new V3(0, -0.075, 0.07), PAD = new V3(0, -0.023, -0.03);
@@ -220,18 +219,18 @@ const SEUIL_PIED = 0.02;
       return { nan, sink, h: [Math.min(...hy), hy.reduce((a, b) => a + b, 0) / hy.length, Math.max(...hy)] };
     });
     const a = await srun(page);
-    const b = await avant(srun);
+    const b = await forward(srun);
     const bad = a.nan || a.sink > 0.03; if (bad) fails++;
-    console.log(`${bad ? 'ECHEC' : 'ok   '} : glissade         tête ${a.h.map((x) => x.toFixed(2)).join('/')} m, semelle sous le sol ${(a.sink * 100).toFixed(1)} cm ${b ? `(avant : tête ${b.h.map((x) => x.toFixed(2)).join('/')} m)` : ''}${a.nan ? '  valeurs non finies' : ''}`);
+    console.log(`${bad ? 'FAIL ' : 'ok   '} : slide            head ${a.h.map((x) => x.toFixed(2)).join('/')} m, sole below ground ${(a.sink * 100).toFixed(1)} cm ${b ? `(before: head ${b.h.map((x) => x.toFixed(2)).join('/')} m)` : ''}${a.nan ? '  non-finite values' : ''}`);
   }
-  // gestes (06ac-loco.js) : lancer de grenade et rechargement ; valeurs non finies, plus grande rotation du buste (degrés)
+  // gestures (06ac-loco.js): grenade throw and reload; non-finite values, largest torso rotation (degrees)
   if (process.env.LOCO !== '0') {
-    const grun = (pg) => pg.evaluate(() => ['lancer', 'rechargement'].map((g) => {
+    const grun = (pg) => pg.evaluate(() => ['throw', 'reload'].map((g) => {
       const M = makeSoldier('assault', 1, 'm4'), dt = 1 / 60;
       const e = { model: M, pos: new V3(), vel: new V3(), yaw: 0, pitch: 0, alive: true, crouchAmt: 0, onGround: true, isPlayer: false, sprinting: false, visible: false, target: null, lastShotT: -99, lastSeenT: -99, arms: { adsW: 0 }, recoil: 0 };
       for (let f = 0; f < 90; f++) animSoldier(e, dt);
       const u0 = M.J[J_CHE].clone().sub(M.J[J_PEL]).normalize(), s0 = M.J[J_SHR].clone().sub(M.J[J_SHL]).normalize(); let nan = 0, rot = 0;
-      if (g === 'lancer') e.throwT = 0.7; else e.arms.reload = { t: 0, dur: 2.4, tube: false, phase: 'mag' };
+      if (g === 'throw') e.throwT = 0.7; else e.arms.reload = { t: 0, dur: 2.4, tube: false, phase: 'mag' };
       for (let f = 0; f < 150; f++) {
         if (e.arms.reload) { e.arms.reload.t += dt; if (e.arms.reload.t > e.arms.reload.dur) e.arms.reload = null; }
         animSoldier(e, dt);
@@ -242,16 +241,16 @@ const SEUIL_PIED = 0.02;
       return { nan, rot: (rot * 180) / Math.PI };
     }));
     const G1 = await grun(page);
-    const G0 = await avant(grun);
-    ['lancer de grenade', 'rechargement'].forEach((n, i) => {
+    const G0 = await forward(grun);
+    ['grenade throw', 'reload'].forEach((n, i) => {
       const a = G1[i], b = G0 && G0[i]; if (a.nan) fails++;
-      console.log(`${a.nan ? 'ECHEC' : 'ok   '} : ${n.padEnd(18)} buste tourné jusqu'à ${a.rot.toFixed(0)} degrés ${b ? `(avant ${b.rot.toFixed(0)})` : ''}${a.nan ? '  valeurs non finies' : ''}`);
+      console.log(`${a.nan ? 'FAIL ' : 'ok   '} : ${n.padEnd(18)} torso turned up to ${a.rot.toFixed(0)} degrees ${b ? `(before: ${b.rot.toFixed(0)})` : ''}${a.nan ? '  non-finite values' : ''}`);
     });
   }
-  // coup reçu (06ac-loco.js) : de face, de côté, de dos, à la tête ; valeurs non finies et plus grand déplacement de la tête et du cou
+  // hit taken (06ac-loco.js): from the front, side, back, to the head; non-finite values and largest displacement of the head and neck
   // pendant 0,6 s
   if (process.env.LOCO !== '0') {
-    const HITS = [{ n: 'de face', x: 0, z: 1 }, { n: 'de côté', x: 1, z: 0 }, { n: 'de dos', x: 0, z: -1 }, { n: 'à la tête', x: 0, z: 1, h: 1 }];
+    const HITS = [{ n: 'from the front', x: 0, z: 1 }, { n: 'side-on', x: 1, z: 0 }, { n: 'from behind', x: 0, z: -1 }, { n: 'to the head', x: 0, z: 1, h: 1 }];
     const hrun = (pg) => pg.evaluate((HITS) => HITS.map((k) => {
       const M = makeSoldier('assault', 1, 'm4'), dt = 1 / 60;
       const e = { model: M, pos: new V3(), vel: new V3(), yaw: 0, pitch: 0, alive: true, crouchAmt: 0, onGround: true, isPlayer: false, sprinting: false, visible: false, target: null, lastShotT: -99, lastSeenT: -99, arms: { adsW: 1 }, recoil: 0 };
@@ -266,28 +265,28 @@ const SEUIL_PIED = 0.02;
       return { nan, dh, dc };
     }), HITS);
     const H1 = await hrun(page);
-    const H0 = await avant(hrun);
+    const H0 = await forward(hrun);
     HITS.forEach((k, i) => {
       const a = H1[i], b = H0 && H0[i];
       if (a.nan) fails++;
-      console.log(`${a.nan ? 'ECHEC' : 'ok   '} : coup reçu ${k.n.padEnd(10)} tête déplacée de ${(a.dh * 100).toFixed(1)} cm, cou de ${(a.dc * 100).toFixed(1)} cm ${b ? `(avant ${(b.dh * 100).toFixed(1)} et ${(b.dc * 100).toFixed(1)} cm)` : ''}${a.nan ? '  valeurs non finies' : ''}`);
+      console.log(`${a.nan ? 'FAIL ' : 'ok   '} : hit taken ${k.n.padEnd(10)} head moved by ${(a.dh * 100).toFixed(1)} cm, neck ${(a.dc * 100).toFixed(1)} cm ${b ? `(before: ${(b.dh * 100).toFixed(1)} and ${(b.dc * 100).toFixed(1)} cm)` : ''}${a.nan ? '  non-finite values' : ''}`);
     });
   }
-  // coût de la pose : 12 soldats en déplacement
+  // pose cost: 12 soldiers moving
   const cost = await page.evaluate(() => {
     const E = []; for (let i = 0; i < 12; i++) { const M = makeSoldier('assault', 1, 'm4'); E.push({ model: M, pos: new V3(i * 2, 0, 0), vel: new V3(Math.sin(i) * 3, 0, Math.cos(i) * 3), yaw: i, pitch: 0, alive: true, crouchAmt: i % 3 === 0 ? 1 : 0, onGround: true, isPlayer: false, visible: false, target: null, lastShotT: -99, lastSeenT: -99, arms: { adsW: i % 2 }, recoil: 0 }); }
     for (let k = 0; k < 60; k++) for (const e of E) animSoldier(e, 1 / 60);
-    // minimum de sept séries (le ramasse-miettes et la machine faussent une mesure unique)
+    // minimum of seven runs (the garbage collector and the machine skew a single measurement)
     let best = 1e9;
     for (let rep = 0; rep < 7; rep++) { const t0 = performance.now(); for (let k = 0; k < 100; k++) for (const e of E) animSoldier(e, 1 / 60); best = Math.min(best, (performance.now() - t0) / 100); }
     return best;
   });
-  console.log(`coût de la pose : ${cost.toFixed(3)} ms par image pour 12 soldats (poseSoldier et layoutSoldier)`);
-  // captures : le clip (lignes) à gauche, le soldat à droite, de face puis de profil, au tiers du clip
+  console.log(`pose cost: ${cost.toFixed(3)} ms per frame for 12 soldiers (poseSoldier and layoutSoldier)`);
+  // captures: the clip (lines) on the left, the soldier on the right, front then side view, at a third of the clip
   if (out && cap.length) {
     fs.mkdirSync(out, { recursive: true });
-    for (const r of ref.filter((r) => cap.includes('tous') || cap.some((k) => r.id.includes(k)))) {
-      for (const view of ['face', 'profil']) {
+    for (const r of ref.filter((r) => cap.includes('all') || cap.some((k) => r.id.includes(k)))) {
+      for (const view of ['face', 'sideView']) {
         await page.evaluate(([r, SEG, view]) => {
           const c = animClip(r.id), m = animSmp(), f = Math.floor(c.n / 3), x0 = 0, z0 = 30, y0 = groundHeight(x0, z0, 3, 0.3);
           animRead(c, f, m);
@@ -307,6 +306,6 @@ const SEUIL_PIED = 0.02;
     }
   }
   await g.browser.close();
-  console.log(fails ? `${fails} échec(s)` : 'tout est bon');
+  console.log(fails ? `${fails} failure(s)` : 'all good');
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(2); });

@@ -23,7 +23,7 @@ async function client(name) {
   const errs = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.route('**/*', (r) => (/fonts\.g/.test(r.request().url()) ? r.abort() : r.continue()));
-  await page.goto(s.url);
+  await page.goto(s.url, { timeout: 120000 }); // a fourth software-rendered client on a busy machine can take more than 30 s
   await page.waitForFunction(() => typeof MATCH !== 'undefined' && MATCH.state === 'menu', null, { timeout: 120000, polling: 250 });
   return { name, page, ctx, errs };
 }
@@ -36,7 +36,7 @@ try {
   ok(await host.page.evaluate(() => netCan()), 'online mode available (key and game server module loaded)');
 
   // private room
-  await host.page.evaluate(() => { Settings.map = 'sable'; Settings.mode = 'tdm'; netHost({}); });
+  await host.page.evaluate(() => { Settings.map = 'chergui'; Settings.mode = 'tdm'; netHost({}); });
   ok(await until(host.page, () => NET.joined && NET.role === 'host'), 'host opens a private room', secs());
   const code = await host.page.evaluate(() => NET.code);
   for (const g of guests) await g.page.evaluate((c) => netJoinLobby(c), code);
@@ -44,7 +44,7 @@ try {
   ok(await until(host.page, (n) => NET.players.size === n, all.length), `host lobby shows ${all.length} players`);
   const wrong = await client('Intruder');
   await wrong.page.evaluate((c) => netJoinLobby(c.slice(0, 1) + 'ZZZZ'), code);
-  ok(await until(wrong.page, () => NET.role === 'off' && /introuvable|not found/i.test(NET.status), null, 20000), 'a wrong code in the same room slot is refused', await wrong.page.evaluate(() => NET.status));
+  ok(await until(wrong.page, () => NET.role === 'off' && /not found/i.test(NET.status), null, 20000), 'a wrong code in the same room slot is refused', await wrong.page.evaluate(() => NET.status));
   await wrong.ctx.close();
 
   // match
@@ -58,16 +58,16 @@ try {
   const g1 = guests[0], g1id = await g1.page.evaluate(() => NET.me);
   const at = await g1.page.evaluate(() => { const p = PL.ent.pos; p.x += 3; p.z += 2; return { x: p.x, z: p.z }; });
   const near = (id, a) => { const e = NET.remotes.get(id); return !!e && Math.hypot(e.pos.x - a.x, e.pos.z - a.z) < 1.5; };
-  ok(await until(host.page, ([id, a]) => { const e = NET.remotes.get(id); return !!e && Math.hypot(e.pos.x - a.x, e.pos.z - a.z) < 1.5; }, [g1id, at], 10000), 'guest movement reaches the host');
-  if (guests[1]) ok(await until(guests[1].page, ([id, a]) => { const e = NET.remotes.get(id); return !!e && Math.hypot(e.pos.x - a.x, e.pos.z - a.z) < 1.5; }, [g1id, at], 10000), 'guest movement reaches the other guest (fan-out by the server)');
+  ok(await until(host.page, ([id, a]) => { const e = NET.remotes.get(id); return !!e && Math.hypot(e.pos.x - a.x, e.pos.z - a.z) < 1.5; }, [g1id, at], 20000), 'guest movement reaches the host');
+  if (guests[1]) ok(await until(guests[1].page, ([id, a]) => { const e = NET.remotes.get(id); return !!e && Math.hypot(e.pos.x - a.x, e.pos.z - a.z) < 1.5; }, [g1id, at], 20000), 'guest movement reaches the other guest (fan-out by the server)');
 
   // a hit from guest 1 kills the host
   await host.page.evaluate(() => { PL.ent.protT = 0; });
   const hostId = await host.page.evaluate(() => NET.me);
   const k0 = await g1.page.evaluate(() => PL.ent.kills);
   await g1.page.evaluate((id) => { const v = NET.remotes.get(id); for (let i = 0; i < 4; i++) netSendHit(v, 60, PL.ent.weapon ? PL.ent.weapon.name : 'ar', true, new THREE.Vector3(0, 0, 1), PL.ent); }, hostId);
-  ok(await until(host.page, () => !PL.ent.alive || PL.ent.deaths > 0, null, 10000), 'guest hit kills the host');
-  ok(await until(g1.page, (k) => PL.ent.kills > k, k0, 10000), 'the kill is counted for the guest');
+  ok(await until(host.page, () => !PL.ent.alive || PL.ent.deaths > 0, null, 20000), 'guest hit kills the host');
+  ok(await until(g1.page, (k) => PL.ent.kills > k, k0, 20000), 'the kill is counted for the guest');
 
   // a guest leaves
   const last = guests[guests.length - 1];

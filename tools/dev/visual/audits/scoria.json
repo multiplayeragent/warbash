@@ -1,0 +1,212 @@
+{
+ "mapKey": "scoria",
+ "naming": "Scoria",
+ "date": "2026-11-09",
+ "measures": {
+  "type": "mid",
+  "meanView": 11.4,
+  "groundShortView": 7.3,
+  "viewsOver60m": 3.8,
+  "plazaShare": 41.3,
+  "elevatedShare": 5.2,
+  "walking": [
+   94.3,
+   104.7
+  ],
+  "routes": 5,
+  "deadEnds": 0,
+  "detour90": 1.32,
+  "junctions": 7,
+  "landmark": 70.6,
+  "chokepoint": {
+   "front": 17,
+   "passages": 9,
+   "detail": [
+    {
+     "whereAt": [
+      -15.5,
+      -5.5
+     ],
+     "breadth": 5,
+     "zone": "Esplanade"
+    },
+    {
+     "whereAt": [
+      -20,
+      -5.5
+     ],
+     "breadth": 2,
+     "zone": "Pipelines"
+    },
+    {
+     "whereAt": [
+      -8,
+      -5.5
+     ],
+     "breadth": 2,
+     "zone": "Esplanade"
+    },
+    {
+     "whereAt": [
+      0,
+      -5.5
+     ],
+     "breadth": 2,
+     "zone": "Observatory"
+    },
+    {
+     "whereAt": [
+      10,
+      -5.5
+     ],
+     "breadth": 2,
+     "zone": "Gallery"
+    },
+    {
+     "whereAt": [
+      24.5,
+      -8.5
+     ],
+     "breadth": 1,
+     "zone": "Turbine hall"
+    },
+    {
+     "whereAt": [
+      30.5,
+      -1.5
+     ],
+     "breadth": 1,
+     "zone": "Turbine hall"
+    },
+    {
+     "whereAt": [
+      -25.5,
+      4.5
+     ],
+     "breadth": 1,
+     "zone": "Pipelines"
+    }
+   ]
+  },
+  "tightTurns": 0,
+  "tightTurnsAt": [],
+  "points": [
+   {
+    "naming": "A",
+    "point": [
+     0,
+     31
+    ],
+    "entrances": 2,
+    "walkable": 83,
+    "cover9m": 8,
+    "walking": [
+     29,
+     90.6
+    ],
+    "seenFromSpawns": [
+     3,
+     0
+    ]
+   },
+   {
+    "naming": "B",
+    "point": [
+     -14.5,
+     0
+    ],
+    "entrances": 3,
+    "walkable": 99,
+    "cover9m": 8,
+    "walking": [
+     60,
+     60.6
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "C",
+    "point": [
+     0,
+     -31
+    ],
+    "entrances": 4,
+    "walkable": 83,
+    "cover9m": 8,
+    "walking": [
+     89.6,
+     30
+    ],
+    "seenFromSpawns": [
+     0,
+     3
+    ]
+   }
+  ]
+ },
+ "defects": {
+  "navigation": [],
+  "decor": {
+   "blockedDoors": 0,
+   "pots": 0,
+   "badPosters": 0,
+   "bikes": 0,
+   "bridgeIssues": 0,
+   "sand": 0,
+   "overlapCount": 0,
+   "itemList": []
+  },
+  "slits": {
+   "slits": 0,
+   "bulletPass": 0,
+   "wallHoles": 0,
+   "margins": 26,
+   "marginsOver30cm": 26,
+   "itemList": [
+    "margin 7 m (27.3, 2.45) metal",
+    "margin 7 m (27.3, -9.55) metal",
+    "margin 4.55 m (-29.4, -32.75) metal",
+    "margin 4.55 m (-29.4, 32.75) metal",
+    "margin 3.4 m (-18.75, 48.5) metal",
+    "margin 3.4 m (-18.75, -48.5) metal",
+    "margin 2.55 m (-29.4, 0) metal",
+    "margin 2.05 m (-27.35, 0) metal",
+    "margin 2 m (-25.93, 61) metal",
+    "margin 2 m (-20.3, 61) metal",
+    "margin 2 m (-25.93, -61) metal",
+    "margin 2 m (-20.3, -61) metal",
+    "margin 1.75 m (-21.9, -9.33) concrete",
+    "margin 1.04 m (26.95, 21) metal",
+    "margin 1.04 m (26.95, -21) metal",
+    "margin 0.98 m (28.6, 14.85) metal",
+    "margin 0.98 m (28.6, -17.55) metal",
+    "margin 0.9 m (-27.3, 30) metal",
+    "margin 0.9 m (-27.3, -30) metal",
+    "margin 0.84 m (2.75, 53) metal"
+   ]
+  },
+  "snags": {
+   "snagCount": 0,
+   "pathCount": 160,
+   "itemList": []
+  },
+  "zfight": {
+   "visibleCount": 0,
+   "blocking": 0,
+   "itemList": []
+  },
+  "crossing": {
+   "pairCount": 0,
+   "outOf": 276,
+   "itemList": [],
+   "jumpLinks": []
+  }
+ },
+ "outOfRange": [],
+ "waived": [],
+ "blocking": 0,
+ "minutes": 7.4
+}

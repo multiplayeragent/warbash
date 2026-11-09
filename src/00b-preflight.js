@@ -1,23 +1,23 @@
 /* ==========================================================================
-   VÉRIFICATION AU DÉMARRAGE
-   Les sources sont un seul script : si three.js ne s'est pas téléchargé ou si le navigateur refuse de créer le contexte WebGL (01-core.js), le script s'arrête
-   en silence et l'écran reste sur « Chargement de three.js », sans un mot. Un Pixel s'y est retrouvé juste après une interruption de l'affichage 3D : Chrome
-   bloque alors la création d'un contexte pour le site (« Web page caused context loss and was blocked ») et, d'après le code de Chromium (blocage par domaine des API
-   3D, sans expiration), ne la rend qu'à son propre redémarrage : rechargements et attente n'y font rien, il faut arrêter Chrome. Ce module passe avant tout le reste :
-   - three.js absent : message et nouvel essai (rechargement) ;
-   - contexte WebGL impossible à créer : message qui dit d'arrêter Chrome, nouvel essai toutes les 3 s malgré tout (un blocage de tous les sites, lui, dure
-     quelques secondes), la page se recharge dès que c'est possible ;
-   - démarrage qui n'a pas abouti au bout de 25 s (hors fenêtre d'installation) : message avec la première erreur de la page et un bouton pour recharger.
-   Tout ce qui est noté va aussi dans le journal chronologique du rapport graphique (dc_gpu_tl, voir 01a-gpu.js).
+   STARTUP CHECK
+   The sources are a single script: if three.js failed to download or if the browser refuses to create the WebGL context (01-core.js), the script stops
+   silently and the screen stays on "Loading three.js", without a word. A Pixel ended up there right after a 3D display interruption: Chrome
+   then blocks the creation of a context for the site ("Web page caused context loss and was blocked") and, according to the Chromium code (per-domain blocking of the 3D
+   APIs, with no expiry), only lifts it at its own restart: reloads and waiting do nothing, Chrome has to be stopped. This module runs before everything else:
+   - three.js missing: message and retry (reload);
+   - WebGL context impossible to create: message telling to stop Chrome, retry every 3 s anyway (a block on all sites, by contrast, lasts
+     a few seconds), the page reloads as soon as possible;
+   - startup that hasn't succeeded after 25 s (outside the install window): message with the first error of the page and a button to reload.
+   Everything logged also goes into the chronological log of the graphics report (dc_gpu_tl, see 01a-gpu.js).
    ========================================================================== */
 const PRE = { err: [], booted: false, blocked: false };
-/* Départ voulu par le jeu (rechargement après une perte du contexte, mise à jour) : la confirmation de sortie en partie ne s'affiche pas (09-game.js) */
+/* Departure wanted by the game (reload after a context loss, update): the in-match exit confirmation is not shown (09-game.js) */
 const PAGE_LEAVE = { ok: false };
 addEventListener('error', (e) => { if (PRE.err.length < 3) PRE.err.push(String((e && e.message) || 'error') + (e && e.filename ? ' @' + String(e.filename).split('/').pop() + ':' + e.lineno : '')); });
 function preLog(m) {
-  try { const k = 'dc_gpu_tl', v = JSON.parse(localStorage.getItem(k) || '[]'); v.push([Date.now(), 'pre', String(m).slice(0, 90)]); localStorage.setItem(k, JSON.stringify(v.slice(-70))); } catch (e) { /* ignoré */ }
+  try { const k = 'dc_gpu_tl', v = JSON.parse(localStorage.getItem(k) || '[]'); v.push([Date.now(), 'pre', String(m).slice(0, 90)]); localStorage.setItem(k, JSON.stringify(v.slice(-70))); } catch (e) { /* ignored */ }
 }
-/* Essai de création d'un contexte WebGL 2 sur une toile jetable, aussitôt libéré (attrs : les attributs demandés par le jeu, voir 01-core.js) */
+/* Attempt to create a WebGL 2 context on a throwaway canvas, released right away (attrs: the attributes requested by the game, see 01-core.js) */
 function preGlTest(attrs) {
   let ok = false, why = '';
   try {
@@ -34,13 +34,13 @@ function preGlTest(attrs) {
   const msg = document.getElementById('loadMsg'); if (!msg) return;
   const say = (t) => { msg.textContent = t; };
   if (typeof THREE === 'undefined') {
-    preLog('three.js not loaded'); say(_t('three.js n\u0027a pas pu être téléchargé. Vérifiez la connexion. Nouvel essai dans quelques secondes.'));
+    preLog('three.js not loaded'); say(_t('three.js could not be downloaded. Check your connection. Trying again in a few seconds.'));
     setTimeout(() => location.reload(), 5000); return;
   }
   const r = preGlTest();
   if (!r.ok) {
     preLog('WebGL unavailable at start: ' + r.why); PRE.blocked = true;
-    const t0 = Date.now(), show = (why) => say(_t('Chrome a bloqué l\'affichage 3D du jeu après une interruption et ne le rend qu\'à son redémarrage. Fermez le jeu, arrêtez Chrome (Paramètres du téléphone, Applications, Chrome, Forcer l\'arrêt), puis rouvrez le jeu.') + ' ' + _t('Attente : {0} s', Math.round((Date.now() - t0) / 1000)) + (why ? ' (' + why + ')' : ''));
+    const t0 = Date.now(), show = (why) => say(_t('Chrome blocked the game\u0027s 3D display after an interruption and only gives it back when it restarts. Close the game, stop Chrome (phone Settings, Apps, Chrome, Force stop), then reopen the game.') + ' ' + _t('Waiting: {0} s', Math.round((Date.now() - t0) / 1000)) + (why ? ' (' + why + ')' : ''));
     show(r.why);
     const tick = () => {
       const t = preGlTest();
@@ -49,15 +49,15 @@ function preGlTest(attrs) {
     };
     setTimeout(tick, 3000);
   }
-  // démarrage qui n'aboutit pas, pour une autre raison (une erreur du script, par exemple)
+  // startup that doesn't succeed, for another reason (a script error, for example)
   setTimeout(() => {
-    let gate = false; try { gate = !!PWA.gate; } catch (e) { /* le script s'est arrêté avant PWA */ }
+    let gate = false; try { gate = !!PWA.gate; } catch (e) { /* the script stopped before PWA */ }
     if (PRE.booted || PRE.blocked || gate || !document.getElementById('loading') || document.getElementById('loading').classList.contains('hidden')) return;
-    // l'erreur d'un script d'un autre site (three.js) arrive sans détail (« Script error. ») : on refait l'essai de création du contexte avec les attributs du jeu
+    // the error of a script from another site (three.js) arrives without detail ("Script error."): we retry creating the context with the game's attributes
     const a = preGlTest({ powerPreference: 'high-performance', antialias: false, stencil: false });
     const why = (PRE.err[0] || '?') + (a.ok ? '' : ' ; WebGL: ' + a.why); preLog('startup stuck: ' + why);
-    say(_t('Le démarrage n\'a pas abouti : {0}', why));
-    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn primary'; b.textContent = _t('Recharger');
+    say(_t('Startup did not complete: {0}', why));
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn primary'; b.textContent = _t('Reload');
     b.onclick = () => location.reload(); msg.parentNode.insertBefore(b, msg.nextSibling);
   }, window.__PRE_WATCH || 25000);
 })();

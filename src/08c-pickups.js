@@ -1,20 +1,20 @@
 /* ==========================================================================
-   ARMES AU SOL
-   À sa mort, un soldat lâche l'arme qu'il tenait, avec ses munitions restantes.
-   - arme du même type qu'une des nôtres (fusil d'assaut, pistolet-mitrailleur, fusil de
-     précision, fusil à pompe, pistolet : WEAPONS[].cat) : on récupère ses munitions en
-     marchant dessus, une cartouche pour une cartouche, dans la limite de la réserve
-     maximale de notre arme ; vidée, elle disparaît, sinon elle reste au sol ;
-   - arme différente de celles qu'on porte (même du même type) : E l'échange contre
-     l'arme en main (celle-ci tombe à son tour, avec ses munitions) ; à la manette, X maintenu.
-   Les armes vivent bien plus longtemps que les corps (5,5 s) : DROP.life.
-   Les armes lâchées sont locales à chaque joueur (rien n'est envoyé en ligne).
+   WEAPONS ON THE GROUND
+   On death, a soldier drops the weapon they held, with its remaining ammo.
+   - weapon of the same type as one of ours (assault rifle, submachine gun,
+     sniper rifle, shotgun, pistol: WEAPONS[].cat): its ammo is picked up by
+     walking over it, round for round, up to the maximum reserve of our weapon;
+     emptied, it disappears, otherwise it stays on the ground;
+   - weapon different from those we carry (even of the same type): E swaps it for
+     the weapon in hand (which drops in turn, with its ammo); on gamepad, X held.
+   Weapons live much longer than bodies (5.5 s): DROP.life.
+   Dropped weapons are local to each player (nothing is sent online).
    ========================================================================== */
 const DROP = { life: 90, fade: 2, max: 14, swapR: 1.7, ammoR: 1.1, shadowR: 14, farR: 45, list: [], models: {}, cur: null, txt: '', msgT: 0, msg: '', prog: 0 };
 const _dpV = new V3(), _dpQ = new THREE.Quaternion(), _dpQ2 = new THREE.Quaternion(), _dpF = new V3();
 
-/* Modèle de l'arme posée : le modèle des soldats, couché sur le flanc (quart de tour autour du canon) et posé à la
-   bonne hauteur (lift : distance de l'origine au point le plus bas dans cette pose) */
+/* Model of the weapon lying down: the soldiers' model, laid on its side (quarter turn around the barrel) and set at the
+   right height (lift: distance from the origin to the lowest point in this pose) */
 function dropTemplate(key) {
   if (DROP.models[key]) return DROP.models[key];
   const g = buildWorldGun(key).group;
@@ -31,7 +31,7 @@ function removeDrop(d) {
 }
 function clearDrops() { for (const d of DROP.list.slice()) removeDrop(d); DROP.msgT = 0; }
 
-/* Pose une arme au sol : pos et q (position et orientation de départ), vel (lancer). Renvoie l'objet ou null. */
+/* Puts a weapon on the ground: pos and q (starting position and orientation), vel (throw). Returns the object or null. */
 function dropWeapon(def, mag, reserve, pos, q, vel) {
   if (mag + reserve <= 0) return null;
   const T = dropTemplate(def.key);
@@ -43,11 +43,11 @@ function dropWeapon(def, mag, reserve, pos, q, vel) {
   return d;
 }
 
-/* Arme lâchée par un soldat qui vient de mourir : elle quitte le corps (dont elle est retirée) et retombe */
+/* Weapon dropped by a soldier who just died: it leaves the body (from which it is removed) and falls */
 function dropKilledWeapon(v, dir) {
   const A = v.arms, w = A && A.slots[A.cur]; if (!w) return;
   let mag = w.mag, reserve = w.reserve;
-  // les bots ont une réserve quasi infinie : ils n'en laissent qu'une partie
+  // bots have a nearly infinite reserve: they only leave a part of it
   if (!v.isPlayer) reserve = Math.min(reserve, Math.round(w.def.reserve * rand(0.3, 1)));
   if (mag + reserve <= 0) mag = Math.ceil(w.def.mag / 3);
   const vel = _dpF.set(v.vel ? v.vel.x : 0, 0, v.vel ? v.vel.z : 0).multiplyScalar(0.6);
@@ -57,14 +57,14 @@ function dropKilledWeapon(v, dir) {
   if (!v.isPlayer && S && S.gun) {
     S.gun.updateWorldMatrix(true, false);
     S.gun.getWorldPosition(_dpV); S.gun.getWorldQuaternion(_dpQ);
-    S.gun.visible = false; // le corps n'a plus son arme (elle est rendue visible au retour à la vie, voir animSoldier)
+    S.gun.visible = false; // the body no longer has its weapon (it is made visible again on return to life, see animSoldier)
   } else {
     _dpV.set(v.pos.x, v.pos.y + 1.1, v.pos.z); _dpQ.setFromAxisAngle(UP, v.yaw || 0);
   }
   dropWeapon(w.def, mag, reserve, _dpV, _dpQ, vel);
 }
 
-/* Yaw de l'orientation q (le canon pointe vers -Z) */
+/* Yaw of orientation q (the barrel points toward -Z) */
 function quatYaw(q) { _dpF.set(0, 0, -1).applyQuaternion(q); return Math.atan2(-_dpF.x, -_dpF.z); }
 
 function stepDrop(d, dt) {
@@ -75,13 +75,13 @@ function stepDrop(d, dt) {
     o.position.addScaledVector(d.vel, dt);
     _dpQ.set(d.spin.x * dt * 0.5, d.spin.y * dt * 0.5, d.spin.z * dt * 0.5, 1).normalize();
     o.quaternion.premultiply(_dpQ);
-    // les murs arrêtent l'arme (collision d'un petit cylindre), l'air la freine un peu
+    // walls stop the weapon (small cylinder collision), air slows it a little
     _dpV.set(o.position.x, o.position.y - T.lift, o.position.z); collideCircle(_dpV, 0.12, 0.3);
     o.position.x = _dpV.x; o.position.z = _dpV.z;
     d.vel.x *= 1 - 0.8 * dt; d.vel.z *= 1 - 0.8 * dt;
     const g = groundHeight(o.position.x, o.position.z, o.position.y - T.lift, 0.15);
     if (d.vel.y <= 0 && o.position.y - T.lift <= g) {
-      // pose : à plat sur le flanc, dans la direction du canon à l'impact
+      // landing: flat on its side, in the direction of the barrel at impact
       o.position.y = g + T.lift; d.landed = true; d.landT = 0; d.q0.copy(o.quaternion);
       d.qR.setFromAxisAngle(UP, quatYaw(o.quaternion)).multiply(T.rest);
     } else if (o.position.y < -8) { d.dead = true; }
@@ -89,7 +89,7 @@ function stepDrop(d, dt) {
     d.landT = Math.min(1, d.landT + dt / 0.3);
     o.quaternion.slerpQuaternions(d.q0, d.qR, smoothstep(0, 1, d.landT));
   }
-  // fin de vie : l'arme rétrécit et s'enfonce dans le sol
+  // end of life: the weapon shrinks and sinks into the ground
   const left = DROP.life - d.age;
   if (left < DROP.fade) { const k = Math.max(0, left / DROP.fade); o.scale.setScalar(k); if (left <= 0) d.dead = true; }
 }
@@ -97,9 +97,9 @@ function stepDrop(d, dt) {
 function updateDrops(dt) {
   const L = DROP.list;
   for (let i = L.length - 1; i >= 0; i--) { stepDrop(L[i], dt); if (L[i].dead) removeDrop(L[i]); }
-  // niveau de détail : même seuil de taille apparente que les soldats (updateSoldierLods). Au loin, une arme couchée ne fait plus que quelques
-  // pixels : plus d'ombre au-delà de DROP.shadowR, plus rien au-delà de DROP.farR (14 armes au plus, visibles de toute la carte, ajoutaient
-  // jusqu'à 80 appels de rendu par image, ombres comprises, au fil de la partie)
+  // level of detail: same apparent-size threshold as the soldiers (updateSoldierLods). Far away, a lying weapon is only a few
+  // pixels: no more shadow beyond DROP.shadowR, nothing beyond DROP.farR (14 weapons at most, visible from the whole map, added
+  // up to 80 draw calls per frame, shadows included, over the course of the match)
   const lk = 1.8 * VIEW.h / (2 * Math.tan(camera.fov * Math.PI / 360)), th = RQ.q.lodPx, zoom = Settings.fov / camera.fov;
   for (const d of L) {
     const dist = camera.position.distanceTo(d.obj.position) / zoom, hi = lk / (dist * zoom + 0.01) > th, sh = dist < DROP.shadowR, vis = dist < DROP.farR;
@@ -116,27 +116,27 @@ function updateDrops(dt) {
       const dx = d.obj.position.x - P.pos.x, dz = d.obj.position.z - P.pos.z, dy = d.obj.position.y - P.pos.y;
       if (dy < -0.6 || dy > 1.4) continue;
       const dist = hyp(dx, dz);
-      // arme du même type qu'une des nôtres (la même d'abord) : ses munitions se ramassent en marchant dessus
+      // weapon of the same type as one of ours (the same one first): its ammo is picked up by walking over it
       const same = A.slots.find((s) => s.def.id === d.def.id), mine = same || A.slots.find((s) => s.def.cat === d.def.cat);
       if (mine && dist <= DROP.ammoR) {
         const take = Math.min(mine.def.reserve - mine.reserve, d.mag + d.reserve);
         if (take > 0) {
           mine.reserve += take;
           const fromRes = Math.min(take, d.reserve); d.reserve -= fromRes; d.mag -= take - fromRes;
-          DROP.msg = _t('+{0} munitions ({1})', take, mine.def.name); DROP.msgT = 1.4; sfxMech('pickup');
+          DROP.msg = _t('+{0} ammo ({1})', take, mine.def.name); DROP.msgT = 1.4; sfxMech('pickup');
           if (d.mag + d.reserve <= 0) { removeDrop(d); continue; }
         }
       }
-      // une autre arme, même du même type, peut s'échanger contre celle qu'on tient
+      // another weapon, even of the same type, can be swapped for the one we hold
       if (!same && dist < DROP.swapR && dist < bd) { best = d; bd = dist; }
     }
   }
   DROP.cur = best && dropSwapAllowed() ? best : null;
-  // invite sous le réticule : la touche ou le bouton du mode d'entrée (actGlyph, 09x-invites.js) ; au doigt, le bouton Ramasser est à l'écran
-  // à la manette, le ramassage est X maintenu (padReloadUse) : l'invite le dit, et un filet se remplit pendant l'appui
+  // prompt under the crosshair: the key or button of the input mode (actGlyph, 09x-invites.js); on touch, the Pick up button is on screen
+  // on gamepad, pickup is X held (padReloadUse): the prompt says so, and a thin bar fills during the press
   const g = DROP.cur ? actGlyph('use') : '', a = DROP.cur && esc(A.slots[A.cur].def.name), b = DROP.cur && esc(DROP.cur.def.name), hold = inputMode() === 'pad';
-  const mp = mechaPrompt(); // à portée de son mecha, ou à bord : monter, descendre (08g-mecha-pilote.js)
-  const txt = mp ? mp : DROP.cur ? `${g ? (hold ? _t('Maintenir {0} pour échanger {1} contre {2}', g, a, b) : _t('{0} Échanger {1} contre {2}', g, a, b)) : _t('Échanger {0} contre {1}', a, b)}<i>${DROP.cur.mag} / ${DROP.cur.reserve}</i>` : DROP.msgT > 0 ? esc(DROP.msg) : '';
+  const mp = mechaPrompt(); // within reach of your mecha, or aboard: get in, get out (08g-mecha-pilote.js)
+  const txt = mp ? mp : DROP.cur ? `${g ? (hold ? _t('Hold {0} to swap {1} for {2}', g, a, b) : _t('{0} Swap {1} for {2}', g, a, b)) : _t('Swap {0} for {1}', a, b)}<i>${DROP.cur.mag} / ${DROP.cur.reserve}</i>` : DROP.msgT > 0 ? esc(DROP.msg) : '';
   const el = $('pickup');
   if (txt !== DROP.txt) { DROP.txt = txt; el.innerHTML = txt; el.style.opacity = txt ? 1 : 0; }
   const prog = (DROP.cur || mp) && hold && PAD.useT > 0 && PAD.useT < PAD_HOLD ? PAD.useT / PAD_HOLD : 0;
@@ -144,18 +144,18 @@ function updateDrops(dt) {
 }
 function dropSwapAllowed() { const P = PL.ent; return P.alive && P.arms.switching <= 0 && PL.knifeT <= 0 && !PL.nadeState && !KS.mode && !MECHA_P.me; }
 
-/* E (bouton Ramasser au doigt, X maintenu à la manette : padReloadUse) : échange l'arme en main contre l'arme au sol visée */
+/* E (Pick up button on touch, X held on gamepad: padReloadUse): swaps the weapon in hand for the aimed weapon on the ground */
 function swapWithDrop() {
   const d = DROP.cur, P = PL.ent, A = P.arms;
   if (!d || !dropSwapAllowed() || MATCH.state !== 'playing') return;
   const old = A.slots[A.cur], yaw = P.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw);
-  PL.knifeOut = false; // le couteau se range : la nouvelle arme monte comme après un changement d'arme
+  PL.knifeOut = false; // the knife is put away: the new weapon comes up as after a weapon switch
   removeDrop(d);
-  // l'arme rangée tombe devant nous, avec ce qu'il lui reste de munitions
+  // the stowed weapon drops in front of us, with its remaining ammo
   _dpV.set(P.pos.x + fx * 0.5, P.pos.y + 0.9, P.pos.z + fz * 0.5); _dpQ.setFromAxisAngle(UP, yaw);
   dropWeapon(old.def, old.mag, old.reserve, _dpV, _dpQ, _dpF.set(fx * 1.6, 1.3, fz * 1.6));
   A.slots[A.cur] = { def: d.def, mag: d.mag, reserve: d.reserve };
-  // même animation qu'un changement d'arme : l'arme baisse, puis la nouvelle monte (vmEquip à mi-course, voir ctlWeapon)
+  // same animation as a weapon switch: the weapon lowers, then the new one comes up (vmEquip at mid-course, see ctlWeapon)
   A.reload = null; A.boltT = 0; A.switching = 0.52; A.switchTo = A.cur; P.busy = false;
   VM.action = null; VM.lowerTarget = 1;
   kcEvent('vma', { sid: P.kcI, name: 'switch', dur: 0.52, data: { to: d.def.key, from: old.def.key } });

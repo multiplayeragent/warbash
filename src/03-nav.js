@@ -1,5 +1,5 @@
 /* ==========================================================================
-   NAVIGATION : grille 1 m multi-niveaux générée depuis les collisions
+   NAVIGATION: 1 m multi-level grid generated from the collisions
    ========================================================================== */
 const NAV = { x0: MAP.x0, z0: MAP.z0, W: MAP.x1 - MAP.x0, H: MAP.z1 - MAP.z0, cells: null, nx: null, ny: null, nz: null, adjStart: null, adj: null, adjCost: null, count: 0 };
 const NAV_DH = 0.62, NAV_R = 0.42;
@@ -19,9 +19,9 @@ function navClear(x, z, h) {
   return true;
 }
 
-/* Lien entre deux nœuds voisins : le segment qui les joint ne traverse aucun mur à hauteur de corps. Chaque nœud a son dégagement (navClear),
-   mais une cloison de moins de 16 cm posée entre deux centres de case (1 m d'écart, 0,42 m de dégagement de chaque côté) passait entre eux :
-   le réseau reliait les deux côtés et les bots butaient dans le mur. La marche d'un nœud plus haut (jusqu'à NAV_DH) ne compte pas. */
+/* Link between two neighboring nodes: the segment joining them crosses no wall at body height. Each node has its clearance (navClear),
+   but a partition under 16 cm thick placed between two cell centers (1 m apart, 0.42 m of clearance on each side) slipped between them:
+   the network connected both sides and the bots bumped into the wall. The step up of a higher node (up to NAV_DH) doesn't count. */
 function navLinkClear(x0, z0, h0, x1, z1, h1) {
   const top = Math.max(h0, h1), low = Math.min(h0, h1), dx = x1 - x0, dz = z1 - z0;
   for (const c of queryBoxes(Math.min(x0, x1), Math.min(z0, z1), Math.max(x0, x1), Math.max(z0, z1))) {
@@ -36,12 +36,12 @@ function navLinkClear(x0, z0, h0, x1, z1, h1) {
   return true;
 }
 
-/* Montée d'un nœud à l'autre : au-delà de la marche automatique (STEP, ctlMove), elle doit se faire par petites marches (escalier, rampe).
-   Un ressaut d'un seul tenant plus haut que STEP (banc, muret, borne de 0,5 à 0,62 m) se saute : les bots ne sautent pas et y restaient
-   bloqués. Le sol est relevé tous les 12,5 cm le long du lien. */
+/* Climb from one node to the next: beyond the automatic step (STEP, ctlMove), it must be done in small steps (staircase, ramp).
+   A single-piece ledge higher than STEP (bench, low wall, bollard of 0.5 to 0.62 m) is jumped: bots don't jump and stayed
+   stuck there. The ground is sampled every 12.5 cm along the link. */
 function navStepOk(x0, z0, h0, x1, z1, h1) {
   if (Math.abs(h1 - h0) <= STEP) return true;
-  const top = Math.max(h0, h1) - STEP + 0.05; let prev = h0; // groundHeight prend les appuis jusqu'à y + STEP : ici jusqu'au plus haut des deux nœuds
+  const top = Math.max(h0, h1) - STEP + 0.05; let prev = h0; // groundHeight takes supports up to y + STEP: here up to the higher of the two nodes
   for (let k = 1; k <= 8; k++) {
     const t = k / 8, y = k === 8 ? h1 : groundHeight(x0 + (x1 - x0) * t, z0 + (z1 - z0) * t, top, 0.05);
     if (Math.abs(y - prev) > STEP + 0.02) return false;
@@ -50,15 +50,15 @@ function navStepOk(x0, z0, h0, x1, z1, h1) {
   return true;
 }
 
-/* Îles flottantes (VOID) : un nœud à moins de NAV_EDGE du vide n'est pas gardé, sauf si un mur (rambarde de pont) l'en sépare. Le réseau
-   recule ainsi d'une case le long du bord, et un bot qui suit son chemin, coupe un virage ou déborde sur son élan reste sur l'île (la
-   garde de ctlMove fait le reste). Le vide seul compte : le bord d'une terrasse au-dessus de l'île garde ses nœuds. */
+/* Floating islands (VOID): a node within NAV_EDGE of the void is not kept, unless a wall (bridge railing) separates it from it. The network
+   thus pulls back one cell along the edge, and a bot that follows its path, cuts a corner or overshoots on its momentum stays on the island (the
+   ctlMove guard does the rest). Only the void counts: the edge of a terrace above the island keeps its nodes. */
 const NAV_EDGE = 0.6;
 function navEdgeOk(x, z, h) {
   for (let i = 0; i < 8; i++) {
     const a = i * Math.PI / 4, px = x + Math.cos(a) * NAV_EDGE, pz = z + Math.sin(a) * NAV_EDGE;
-    if (groundHeight(px, pz, h + 0.05, 0.1) > VOID.floor + 1) continue; // de l'appui de ce côté
-    // un mur entre le nœud et le vide (segment contre boîte, à plat, à hauteur de corps) : le côté est sûr
+    if (groundHeight(px, pz, h + 0.05, 0.1) > VOID.floor + 1) continue; // from the support on that side
+    // a wall between the node and the void (segment against box, flat, at body height): the side is safe
     const walls = queryBoxes(Math.min(x, px), Math.min(z, pz), Math.max(x, px), Math.max(z, pz)).filter((c) => !c.ray && c.y1 > h + 0.3 && c.y0 < h + 1.7);
     let walled = false;
     for (const c of walls) {
@@ -81,10 +81,10 @@ function buildNav() {
   for (let cz = 0; cz < H; cz++) {
     for (let cx = 0; cx < W; cx++) {
       const x = NAV.x0 + cx + 0.5, z = NAV.z0 + cz + 0.5;
-      if (RING.on && (x - RING.x) ** 2 + (z - RING.z) ** 2 > (RING.r - 0.5) ** 2) { cellList[cz * W + cx] = []; continue; } // zone ronde : aucun nœud dehors, les bots restent dedans
-      const cand = [gy0(x, z)], pool = POOLS.length ? poolAt(x, z) : null; if (pool) cand.push(pool.bed); // dans un bassin, le fond est une surface praticable
+      if (RING.on && (x - RING.x) ** 2 + (z - RING.z) ** 2 > (RING.r - 0.5) ** 2) { cellList[cz * W + cx] = []; continue; } // round zone: no node outside, bots stay inside
+      const cand = [gy0(x, z)], pool = POOLS.length ? poolAt(x, z) : null; if (pool) cand.push(pool.bed); // in a basin, the bottom is a walkable surface
       for (const c of queryBoxes(x, z, x, z)) {
-        if (c.ray || c.inv || (c.prop && c.prop.d.noNav)) continue; // murs invisibles du bord de l'eau, sacs de sable (noNav) : pas de surface au-dessus
+        if (c.ray || c.inv || (c.prop && c.prop.d.noNav)) continue; // invisible walls at the water's edge, sandbags (noNav): no surface above
         if (x >= c.x0 && x <= c.x1 && z >= c.z0 && z <= c.z1 && c.y1 < 12) cand.push(c.y1);
       }
       for (const rp of RAMPS) if (x >= rp.x0 && x <= rp.x1 && z >= rp.z0 && z <= rp.z1) cand.push(rampHeight(rp, x, z));
@@ -93,7 +93,7 @@ function buildNav() {
       let prev = -9;
       for (const h of cand) {
         if (h - prev < 0.1) continue;
-        // la surface doit être la plus haute sous ce point à cette hauteur
+        // the surface must be the highest under this point at this height
         if (Math.abs(groundHeight(x, z, h + 0.05, 0.1) - h) > 0.08) continue;
         if (!navClear(x, z, h)) continue;
         if (VOID.on && !navEdgeOk(x, z, h)) continue;
@@ -121,13 +121,13 @@ function buildNav() {
         if (!dx && !dz) continue;
         const n = nodeAt(cx + dx, cz + dz, h); if (n < 0) continue;
         if (dx && dz) { if (nodeAt(cx + dx, cz, h) < 0 || nodeAt(cx, cz + dz, h) < 0) continue; }
-        if (!navLinkClear(xs[id], zs[id], h, xs[n], zs[n], ys[n])) continue; // une cloison mince entre les deux
-        if (!navStepOk(xs[id], zs[id], h, xs[n], zs[n], ys[n])) continue; // un ressaut à sauter
+        if (!navLinkClear(xs[id], zs[id], h, xs[n], zs[n], ys[n])) continue; // a thin partition between the two
+        if (!navStepOk(xs[id], zs[id], h, xs[n], zs[n], ys[n])) continue; // a ledge to jump
         adj.push(n); cost.push(hyp3(dx, dz, (ys[n] - h) * 1.5));
       }
     }
   }
-  // correction : adjStart doit suivre l'ordre des identifiants
+  // fix: adjStart must follow the order of the identifiers
   const order = new Int32Array(N); let k = 0;
   for (let cz = 0; cz < H; cz++) for (let cx = 0; cx < W; cx++) for (const id of cellList[cz * W + cx]) order[k++] = id;
   const adj2 = new Int32Array(adj.length), cost2 = new Float32Array(adj.length), start2 = new Int32Array(N + 1);
@@ -146,19 +146,19 @@ function buildNav() {
   navLeaps();
 }
 
-/* Sauts du réseau. Au-delà des liens de marche, un lien relie deux nœuds que la marche automatique ne sait pas joindre :
-   montée (type 1) sur un rebord de 0,47 à 1 m d'un nœud voisin, descente (type 2) d'un rebord de 0,47 à 3 m dont on se laisse tomber (il n'y a pas
-   de dégâts de chute ; l'arrivée doit être à ciel ouvert), enjambement (type 3) d'un obstacle bas (muret, banc, caisse, sacs : au plus 1 m de haut
-   et 1,5 m de large, rien au-dessus) entre deux nœuds de même niveau distants de 1 à 3 cases. Un bot les prend comme un joueur prendrait un
-   raccourci : le coût du lien est la distance plus une pénalité. Ils n'ouvrent aucune zone : seuls des nœuds déjà reliés entre eux par la marche
-   le sont, donc ni apparition ni point d'intérêt ne change de composante. Les props (déplaçables) ne s'enjambent pas, ni rien de ce qui se pose au bord d'un rebord (rambarde). Chaque lien garde sa
-   distance d'élan (lead : de A au point où le corps touche l'obstacle), que le bot lit pour sauter à temps (botLeapNow, 07e-humain.js).
-   Le contrôle (tools/dev/visual/sauts.js) fait passer chaque lien au contrôleur du jeu. */
+/* Network jumps. Beyond the walk links, a link joins two nodes that the automatic step can't connect:
+   climb (type 1) onto a ledge of 0.47 to 1 m from a neighboring node, drop (type 2) from a ledge of 0.47 to 3 m that you let yourself fall from (there is no
+   fall damage; the landing must be in the open), hop-over (type 3) of a low obstacle (low wall, bench, crate, sandbags: at most 1 m high
+   and 1.5 m wide, nothing above) between two nodes of the same level 1 to 3 cells apart. A bot takes them as a player would take a
+   shortcut: the link's cost is the distance plus a penalty. They open no area: only nodes already connected to each other by walking
+   are linked, so no spawn or point of interest changes component. Props (movable) aren't hopped over, nor is anything placed on the edge of a ledge (railing). Each link keeps its
+   run-up distance (lead: from A to the point where the body touches the obstacle), which the bot reads to jump in time (botLeapNow, 07e-human.js).
+   The check (tools/dev/visual/jumpLinks.js) runs each link through the game's controller. */
 const NAV_LEAP = { up: 1.0, down: 3.0, hop: 1.0, depth: 1.5 };
 const _nobs = { lead: 0, top: 0, any: false, closed: false };
-/* Ce que le corps rencontre sur le segment A-B à plat, pieds à la hauteur base : _nobs.any si un obstacle bas s'enjambe (lead : distance depuis A
-   où le corps le touche, top : sa hauteur), _nobs.closed si quelque chose ferme la voie (obstacle trop haut ou trop large, prop, mur invisible,
-   plafond bas) */
+/* What the body meets on the flat segment A-B, feet at height base: _nobs.any if a low obstacle can be hopped over (lead: distance from A
+   where the body touches it, top: its height), _nobs.closed if something blocks the way (obstacle too tall or too wide, prop, invisible wall,
+   low ceiling) */
 function navObstacle(ax, az, base, bx, bz) {
   const dx = bx - ax, dz = bz - az, L = hyp(dx, dz), R = 0.3;
   let s0 = 1e9, s1 = -1e9, top = base;
@@ -189,9 +189,9 @@ function navLeaps() {
   for (let cz = 0; cz < H; cz++) for (let cx = 0; cx < W; cx++) {
     for (const id of NAV.cells[cz * W + cx]) {
       if (comp[id] !== main) continue;
-      const h = ny[id], head = ceilingAbove(nx[id], nz[id], h + 0.3, 0.3) >= h + 2.9; // de quoi sauter sans se cogner la tête
+      const h = ny[id], head = ceilingAbove(nx[id], nz[id], h + 0.3, 0.3) >= h + 2.9; // room to jump without hitting your head
       for (let d = 0; d < 4; d++) {
-        // la case voisine est-elle déjà ouverte à la marche ? Sinon (cloison, muret) un enjambement peut s'y poser
+        // is the neighboring cell already open to walking? If not (partition, low wall) a hop-over can land there
         let open = false;
         for (let j = st[id]; j < st[id + 1] && !open; j++) { const m = adj[j]; if (Math.abs(ny[m] - h) <= 0.62 && Math.floor(nx[m] - NAV.x0) === cx + DX[d] && Math.floor(nz[m] - NAV.z0) === cz + DZ[d]) open = true; }
         for (let k = 1; k <= 3; k++) {
@@ -205,9 +205,9 @@ function navLeaps() {
             else if (k === 1 && dh < -(STEP + 0.02) && dh >= -NAV_LEAP.down) t = 2;
             else if (Math.abs(dh) <= 0.62 && !open) t = 3;
             if (!t || !head && t !== 2 || linked(id, m)) continue;
-            if (t === 2) { // on tombe : à ciel ouvert au-dessus de l'arrivée, rien sur le trajet
+            if (t === 2) { // you fall: open sky above the landing, nothing on the way
               if (ceilingAbove(nx[m], nz[m], ny[m] + 0.3, 0.35) < h + 1.8 || !navLinkClear(nx[id], nz[id], h, nx[m], nz[m], ny[m])) continue;
-              const o = navObstacle(nx[id], nz[id], h, nx[m], nz[m]); if (o.any || o.closed) continue; // une rambarde au bord, un muret : on ne tombe pas par là
+              const o = navObstacle(nx[id], nz[id], h, nx[m], nz[m]); if (o.any || o.closed) continue; // a railing at the edge, a low wall: you don't fall that way
               from.push(id); to.push(m); kind.push(2); lead.push(0); cost.push(hyp(1, dh * 0.5) + 1.2 - dh * 0.4);
             } else {
               const o = navObstacle(nx[id], nz[id], Math.min(h, ny[m]), nx[m], nz[m]);
@@ -228,12 +228,12 @@ function navLeaps() {
   NAV.adjStart = st2; NAV.adj = adj2; NAV.adjCost = cost2; NAV.adjKind = kind2; NAV.adjLead = lead2;
 }
 
-/* Déchargement de la carte */
+/* Map unloading */
 function navUnload() {
   for (const k of ['cells', 'nx', 'ny', 'nz', 'adjStart', 'adj', 'adjCost', 'adjKind', 'adjLead', 'kind', 'lead', 'g', 'f', 'from', 'stamp', 'closed', 'comp']) NAV[k] = null;
   NAV.count = 0;
 }
-/* Composantes connexes : sert à éviter les nœuds isolés (dessus de caisses) */
+/* Connected components: used to avoid isolated nodes (tops of crates) */
 function computeComponents() {
   const N = NAV.count, comp = new Int32Array(N).fill(-1); let c = 0, big = 0, bigSize = 0;
   const stack = [];
@@ -270,7 +270,7 @@ function navNode(x, y, z) {
   return best;
 }
 
-/* Tas binaire minimal pour A* */
+/* Minimal binary heap for A* */
 const HEAP = { a: new Int32Array(40000), n: 0 };
 function heapPush(id) {
   const a = HEAP.a, f = NAV.f; let i = HEAP.n++; a[i] = id;
@@ -285,7 +285,7 @@ function heapPop() {
   }
   return top;
 }
-/* sid : nœud de départ imposé (le plus proche qu'on rejoint en ligne droite), à défaut le plus proche tout court */
+/* sid: imposed start node (the nearest one reachable in a straight line), otherwise simply the nearest */
 function findPath(from, to, sid = -1) {
   const s = sid >= 0 ? sid : navNode(from.x, from.y, from.z), e = navNode(to.x, to.y, to.z);
   if (s < 0 || e < 0) return null;
@@ -311,7 +311,7 @@ function findPath(from, to, sid = -1) {
   const ids = []; for (let n = e; n >= 0; n = fr[n]) ids.push(n);
   ids.reverse();
   const pts = ids.map((id) => { const v = new V3(NAV.nx[id], NAV.ny[id], NAV.nz[id]); v.pin = v.jump = v.drop = false; v.lead = 0; return v; });
-  for (let i = 1; i < ids.length; i++) { const k = kd[ids[i]]; if (k) { pts[i].pin = pts[i - 1].pin = true; if (k === 2) pts[i].drop = true; else { pts[i].jump = true; pts[i].lead = NAV.lead[ids[i]]; } } } // pin : un point de saut ou de chute ne se coupe pas
+  for (let i = 1; i < ids.length; i++) { const k = kd[ids[i]]; if (k) { pts[i].pin = pts[i - 1].pin = true; if (k === 2) pts[i].drop = true; else { pts[i].jump = true; pts[i].lead = NAV.lead[ids[i]]; } } } // pin: a jump or drop point is not cut
   return smoothPath(pts);
 }
 function navWalkable(a, b) {
@@ -324,7 +324,7 @@ function navWalkable(a, b) {
     let ok = false;
     for (const id of NAV.cells[cz * NAV.W + cx]) { if (Math.abs(NAV.ny[id] - h) <= 0.5) { h = NAV.ny[id]; ok = true; break; } }
     if (!ok) return false;
-    if (VOID.on && groundHeight(x, z, h + 0.05, 0.3) <= VOID.floor + 1) return false; // un raccourci ne passe pas au-dessus du vide (coin d'une case du bord)
+    if (VOID.on && groundHeight(x, z, h + 0.05, 0.3) <= VOID.floor + 1) return false; // a shortcut doesn't pass over the void (corner of an edge cell)
   }
   return Math.abs(h - b.y) < 0.5;
 }

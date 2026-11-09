@@ -76,83 +76,83 @@
       "prompt": "The highest prestige rank insignia badge icon, front view, centered: a faceted platinum and gold star crest with flaming orange wings, a crimson gem in the center and a radiant halo of sharp light rays behind it. Clean bold readable shapes for a game UI, intense glow, no background."
     },
     {
-      "id": "map-sable",
+      "id": "map-chergui",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/sable.webp"
+        "assets/maps/chergui.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a sun-baked desert village of narrow alleys) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-givre",
+      "id": "map-saintgivre",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/givre.webp"
+        "assets/maps/saintgivre.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a snowbound mountain railway station) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-embruns",
+      "id": "map-portmael",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/embruns.webp"
+        "assets/maps/portmael.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a Breton fishing harbor and fish market at sunset) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-floreal",
+      "id": "map-floralia",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/floreal.webp"
+        "assets/maps/floralia.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a botanical garden with a great glass greenhouse) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-meltem",
+      "id": "map-notos",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/meltem.webp"
+        "assets/maps/notos.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a white Cycladic island village by the Aegean sea) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-tephra",
+      "id": "map-scoria",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/tephra.webp"
+        "assets/maps/scoria.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a volcano research station at the foot of an erupting volcano) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-stratus",
+      "id": "map-cirrus",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/stratus.webp"
+        "assets/maps/cirrus.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (floating islands above the clouds linked by rope bridges) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-simoun",
+      "id": "map-sirocco",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/simoun.webp"
+        "assets/maps/sirocco.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a sea of desert dunes) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
-      "id": "map-lotissement",
+      "id": "map-belhorizon",
       "size": "1536x1024",
       "opaque": true,
       "images": [
-        "assets/maps/lotissement.webp"
+        "assets/maps/belhorizon.webp"
       ],
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a suburban housing estate of identical houses) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },

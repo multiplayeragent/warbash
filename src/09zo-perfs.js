@@ -1,32 +1,32 @@
 /* ==========================================================================
-   ENREGISTREUR DE PERFORMANCES
-   Avec le réglage « Afficher les performances » (Options, Vidéo), chaque image d'une partie est relevée, du déploiement à l'écran
-   de fin (ou au retour aux menus) : intervalle entre deux images, temps de notre code et sa répartition par étape (joueur, bots,
-   props et projectiles, reste de la logique, préparation de la scène, ombres, rendu), temps GPU mesuré, appels de rendu, props
-   réveillés, explosions, flashs, éliminations, tâches longues du navigateur et tas JavaScript. Le rapport (« Rapport de
-   performances », Options, Vidéo, même en pause) donne la répartition des temps d'image sur la partie, une ligne par seconde et
-   les pires à-coups avec ce qui se passait. Il est en anglais, technique comme le rapport graphique, et gardé dans le navigateur
-   (dc_perf_last) après la partie. Demandé par le propriétaire pour analyser les chutes d'images d'une partie entière (Kervénec :
-   de 280 à 140, parfois 40 images par seconde, sur une RTX 3070).
-   Coût : une dizaine de lectures de l'horloge par image, aucune allocation par image (tableaux typés réservés au départ), une
-   ligne par seconde.
+   PERFORMANCE RECORDER
+   With the "Show performance" setting (Options, Video), each frame of a match is recorded, from deployment to the end
+   screen (or the return to the menus): interval between two frames, time spent in our code and its breakdown by step (player, bots,
+   props and projectiles, rest of the logic, scene preparation, shadows, rendering), measured GPU time, draw calls, awake
+   props, explosions, flashes, eliminations, long browser tasks and JavaScript heap. The report ("Performance report",
+   Options, Video, even when paused) gives the distribution of frame times over the match, one line per second and
+   the worst hitches with what was going on. It is in English, technical like the graphics report, and kept in the browser
+   (dc_perf_last) after the match. Requested by the owner to analyze the frame drops of a whole match (Port-Maël:
+   from 280 to 140, sometimes 40 frames per second, on an RTX 3070).
+   Cost: about ten clock reads per frame, no per-frame allocation (typed arrays reserved up front), one
+   line per second.
    ========================================================================== */
 const PFR_STEPS = ['player', 'bots', 'props', 'logic', 'prep', 'shadow', 'render'];
-const PFR_BINS = [4, 5, 7.5, 9, 12, 17.5, 25, 34, 50, 100]; // limites des classes d'intervalles (ms) : 240 Hz, 200, 144, 120, 90, 60, 40, 30, 20, 10 images par seconde
-const PFR_MAX = 1 << 20; // intervalles gardés pour les centiles de la partie (une heure à 290 images par seconde)
+const PFR_BINS = [4, 5, 7.5, 9, 12, 17.5, 25, 34, 50, 100]; // interval class limits (ms): 240 Hz, 200, 144, 120, 90, 60, 40, 30, 20, 10 frames per second
+const PFR_MAX = 1 << 20; // intervals kept for the match percentiles (one hour at 290 frames per second)
 const PFR = {
   on: false, inFrame: false, lt: 0, t0: 0, map: '', mode: '', net: '', date: '',
-  lap: new Float64Array(7), // temps de l'image en cours par étape (ms), dans l'ordre de PFR_STEPS
-  all: new Float32Array(4096), n: 0, // tous les intervalles de la partie (le tableau double quand il est plein, jusqu'à PFR_MAX)
+  lap: new Float64Array(7), // time of the current frame by step (ms), in PFR_STEPS order
+  all: new Float32Array(4096), n: 0, // all the intervals of the match (the array doubles when full, up to PFR_MAX)
   bins: new Uint32Array(11), stepSum: new Float64Array(7), cpuSum: 0,
-  iv: new Float32Array(4096), ivN: 0, med: 0, // intervalles de la seconde en cours, médiane de la précédente
-  sec: [], s0: 0, // une ligne par seconde (tableau de nombres, voir pfrSecond)
+  iv: new Float32Array(4096), ivN: 0, med: 0, // intervals of the current second, median of the previous one
+  sec: [], s0: 0, // one line per second (array of numbers, see pfrSecond)
   c: { n: 0, iv: 0, ivMax: 0, cpu: 0, cpuMax: 0, step: new Float64Array(7), calls: 0, tris: 0, awake: 0, lagN: 0 },
-  ev: new Uint16Array(3), evAll: new Uint32Array(3), evT: new Float64Array(3), // explosions, flashs, éliminations : dans la seconde, sur la partie, dernière heure (s)
-  lt0: 0, ltN: 0, ltMs: 0, ltAll: 0, ltAllMs: 0, obs: null, // tâches longues (PerformanceObserver)
-  slow: [], last: '', // pires à-coups ; dernier rapport construit
+  ev: new Uint16Array(3), evAll: new Uint32Array(3), evT: new Float64Array(3), // explosions, flashes, eliminations: in the current second, over the match, last hour (s)
+  lt0: 0, ltN: 0, ltMs: 0, ltAll: 0, ltAllMs: 0, obs: null, // long tasks (PerformanceObserver)
+  slow: [], last: '', // worst hitches; last report built
 };
-/* Début de l'enregistrement : au départ d'une partie (startMatch), ou quand le réglage est coché en pleine partie */
+/* Start of recording: at the start of a match (startMatch), or when the setting is checked mid-match */
 function pfrStart() {
   PFR.on = !!Settings.perf; PFR.inFrame = false; if (!PFR.on) return;
   PFR.t0 = performance.now(); PFR.s0 = PFR.t0; PFR.n = 0; PFR.ivN = 0; PFR.med = 0; PFR.cpuSum = 0;
@@ -39,26 +39,26 @@ function pfrStart() {
     try {
       PFR.obs = new PerformanceObserver((l) => { if (!PFR.on) return; for (const e of l.getEntries()) { PFR.ltN++; PFR.ltMs += e.duration; PFR.ltAll++; PFR.ltAllMs += e.duration; } });
       PFR.obs.observe({ type: 'longtask', buffered: false });
-    } catch (e) { PFR.obs = null; } // tâches longues non suivies par ce navigateur
+    } catch (e) { PFR.obs = null; } // long tasks not tracked by this browser
   }
 }
-/* Fin de la partie (écran de fin, retour aux menus) : le rapport est construit et gardé dans le navigateur */
+/* End of the match (end screen, return to the menus): the report is built and kept in the browser */
 function pfrStop() {
   if (!PFR.on) return;
   PFR.on = false; PFR.inFrame = false;
   if (PFR.n < 30) return;
   PFR.last = pfrReport();
-  try { localStorage.setItem('dc_perf_last', PFR.last); } catch (e) { /* stockage plein ou indisponible */ }
+  try { localStorage.setItem('dc_perf_last', PFR.last); } catch (e) { /* storage full or unavailable */ }
 }
 function pfrSecReset() { const c = PFR.c; c.n = 0; c.iv = 0; c.ivMax = 0; c.cpu = 0; c.cpuMax = 0; c.step.fill(0); c.calls = 0; c.tris = 0; c.awake = 0; c.lagN = LAG.n; }
-/* Temps écoulé depuis la dernière marque, ajouté à l'étape i (appelé dans frame et matchTick ; rien hors d'une image dessinée) */
+/* Time elapsed since the last mark, added to step i (called in frame and matchTick; nothing outside a drawn frame) */
 function pfrLap(i) { if (!PFR.inFrame) return; const t = performance.now(); PFR.lap[i] += t - PFR.lt; PFR.lt = t; }
-/* Événement de la partie : 0 explosion, 1 flash, 2 élimination */
+/* Match event: 0 explosion, 1 flash, 2 elimination */
 function pfrEvent(k) { if (!PFR.on) return; PFR.ev[k]++; PFR.evAll[k]++; PFR.evT[k] = (performance.now() - PFR.t0) / 1000; }
-/* Fin d'une image dessinée : intervalle depuis la précédente, temps de notre code (cpu) */
+/* End of a drawn frame: interval since the previous one, time spent in our code (cpu) */
 function pfrFrame(now, interval, cpu) {
   PFR.inFrame = false;
-  if (interval <= 0 || interval > 1000) { PFR.lap.fill(0); return; } // première image, onglet revenu du fond
+  if (interval <= 0 || interval > 1000) { PFR.lap.fill(0); return; } // first frame, tab back from the background
   const c = PFR.c, L = PFR.lap, i = renderer.info.render;
   if (PFR.n < PFR.all.length) PFR.all[PFR.n] = interval;
   else if (PFR.n < PFR_MAX) { const a = new Float32Array(PFR.all.length * 2); a.set(PFR.all); PFR.all = a; PFR.all[PFR.n] = interval; }
@@ -70,7 +70,7 @@ function pfrFrame(now, interval, cpu) {
   if (interval > c.ivMax) c.ivMax = interval; if (cpu > c.cpuMax) c.cpuMax = cpu;
   const awake = typeof PHYS !== 'undefined' ? PHYS.awake.length : 0; if (awake > c.awake) c.awake = awake;
   if (PFR.ivN < PFR.iv.length) PFR.iv[PFR.ivN++] = interval;
-  // à-coup : plus de deux fois la médiane de la seconde précédente, et plus de 8 ms
+  // hitch: more than twice the previous second's median, and more than 8 ms
   if (PFR.med > 0 && interval > 2 * PFR.med && interval > 8) pfrSlow(now, interval, cpu, i.calls, awake);
   L.fill(0);
   if (now - PFR.s0 >= 1000) pfrSecond(now);
@@ -81,7 +81,7 @@ function pfrSlow(now, interval, cpu, calls, awake) {
   PFR.slow.push([s, interval, cpu, L[0], L[1], L[2], L[3], L[4], L[5], L[6], calls, awake, DYN.gpu, ev.join('+')]);
   if (PFR.slow.length > 400) { PFR.slow.sort((a, b) => b[1] - a[1]); PFR.slow.length = 200; }
 }
-/* Fin d'une seconde : sa ligne, la médiane qui sert de seuil aux à-coups de la suivante */
+/* End of a second: its line, the median that serves as the hitch threshold for the next one */
 function pfrSecond(now) {
   const c = PFR.c, n = Math.max(1, c.n), v = PFR.iv.subarray(0, PFR.ivN).sort();
   PFR.med = PFR.ivN ? v[PFR.ivN >> 1] : 0;
@@ -92,13 +92,13 @@ function pfrSecond(now) {
   PFR.ev.fill(0); PFR.ltN = 0; PFR.ltMs = 0; PFR.ivN = 0; PFR.s0 = now;
   pfrSecReset();
 }
-/* Le rapport, en texte : à coller tel quel pour l'analyse */
+/* The report, as text: to paste as is for analysis */
 function pfrReport() {
   const f1 = (x) => (+x).toFixed(1), f2 = (x) => (+x).toFixed(2), N = Math.min(PFR.n, PFR_MAX);
   const all = PFR.all.slice(0, N).sort(), pct = (p) => (N ? all[Math.min(N - 1, Math.floor(N * p))] : 0);
   const dur = PFR.n ? PFR.all.subarray(0, N).reduce((a, x) => a + x, 0) / 1000 : 0;
   const bm = document.querySelector('meta[name="cod-build"]');
-  // cadence de l'écran : l'intervalle le plus courant parmi les plus courts (les images à l'heure)
+  // screen refresh rate: the most common interval among the shortest ones (the on-time frames)
   const refresh = N ? 1000 / pct(0.05) : 0;
   const L = [
     `War Bash ${bm ? bm.content : '?'} · performance report · ${PFR.date}`,
@@ -122,10 +122,10 @@ function pfrReport() {
   for (const r of slow) L.push(`${f2(r[0])} ${f1(r[1])} ${f2(r[2])} | ${r.slice(3, 10).map(f2).join(' ')} | ${r[10]} ${r[11]} ${f2(r[12])} | ${r[13] || '-'}`);
   return L.join('\n');
 }
-/* Bouton « Rapport de performances » (Options, Vidéo) : la partie en cours ou la dernière, sinon celle gardée dans le navigateur */
+/* "Performance report" button (Options, Video): the current or last match, otherwise the one kept in the browser */
 function pfrShow() {
   let txt = PFR.on && PFR.n >= 30 ? pfrReport() : PFR.last;
   if (!txt) { try { txt = localStorage.getItem('dc_perf_last') || ''; } catch (e) { txt = ''; } }
-  repShow(_t('Rapport de performances'), _t('Il suit chaque image de la dernière partie jouée avec les performances affichées. Copiez-le pour faire analyser les chutes d\u0027images.'),
-    txt || _t('Aucune partie enregistrée. Cochez {0} dans Options, Vidéo, puis jouez une partie.', '"' + _t('Afficher les performances') + '"'));
+  repShow(_t('Performance report'), _t('It tracks every frame of the last match played with the performance display on. Copy it to have the frame drops analysed.'),
+    txt || _t('No match recorded. Tick {0} in Options, Video, then play a match.', '"' + _t('Show performance') + '"'));
 }

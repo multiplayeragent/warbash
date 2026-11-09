@@ -21,7 +21,7 @@ async def main():
         await pg.route("**/*", route)
         await pg.goto("file:///"+os.path.join(REPO,"dist","index.html").replace(os.sep,"/"))
         await pg.wait_for_function("typeof MATCH!=='undefined' && MATCH.state==='menu'", timeout=180000)
-        await pg.evaluate("typeof mapEnsure === 'function' ? mapEnsure(Settings.map) : null")  # carte construite au lancement d'une partie
+        await pg.evaluate("typeof mapEnsure === 'function' ? mapEnsure(Settings.map) : null")  # map built when a match starts
         for code in sys.argv[1:]:
             r = await pg.evaluate(code)
             print(">>", json.dumps(r)[:3000] if r is not None else None)

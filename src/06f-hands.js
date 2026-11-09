@@ -1,68 +1,68 @@
 /* ==========================================================================
-   MAINS GANTÉES (vue subjective)
-   Une main est une surface continue, lissée sur 16 os : la paume (racine), trois phalanges par doigt et,
-   pour le pouce, le métacarpien puis deux phalanges. Le métacarpien du pouce n'est pas un segment visible :
-   il est noyé dans l'éminence thénar, la masse charnue à la base du pouce, et une palmure épaisse le relie au bord
-   de la paume jusqu'à la jointure de l'index. On voit donc, comme sur une vraie main, un pouce court à deux phalanges
-   qui sort d'une paume épaisse (et non un doigt de plus qui partirait du poignet). Le métacarpien pivote selon les
-   deux axes de la base du pouce et tourne en opposition avec eux : les transitions suivent le chemin d'un vrai pouce.
+   GLOVED HANDS (first person)
+   A hand is a continuous surface, smoothed over 16 bones: the palm (root), three phalanges per finger and,
+   for the thumb, the metacarpal then two phalanges. The thumb metacarpal is not a visible segment:
+   it is buried in the thenar eminence, the fleshy mass at the base of the thumb, and a thick web connects it to the edge
+   of the palm up to the index knuckle. So you see, as on a real hand, a short two-phalanx thumb
+   coming out of a thick palm (and not one more finger starting from the wrist). The metacarpal pivots on the
+   two axes of the thumb base and rotates in opposition with them: transitions follow the path of a real thumb.
 
-   Proportions d'une main d'homme adulte gantée : paume de 10,5 cm du poignet à l'articulation du majeur,
-   8,5 cm de large aux jointures, doigts de 19 à 20 mm de diamètre ; phalanges de l'index 41, 24 et 21 mm.
-   La pose de repos (celle où le maillage est construit) a les doigts à demi fléchis : les poses courantes
-   (poignée, garde-main) s'en écartent peu, ce qui limite les déformations aux articulations.
+   Proportions of a gloved adult male hand: palm 10.5 cm from the wrist to the middle finger joint,
+   8.5 cm wide at the knuckles, fingers 19 to 20 mm in diameter; index phalanges 41, 24 and 21 mm.
+   The rest pose (the one the mesh is built in) has the fingers half bent: common poses
+   (grip, forend) deviate little from it, which limits deformations at the joints.
 
-   Repère de la main : -z vers les doigts, +y le dos de la main, pouce du côté x = side (côté radial) ;
-   side vaut +1 pour la main gauche et -1 pour la droite. Les poses ne sautent pas d'une image à l'autre :
-   chaque main glisse vers sa pose cible (VM.handDt).
-   Une pose donne, par doigt (i index, m majeur, r annulaire, p auriculaire, f pour les manquants), les flexions
-   [base, milieu, bout] (base 0 à 90°, milieu 0 à 110°, bout 0 à 80° et jamais plus fléchi que le milieu) ;
-   t : pouce [flexion de la phalange proximale, flexion du bout, flexion du métacarpien vers l'auriculaire, abduction hors de la paume]
-   (la rotation d'opposition du pouce en découle, un cinquième terme facultatif la corrige) ; spread : écart ; free : l'index ne se referme pas sur l'objet (détente) ;
-   topen : pose d'approche du pouce pour la prise procédurale.
+   Hand frame: -z toward the fingers, +y the back of the hand, thumb on the x = side (radial side);
+   side is +1 for the left hand and -1 for the right. Poses do not jump from one frame to the next:
+   each hand glides toward its target pose (VM.handDt).
+   A pose gives, per finger (i index, m middle, r ring, p pinky, f for missing ones), the flexions
+   [base, middle, tip] (base 0 to 90°, middle 0 to 110°, tip 0 to 80° and never more bent than the middle);
+   t: thumb [flexion of the proximal phalanx, flexion of the tip, flexion of the metacarpal toward the pinky, abduction away from the palm]
+   (the thumb's opposition rotation follows from it, an optional fifth term corrects it); spread: spread; free: the index does not close on the object (trigger);
+   topen: thumb approach pose for the procedural grip.
    ========================================================================== */
 const HAND_POSES = {
-  // poing autour d'une poignée : le majeur, l'annulaire et l'auriculaire s'empilent, l'index un peu moins fermé ;
-  // le pouce passe en travers, devant l'index et le majeur
+  // fist around a grip: the middle, ring and pinky stack up, the index a bit less closed;
+  // the thumb passes across, in front of the index and middle
   grip: { f: [1.3, 1.5, 0.95], i: [1.05, 1.35, 0.9], t: [0.35, 0.5, 0.9, 0.55, -0.9], spread: 0.0 },
-  // couteau tenu en avant (prise en poignée de main, 06c-models.js : KNIFE_HELD), réglée à la main avec le banc de réglage (09zk-couteau-reglage.js) : les doigts font le
-  // tour du manche, chacun à lui, et le pouce a huit angles (les trois derniers pivotent sa base autour de x, y et z de la main : thumbQ)
+  // knife held forward (handshake grip, 06c-models.js: KNIFE_HELD), tuned by hand with the tuning bench (09zk-knife-tuning.js): the fingers go
+  // around the handle, each on its own, and the thumb has eight angles (the last three pivot its base around the hand's x, y and z: thumbQ)
   kgrip: { i: [1.37, 1.35, 0.67], m: [1.48, 1.5, 0.95], r: [1.3, 1.5, 0.95], p: [1.3, 1.5, 0.95], t: [0.42, 0.47, -0.16, 0.89, -1.37, 0.06, 0.28, -0.16], spread: 0 },
-  // couteau pendant le coup (06c-models.js : KNIFE_STAB) : les doigts mélangés de la pose tenue au début, à la fin du coup, réécrits à chaque image
+  // knife during the strike (06c-models.js: KNIFE_STAB): the fingers blended from the held pose at the start to the end of the strike, rewritten every frame
   kstab: { i: [0, 0, 0], m: [0, 0, 0], r: [0, 0, 0], p: [0, 0, 0], t: [0, 0, 0, 0, 0, 0, 0, 0], spread: 0 },
-  // main d'appui sur une poignée d'appui : même poing (la prise le referme au contact de la poignée) ; le pouce part écarté du côté
-  // du dos de la main (sans quoi il naîtrait dans la poignée) et vient l'entourer par l'arrière
-  fgrip: { f: [1.3, 1.5, 0.95], i: [1.05, 1.35, 0.9], t: [0.35, 0.5, 0.9, 0.55, -0.9], topen: [0.05, 0.05, 0.6, -0.25], spread: 0.0, sortie: true },
-  // main de détente d'un fusil : l'index tendu vers la détente (libre, la prise ne le referme pas), le pouce qui fait le
-  // tour du dos de la poignée et se rabat sur son flanc gauche (angles trouvés par optimisation contre la poignée)
+  // support hand on a support grip: same fist (the grip closes it on contact with the handle); the thumb starts spread on the side
+  // of the back of the hand (otherwise it would be born inside the handle) and comes around it from behind
+  fgrip: { f: [1.3, 1.5, 0.95], i: [1.05, 1.35, 0.9], t: [0.35, 0.5, 0.9, 0.55, -0.9], topen: [0.05, 0.05, 0.6, -0.25], spread: 0.0, unholster: true },
+  // trigger hand of a rifle: index extended toward the trigger (free, the grip does not close it), the thumb going
+  // around the back of the grip and folding onto its left side (angles found by optimization against the grip)
   trigger: { f: [1.3, 1.5, 0.95], i: [0.32, 0.5, 0.3], t: [0.28, 0.86, 1.4, 0.94, 2.05], topen: [0.05, 0.05, 0.3, 0.4], spread: 0.0, free: true },
-  // main de détente du pistolet, prise haute « pouces en avant » : la base du pouce enveloppe l'arrière de la poignée,
-  // puis le pouce, paume tournée vers la carcasse, s'allonge vers l'avant sur le flanc gauche, au-dessus du pouce de la
-  // main d'appui (angles trouvés par optimisation contre la forme de l'arme)
+  // pistol trigger hand, high "thumbs forward" grip: the thumb base wraps the back of the grip,
+  // then the thumb, palm turned toward the frame, extends forward on the left side, above the thumb of the
+  // support hand (angles found by optimization against the weapon's shape)
   ptrig: { f: [1.35, 1.55, 1.0], i: [0.3, 0.55, 0.3], t: [0.42, 0.63, 0.335, 1.04, -2.5], topen: [0.05, 0.05, 0.1, 0.3], spread: 0.0, free: true },
-  // main d'appui du pistolet : paume sur le flanc gauche de la poignée, doigts refermés par-dessus ceux de la main droite,
-  // pouce allongé vers l'avant sous la glissière
+  // pistol support hand: palm on the left side of the grip, fingers closed over those of the right hand,
+  // thumb extended forward under the slide
   psup: { f: [1.25, 1.35, 0.9], i: [1.15, 1.25, 0.85], t: [0.45, 0.0, 0.2, 0.34, -1.5], topen: [0.05, 0.0, 0.1, 0.1], spread: 0.0 },
-  // main d'appui sous le garde-main : les doigts l'enveloppent par la droite ; le pouce, écarté de la paume (abduction) et un peu
-  // replié vers les doigts (la paume étant relevée vers l'avant, il se dresserait ; plus replié, il passerait sous le garde-main),
-  // file vers l'avant le long du flanc gauche
-  support: { f: [1.0, 1.15, 0.75], i: [0.85, 1.0, 0.7], p: [1.1, 1.2, 0.8], t: [0.1, 0.1, 0.3, 0.9], topen: [0.05, 0.05, 0.2, 0.3], spread: 0.0, sortie: true },
-  // main gauche figée des soldats (06g-body.js), d'après la prise de la vue subjective : sous un garde-main de 3 cm de rayon environ
-  // (le pouce, écarté dans le plan de la paume, longe le flanc gauche sans passer sous l'arme, la paume étant relevée vers l'avant :
-  // voir frameUnder), autour d'une poignée d'appui verticale
+  // support hand under the forend: the fingers wrap it from the right; the thumb, spread from the palm (abduction) and slightly
+  // folded toward the fingers (the palm being raised forward, it would stand up; more folded, it would pass under the forend),
+  // runs forward along the left side
+  support: { f: [1.0, 1.15, 0.75], i: [0.85, 1.0, 0.7], p: [1.1, 1.2, 0.8], t: [0.1, 0.1, 0.3, 0.9], topen: [0.05, 0.05, 0.2, 0.3], spread: 0.0, unholster: true },
+  // soldiers' frozen left hand (06g-body.js), based on the first-person grip: under a forend of about 3 cm radius
+  // (the thumb, spread in the plane of the palm, runs along the left side without passing under the weapon, the palm being raised forward:
+  // see frameUnder), around a vertical support grip
   tsup: { i: [0.45, 0.75, 0.6], m: [0.8, 0.9, 0.65], r: [0.92, 1.0, 0.7], p: [0.92, 1.0, 0.7], t: [0.05, 0.05, -0.3, 0], spread: 0.0 },
   tgrip: { i: [1.0, 1.4, 0.9], m: [1.19, 1.37, 0.79], r: [1.19, 1.25, 0.95], p: [1.08, 1.25, 0.87], t: [0.75, 0.9, 0.69, 0, -0.9], spread: 0.0 },
-  // prise en « C » : doigts enroulés sous le garde-main, pouce tendu par-dessus
+  // "C" grip: fingers curled under the forend, thumb extended over the top
   cclamp: { f: [0.95, 1.15, 0.7], i: [0.8, 0.95, 0.6], p: [1.05, 1.2, 0.8], t: [0.08, 0.05, 0.2, 0.25], spread: 0.02 },
-  // terminal des séries tenu dans la paume : doigts refermés sur le flanc gauche, pouce par-dessus le flanc droit, sur le bouton d'appel
-  // (l'index moins fermé : il passerait devant l'écran)
+  // streak terminal held in the palm: fingers closed on the left side, thumb over the right side, on the call button
+  // (the index less closed: it would pass in front of the screen)
   hold: { f: [1.2, 1.25, 0.8], i: [0.85, 0.9, 0.6], t: [0.35, 0.3, 0.6, 0.6], spread: 0.02 },
-  // tablette tenue par les flancs : doigts derrière, pouce allongé sur le cadre
+  // tablet held by the sides: fingers behind, thumb extended on the frame
   tablet: { f: [1.1, 1.2, 0.7], t: [0.1, 0.15, 0.2, 0.6], spread: 0.03 },
-  // grenade : les doigts épousent la sphère sans la serrer en poing
+  // grenade: the fingers conform to the sphere without clenching into a fist
   nade: { f: [0.95, 1.05, 0.7], i: [0.85, 1.0, 0.65], p: [1.1, 1.1, 0.75], t: [0.35, 0.3, 0.8, 0.8], spread: 0.1 },
-  // la main qui tient chaque type de grenade (06c-models.js : NADE_GRIP), un doigt par entrée et le pouce en huit angles comme kgrip ; réglable au banc
-  // de réglage des grenades (?grenade=1, 09zj-grenade-reglage.js). Poses réglées par le propriétaire
+  // the hand holding each grenade type (06c-models.js: NADE_GRIP), one finger per entry and the thumb in eight angles like kgrip; adjustable on the grenade
+  // tuning bench (?grenade=1, 09zj-grenade-tuning.js). Poses tuned by the owner
   nfrag: { i: [1.32, 0.97, 0.65], m: [1.35, 1.05, 0.7], r: [1.32, 1.05, 0.7], p: [1.06, 1.1, 0.75], t: [0.55, 0.43, 0.71, 1.14, -2.63, -0.06, 0, 0], spread: 0 },
   nflash: { i: [1.32, 0.97, 0.65], m: [1.35, 1.05, 0.7], r: [1.32, 1.05, 0.7], p: [1.06, 1.1, 0.75], t: [0.55, 0.43, 0.71, 1.14, -2.63, -0.06, 0, 0], spread: 0 },
   nsmoke: { i: [1.32, 0.97, 0.65], m: [1.35, 1.05, 0.7], r: [1.32, 1.05, 0.7], p: [1.06, 1.1, 0.75], t: [0.55, 0.43, 0.71, 1.14, -2.63, -0.06, 0, 0], spread: 0 },
@@ -70,25 +70,25 @@ const HAND_POSES = {
   pinch: { f: [1.5, 1.5, 0.9], i: [0.9, 1.2, 0.8], t: [0.5, 0.6, 1.1, 0.8], spread: 0.0 },
   open: { f: [0.05, 0.1, 0.06], p: [0.1, 0.12, 0.08], t: [0.05, 0.05, 0.0, 0.1], spread: 0.16 },
   relaxed: { f: [0.5, 0.6, 0.4], p: [0.65, 0.7, 0.45], t: [0.2, 0.3, 0.45, 0.2], spread: 0.06 },
-  // main qui va chercher ou porte un chargeur : doigts en crochet
+  // hand that fetches or carries a magazine: hooked fingers
   mag: { f: [0.95, 1.1, 0.7], i: [0.9, 1.05, 0.65], p: [1.0, 1.1, 0.7], t: [0.3, 0.3, 0.7, 0.7], spread: 0.03 },
-  // paume à plat (claque sur un chargeur ou un levier)
+  // flat palm (slap on a magazine or a lever)
   slap: { f: [0.12, 0.15, 0.1], t: [0.1, 0.1, 0.1, 0.25], spread: 0.05 },
 };
-/* extension maximale de l'index à sa base (rad) : un index posé le long d'une carcasse se cambre un peu vers l'arrière */
+/* maximum extension of the index at its base (rad): an index laid along a frame arches back slightly */
 const IDX_EXT = -0.45;
-/* pose de construction du maillage (demi-flexion) */
+/* mesh construction pose (half flexion) */
 const HAND_REST = { f: [0.45, 0.6, 0.35], t: [0.25, 0.2, 0.2, 0.45], spread: 0.0 };
-/* index, majeur, annulaire, auriculaire : articulation de la base (x vers le pouce), longueurs des phalanges,
-   rayon, convergence (en se fermant, les doigts pointent vers la base du pouce) */
+/* index, middle, ring, pinky: base joint (x toward the thumb), phalanx lengths,
+   radius, convergence (when closing, the fingers point toward the thumb base) */
 const FINGERS = [
   { x: 0.0295, y: -0.0015, z: -0.046, L: [0.039, 0.023, 0.02], r: 0.0094, conv: 0.0 },
   { x: 0.0098, y: 0.0, z: -0.0505, L: [0.043, 0.026, 0.021], r: 0.0097, conv: 0.04 },
   { x: -0.0102, y: -0.0008, z: -0.0475, L: [0.04, 0.025, 0.02], r: 0.0092, conv: 0.09 },
   { x: -0.0288, y: -0.0035, z: -0.0395, L: [0.032, 0.019, 0.018], r: 0.0083, conv: 0.16 },
 ];
-/* pouce : articulation trapézo-métacarpienne (près du poignet, côté paume), direction de repos du métacarpien,
-   côté de l'ongle, longueurs métacarpien / phalange proximale / phalange distale (bout compris) */
+/* thumb: trapeziometacarpal joint (near the wrist, palm side), rest direction of the metacarpal,
+   nail side, lengths metacarpal / proximal phalanx / distal phalanx (tip included) */
 const THUMB = { cmc: [0.022, 0.0, 0.036], dir: [0.6, -0.05, -0.8], nail: [0.9, 0.4, 0.15], L: [0.041, 0.027, 0.022] };
 function thumbRestQ(side) {
   const z = new V3(-THUMB.dir[0] * side, -THUMB.dir[1], -THUMB.dir[2]).normalize();
@@ -96,7 +96,7 @@ function thumbRestQ(side) {
   const x = new V3().crossVectors(y, z);
   return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
 }
-/* Applique les angles courants (cur) aux os de la main */
+/* Applies the current angles (cur) to the hand's bones */
 function handApply(u) {
   const cur = u.cur, side = u.side, per = [cur.i, cur.m, cur.r, cur.p];
   u.fingers.forEach((fg, i) => {
@@ -104,28 +104,28 @@ function handApply(u) {
     fg.base.rotation.set(-fl, ((1.5 - i) * cur.spread - FINGERS[i].conv * Math.max(0, fl)) * -side, 0);
     fg.mid.rotation.x = -clamp(F[1], 0, 1.92); fg.tip.rotation.x = -clamp(Math.min(F[2], F[1] + 0.1), 0, 1.4);
   });
-  // index de détente : se referme d'un cran quand on tire
+  // trigger index: closes a notch when firing
   if (cur.trig) { const f = u.fingers[0]; f.base.rotation.x -= cur.trig * 0.22; f.mid.rotation.x -= cur.trig * 0.42; f.tip.rotation.x -= cur.trig * 0.18; }
-  // pouce : le métacarpien pivote autour de la base du pouce selon deux axes de la main (flexion dans le plan de la paume,
-  // vers l'auriculaire ; abduction hors de la paume, côté paume), et tourne sur lui-même d'autant (opposition : l'ongle
-  // se présente de face quand le pouce vient au-dessus de la paume), comme un vrai pouce
+  // thumb: the metacarpal pivots around the thumb base along two hand axes (flexion in the plane of the palm,
+  // toward the pinky; abduction out of the palm, palm side), and rotates on itself by the same amount (opposition: the nail
+  // presents face-on when the thumb comes over the palm), like a real thumb
   const T = cur.t;
   thumbQ(side, T, u.tq, u.tm.quaternion);
   u.tb.rotation.set(-T[0] - cur.press * 0.3, 0, 0);
   u.tt.rotation.x = -T[1] - cur.press * 0.45;
 }
-/* ---------- Prise procédurale ----------
-   Une pose ne dit plus exactement où vont les doigts : elle donne jusqu'où ils peuvent se fermer. Chaque doigt part de la
-   main presque ouverte et se referme phalange par phalange ; une phalange qui touche l'objet tenu s'arrête, les suivantes
-   continuent de s'enrouler, comme une vraie main qui empoigne. S'il reste un jour sous le doigt à la fin de la pose, il se
-   referme encore un peu pour venir au contact. L'objet est fait de formes simples dans l'espace de l'arme : boîtes
-   arrondies (poignée, carcasse, garde-main) et capsules (les doigts de l'autre main, pour la main d'appui du pistolet). */
-function gripShape(o) { // { c, h (demi-côtés), r (arrondi), rx : inclinaison autour de x } ou { a, b, r } (capsule)
+/* ---------- Procedural grip ----------
+   A pose no longer says exactly where the fingers go: it gives how far they can close. Each finger starts from the
+   almost-open hand and closes phalanx by phalanx; a phalanx that touches the held object stops, the following ones
+   keep curling, like a real hand grasping. If a gap remains under the finger at the end of the pose, it
+   closes a bit more to come into contact. The object is made of simple shapes in weapon space: rounded boxes
+   (grip, frame, forend) and capsules (the other hand's fingers, for the pistol's support hand). */
+function gripShape(o) { // { c, h (half-sides), r (rounding), rx: tilt around x } or { a, b, r } (capsule)
   if (o.a) return { cap: true, a: new V3(...o.a), b: new V3(...o.b), r: o.r };
   return { c: new V3(...o.c), h: new V3(o.h[0] - o.r, o.h[1] - o.r, o.h[2] - o.r), r: o.r, qi: new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), -(o.rx || 0)) };
 }
-/* Appelée des milliers de fois par image (prise des deux mains en vue subjective, mains des soldats) : rien n'y est alloué,
-   pas même par Math.hypot (une fonction intégrée qui alloue, contrairement à Math.sqrt) */
+/* Called thousands of times per frame (grip of both hands in first person, soldiers' hands): nothing is allocated in it,
+   not even by Math.hypot (a built-in that allocates, unlike Math.sqrt) */
 const _gp = new V3(), _gsq = new V3();
 function gripSdf(shapes, p) {
   let d = 1e9;
@@ -145,8 +145,8 @@ function gripSdf(shapes, p) {
   }
   return d;
 }
-/* Cinématique directe d'un doigt (a : flexions des trois articulations) ou du pouce (a : [pp, pd, flexion, abduction]),
-   dans le repère de la main : quatre points (base, deux articulations, bout) dans out */
+/* Forward kinematics of a finger (a: flexions of the three joints) or the thumb (a: [pp, pd, flexion, abduction]),
+   in the hand frame: four points (base, two joints, tip) into out */
 const _gk = { q: new THREE.Quaternion(), q2: new THREE.Quaternion(), e: new THREE.Euler(), v: new V3(), ax: new V3(), d: new V3() };
 function digitFK(u, f, a, out) {
   const K = _gk, side = u.side, q = K.q;
@@ -170,22 +170,22 @@ function digitFK(u, f, a, out) {
   out[3].copy(out[2]).add(K.v.set(0, 0, -THUMB.L[2] - 0.004).applyQuaternion(q));
   return out;
 }
-/* Orientation du métacarpien du pouce : flexion (vers l'auriculaire, dans le plan de la paume), abduction (hors de la
-   paume, autour de l'axe perpendiculaire au pouce) et rotation d'opposition qui les accompagne. T[5], T[6], T[7] (facultatifs, nuls
-   par défaut) tournent ensuite tout le pouce autour de sa base, selon les axes x, y et z de la main : de quoi le poser où l'on veut
-   (banc de réglage du couteau, 09zk-couteau-reglage.js) */
+/* Orientation of the thumb metacarpal: flexion (toward the pinky, in the plane of the palm), abduction (out of the
+   palm, around the axis perpendicular to the thumb) and the opposition rotation that goes with them. T[5], T[6], T[7] (optional, zero
+   by default) then rotate the whole thumb around its base, along the hand's x, y and z axes: enough to place it wherever wanted
+   (knife tuning bench, 09zk-knife-tuning.js) */
 function thumbQ(side, T, tq, out) {
   const K = _gk;
   out.setFromAxisAngle(K.ax.set(0, 1, 0), T[2] * side);
   K.d.set(THUMB.dir[0] * side, THUMB.dir[1], THUMB.dir[2]).normalize().applyQuaternion(out);
-  K.ax.set(0, 1, 0).cross(K.d).normalize(); // d × (-y) : l'abduction écarte le pouce côté paume
+  K.ax.set(0, 1, 0).cross(K.d).normalize(); // d × (-y): abduction spreads the thumb toward the palm side
   out.premultiply(K.q2.setFromAxisAngle(K.ax, T[3])).multiply(tq).multiply(K.q2.setFromAxisAngle(K.ax.set(0, 0, 1), side * (0.5 * T[2] + 0.3 * T[3] + (T[4] || 0))));
   if (T[5] || T[6] || T[7]) out.premultiply(K.q2.setFromEuler(K.e.set(T[5] || 0, (T[6] || 0) * side, (T[7] || 0) * side, 'XYZ')));
   return out;
 }
 const _gP = [new V3(), new V3(), new V3(), new V3()], _gW = new V3(), _gM = new THREE.Matrix4();
-const GAP_T = [0.4, 0.75, 1]; // points testés le long de chaque phalange
-/* Distance au contact de la chaîne à partir de la phalange k (négative : elle s'enfonce) ; M : main vers arme */
+const GAP_T = [0.4, 0.75, 1]; // points tested along each phalanx
+/* Distance to contact of the chain from phalanx k (negative: it sinks in); M: hand to weapon */
 function digitGap(u, f, a, k, shapes, M) {
   digitFK(u, f, a, _gP);
   let d = 1e9;
@@ -198,40 +198,40 @@ function digitGap(u, f, a, k, shapes, M) {
   }
   return d;
 }
-/* Angles de prise d'un doigt : fermeture de la pose d'approche O vers la pose P, articulation par articulation.
-   J : paramètres de chaque articulation (le pouce bouge sa base sur deux paramètres) ; out reçoit les angles */
+/* Grip angles of a finger: closing from the approach pose O toward the pose P, joint by joint.
+   J: parameters of each joint (the thumb moves its base on two parameters); out receives the angles */
 const _gA = [0, 0, 0, 0, 0], _gS = [0, 0, 0, 0, 0];
-/* doigts au plus ouverts quand une prise d'appui doit les sortir de l'objet : index, autres doigts, pouce (abduction côté dos de la
-   main), et en dernier recours le pouce écarté aussi dans le plan de la paume, à l'opposé des doigts (il se dresse : seulement s'il ne sort
-   pas autrement, d'une rampe de poignée angulaire par exemple) */
+/* fingers at their most open when a support grip must take them out of the object: index, other fingers, thumb (abduction on the back-of-hand
+   side), and as a last resort the thumb also spread in the plane of the palm, opposite the fingers (it stands up: only if it does not get
+   out otherwise, from an angled grip ramp for example) */
 const GRASP_EXT = [[IDX_EXT * 0.6, 0, 0], [-0.15, 0, 0], [0, 0, 0, -0.3, 0], [0, 0, -0.5, -0.3, 0]];
 const GRASP_J = [[[0], [1], [2]], [[2, 3, 4], [0], [1]]], _gLock = [false, false, false];
-function graspDigit(u, f, O, P, shapes, M, out, sortie = false) {
+function graspDigit(u, f, O, P, shapes, M, out, unholster = false) {
   const J = GRASP_J[f < 4 ? 0 : 1], n = O.length, lock = _gLock, N = 10;
   lock[0] = lock[1] = lock[2] = false;
   for (let j = 0; j < n; j++) _gA[j] = O[j];
   const g0 = digitGap(u, f, _gA, 1, shapes, M);
-  if (g0 < 0 && !sortie) { for (let j = 0; j < n; j++) out[j] = P[j]; return out; } // déjà dans l'objet : pose telle quelle
+  if (g0 < 0 && !unholster) { for (let j = 0; j < n; j++) out[j] = P[j]; return out; } // already inside the object: pose as is
   if (g0 < 0) {
-    // poses d'appui des armes longues (sortie, voir HAND_POSES) : au lieu de garder sa pose dans l'objet, le doigt cherche la sortie
-    // la plus proche, en s'ouvrant pas à pas (jusqu'à la main ouverte, puis un peu en extension) ou en se refermant vers P (un index
-    // qui pointe dans le garde-main au-dessus d'une poignée s'enroule dessous), et s'arrête dès qu'il en sort ; sinon le pouce
-    // s'écarte (GRASP_EXT[3]) ; sans sortie, il garde la position la moins enfoncée essayée
+    // support poses of long weapons (exit, see HAND_POSES): instead of keeping its pose inside the object, the finger looks for the
+    // nearest exit, opening step by step (up to the open hand, then slightly into extension) or closing toward P (an index
+    // pointing into the forend above a grip curls underneath), and stops as soon as it gets out; otherwise the thumb
+    // spreads (GRASP_EXT[3]); with no exit, it keeps the least sunken position tried
     const at = (s, X) => { for (let j = 0; j < n; j++) _gA[j] = X ? (f === 4 && j === 4 ? O[j] : O[j] + (X[j] - O[j]) * s / N) : O[j] + (P[j] - O[j]) * s / N; };
     let bg = -1e9, bs = 0, bX = null;
-    const chemin = (X, m) => {
+    const pathway = (X, m) => {
       for (let s = 1; s <= m; s++) { at(s, X); const g = digitGap(u, f, _gA, 1, shapes, M); if (g >= 0) return s; if (g > bg) { bg = g; bs = s; bX = X; } }
       return 0;
     };
-    let X = f < 4 ? GRASP_EXT[f ? 1 : 0] : GRASP_EXT[2], s = chemin(X, N);
-    const sc = chemin(null, s ? s - 1 : N);
-    if (sc) { X = null; s = sc; } else if (!s && f === 4) s = chemin((X = GRASP_EXT[3]), N);
+    let X = f < 4 ? GRASP_EXT[f ? 1 : 0] : GRASP_EXT[2], s = pathway(X, N);
+    const sc = pathway(null, s ? s - 1 : N);
+    if (sc) { X = null; s = sc; } else if (!s && f === 4) s = pathway((X = GRASP_EXT[3]), N);
     if (!s) { X = bX; s = bs; }
     at(s, X);
     for (let j = 0; j < n; j++) out[j] = _gA[j];
     return out;
   }
-  // phase 1 : de O à P ; phase 2 : au-delà de P (jusqu'à +0,4 rad) si le doigt frôle l'objet sans le toucher
+  // phase 1: from O to P; phase 2: beyond P (up to +0.4 rad) if the finger grazes the object without touching it
   for (let s = 1; s <= N + 4; s++) {
     const t = s / N;
     if (s === N + 1 && digitGap(u, f, _gA, 1, shapes, M) > 0.012) break;
@@ -246,10 +246,10 @@ function graspDigit(u, f, O, P, shapes, M, out, sortie = false) {
   for (let j = 0; j < n; j++) out[j] = _gA[j];
   return out;
 }
-/* Index de détente : le coussinet de la dernière phalange vient sur la détente (point T de l'arme, axe du doigt), sans que
-   le doigt entre dans l'arme (formes S : carcasse, pontet, puits de chargeur) ni que son bout ressorte de l'autre côté
-   (x < xTip). Descente par coordonnées à partir de la solution précédente : le doigt suit la main quand elle roule sur la
-   poignée, sans saut. a : angles [base, milieu, bout], modifiés en place. */
+/* Trigger index: the pad of the last phalanx comes onto the trigger (weapon point T, finger axis), without
+   the finger entering the weapon (S shapes: frame, trigger guard, magazine well) nor its tip coming out the other side
+   (x < xTip). Coordinate descent from the previous solution: the finger follows the hand when it rolls on the
+   grip, without jumping. a: angles [base, middle, tip], modified in place. */
 const _ti = [new V3(), new V3(), new V3(), new V3()], _tw = new V3(), _tp = new V3(), _ta = [0, 0, 0];
 const TRIG_T = [0.35, 0.7, 1];
 function trigCost(u, a, M, T, S, xTip) {
@@ -259,7 +259,7 @@ function trigCost(u, a, M, T, S, xTip) {
   for (let l = 1; l <= 3; l++) for (let i = 0; i < 3; i++) {
     const k = TRIG_T[i];
     _tw.lerpVectors(_ti[l - 1], _ti[l], k);
-    // la base de la phalange proximale est noyée dans la paume : quelques millimètres de recouvrement admis
+    // the base of the proximal phalanx is buried in the palm: a few millimeters of overlap allowed
     pen = Math.min(pen, gripSdf(S, _tw) - FINGERS[0].r * (l === 3 ? 0.86 : 0.93) + (l === 1 && k < 0.5 ? 0.006 : 0));
   }
   _tp.lerpVectors(_ti[2], _ti[3], 0.6);
@@ -268,7 +268,7 @@ function trigCost(u, a, M, T, S, xTip) {
 const TRIG_LIM = [[IDX_EXT, 1.2], [0, 1.8], [0, 1.3]], TRIG_H = [0.08, 0.04, 0.02];
 function indexToTrigger(u, M, TR, a) {
   const T = TR.at, S = TR.shapes, x0 = TR.xTip, lim = TRIG_LIM;
-  if (!a.init) { // premier appel : grille grossière
+  if (!a.init) { // first call: coarse grid
     let best = 1e9;
     for (let b = IDX_EXT; b <= 0.8; b += 0.15) for (let m = 0; m <= 1.8; m += 0.2) for (let t = 0; t <= Math.min(1.3, m + 0.1); t += 0.2) {
       _ta[0] = b; _ta[1] = m; _ta[2] = t; const c = trigCost(u, _ta, M, T, S, x0);
@@ -284,25 +284,25 @@ function indexToTrigger(u, M, TR, a) {
   }
   return a;
 }
-/* Pose de prise complète d'une main (repère de la main vers l'arme : M) : résultat dans G { i, m, r, p, t } */
+/* Full grip pose of a hand (hand frame to weapon: M): result in G { i, m, r, p, t } */
 const _gO = [0, 0, 0], _gOt = [0, 0, 0, 0, 0], _gT = [0, 0, 0, 0, 0], GRASP_KEYS = ['i', 'm', 'r', 'p'];
 function handGrasp(u, P, shapes, M, G) {
   const keys = GRASP_KEYS;
   for (let f = 0; f < 4; f++) {
     const k = keys[f], Pf = P[k] || P.f;
-    if (f === 0 && P.free) { // index de détente : sur la détente de l'arme si elle est décrite, sinon suit sa pose
+    if (f === 0 && P.free) { // trigger index: on the weapon's trigger if described, otherwise follows its pose
       if (shapes.trig) { if (!G[k] || !G[k].init || G.tk !== shapes.trig) { G[k] = Pf.slice(); G.tk = shapes.trig; } indexToTrigger(u, M, shapes.trig, G[k]); } else G[k] = Pf.slice();
       continue;
     }
     for (let j = 0; j < 3; j++) _gO[j] = Pf[j] * 0.15;
-    G[k] = graspDigit(u, f, _gO, Pf, shapes, M, G[k] || [0, 0, 0], P.sortie);
+    G[k] = graspDigit(u, f, _gO, Pf, shapes, M, G[k] || [0, 0, 0], P.unholster);
   }
   const T = P.t, To = P.topen || [0.05, 0.05, T[2] * 0.4, T[3] * 0.6];
   for (let j = 0; j < 5; j++) { _gT[j] = T[j] || 0; _gOt[j] = j < 4 ? To[j] : _gT[4]; }
-  G.t = graspDigit(u, 4, _gOt, _gT, shapes, M, G.t || [0, 0, 0, 0, 0], P.sortie);
+  G.t = graspDigit(u, 4, _gOt, _gT, shapes, M, G.t || [0, 0, 0, 0, 0], P.unholster);
   return G;
 }
-/* Capsules des doigts d'une main (pour la main qui se referme par-dessus), dans l'espace de l'arme */
+/* Capsules of a hand's fingers (for the hand that closes over it), in weapon space */
 function handCapsules(u, M, out, fingers = [1, 2, 3, 4]) {
   const c = u.cur, per = [c.i, c.m, c.r, c.p, c.t];
   out.length = 0;
@@ -316,24 +316,24 @@ function handCapsules(u, M, out, fingers = [1, 2, 3, 4]) {
   }
   return out;
 }
-/* Géométrie d'une main (côté side), construite dans la pose de repos ; partagée par toutes les mains du même côté.
-   Gant tactique : dos en tissu, paume en synthétique plus sombre, bouts de doigts renforcés, coque des jointures et
-   protège-phalanges en caoutchouc moulés dans la surface (bosses et couleur, pas de pièces rapportées). */
+/* Geometry of a hand (side side), built in the rest pose; shared by all hands of the same side.
+   Tactical glove: fabric back, darker synthetic palm, reinforced fingertips, knuckle shell and
+   rubber knuckle guards molded into the surface (bumps and color, no attached pieces). */
 const HAND_GEO = {};
 function handGeometry(side, u, h, lod) {
   const key = side + (lod || 'fp');
   if (HAND_GEO[key]) return HAND_GEO[key];
   const B = new SkinBuilder(), hi = lod !== 'lo' && lod !== 'xlo', xlo = lod === 'xlo', seg = hi ? 16 : xlo ? 4 : 6;
   const WHITE = new THREE.Color(1, 1, 1), PALM = new THREE.Color(0.58, 0.57, 0.55), RUB = new THREE.Color(0.2, 0.2, 0.2), SEAM = new THREE.Color(0.8, 0.8, 0.8);
-  // dos en tissu, paume et bouts des doigts en synthétique (zone « leath » : plus satinée)
+  // fabric back, synthetic palm and fingertips ("leath" zone: more satin)
   const phys = 0.14, guv = (x, z, palm) => atlasUV(palm ? 'leath' : 'glove', 0.5 + x / phys, (z + 0.085) / phys);
   const mix = (a, b, t) => (t <= 0 ? a : t >= 1 ? b : a.clone().lerp(b, t));
-  // ---- paume : sections du poignet aux jointures [z, demi-largeur côté pouce, côté auriculaire, dos, paume, décalage y]
+  // ---- palm: sections from the wrist to the knuckles [z, half-width thumb side, pinky side, back, palm, y offset]
   const rows = [[0.08, 0.027, 0.027, 0.018, 0.017, 0], [0.066, 0.0285, 0.0285, 0.0168, 0.0172, 0], [0.05, 0.0325, 0.0315, 0.0158, 0.0176, 0], [0.032, 0.0365, 0.036, 0.015, 0.0168, 0.0004],
     [0.014, 0.0395, 0.039, 0.0145, 0.0158, 0.0008], [-0.005, 0.0415, 0.041, 0.0141, 0.0148, 0.001], [-0.022, 0.0425, 0.0415, 0.0136, 0.0138, 0.001], [-0.034, 0.042, 0.041, 0.0128, 0.0122, 0.0006], [-0.041, 0.0405, 0.0395, 0.0118, 0.0108, 0.0003]];
   const last = rows[rows.length - 1];
   for (let i = 1; i <= 4; i++) { const t = i / 4 * Math.PI / 2, k = i === 4 ? 0.02 : Math.cos(t); rows.push([last[0] - Math.sin(t) * 0.009, last[1] * (0.35 + 0.65 * k), last[2] * (0.35 + 0.65 * k), last[3] * k, last[4] * k, last[5]]); }
-  // rangées supplémentaires (interpolées) pour que la coque des jointures ait une forme nette
+  // extra rows (interpolated) so the knuckle shell has a clean shape
   const R2 = []; for (let i = 0; i < rows.length - 1; i++) { R2.push(rows[i]); if (i >= 4 && i < 9) R2.push(rows[i].map((x, j) => (x + rows[i + 1][j]) / 2)); }
   R2.push(rows[rows.length - 1]);
   const R3 = xlo ? R2.filter((r, i) => i % 3 === 0 || i === R2.length - 1) : R2;
@@ -342,25 +342,25 @@ function handGeometry(side, u, h, lod) {
     const r = R3[Math.round(vv * (nr - 1))], a = uu * TAU, c = Math.cos(a), s = Math.sin(a), e = 2 / 2.35;
     let x = Math.sign(c) * Math.pow(Math.abs(c), e) * (c >= 0 ? r[1] : r[2]), y = Math.sign(s) * Math.pow(Math.abs(s), e) * (s >= 0 ? r[3] : r[4]) + r[5];
     let z = r[0], col = WHITE;
-    // dos de la main incliné vers l'auriculaire, éminence hypothénar, creux de la paume
+    // back of the hand tilted toward the pinky, hypothenar eminence, hollow of the palm
     y += x * 0.06 * Math.max(0, s);
     if (s < 0) {
       y -= 0.003 * Math.exp(-(((x + 0.028) / 0.013) ** 2) - (((z - 0.012) / 0.03) ** 2)) * -s;
       y += 0.0024 * Math.exp(-((x / 0.016) ** 2) - (((z + 0.004) / 0.022) ** 2)) * -s;
     }
-    // coque des jointures : bande moulée en travers du dos, une bosse par jointure
+    // knuckle shell: molded band across the back, one bump per knuckle
     const kz = smoothstep(-0.026, -0.031, z) * smoothstep(-0.056, -0.049, z), kd = smoothstep(0.35, 0.6, s);
     if (kz * kd > 0) {
       let ridge = 0; for (const F of FINGERS) ridge = Math.max(ridge, Math.exp(-(((x - F.x) / 0.0075) ** 2)));
       y += (0.0022 + 0.0012 * ridge) * kz * kd;
       col = mix(WHITE, RUB, smoothstep(0.3, 0.6, kz * kd));
     }
-    // couture entre dos et paume
+    // seam between back and palm
     if (Math.abs(s + 0.25) < 0.06) col = SEAM;
     else if (s < -0.25) col = PALM;
     if (z < -0.02) z += (x < 0 ? -x / 0.042 * 0.0075 : x / 0.042 * 0.0015) * smoothstep(-0.02, -0.045, z);
     o.x = x * side; o.y = y; o.z = z;
-    // poids : paume ; base du pouce (thénar) ; bord des jointures qui suit les doigts
+    // weights: palm; thumb base (thenar); knuckle edge following the fingers
     const w = [[0, 1]];
     const th = Math.exp(-(((x - 0.024) / 0.016) ** 2) - (((y + 0.012) / 0.015) ** 2) - (((z - 0.018) / 0.022) ** 2)) * 0.4;
     if (th > 0.01) w.push([13, th]);
@@ -372,8 +372,8 @@ function handGeometry(side, u, h, lod) {
     o.w = w; o.col = col;
     const uv = guv(x, z, s < -0.25); o.U = uv[0]; o.V = uv[1];
   });
-  // ---- doigts : balayage le long des trois phalanges, jointures saillantes sur le dos, pulpes côté paume,
-  //      protège-phalange en caoutchouc sur la phalange proximale
+  // ---- fingers: sweep along the three phalanges, prominent knuckles on the back, pads on the palm side,
+  //      rubber knuckle guard on the proximal phalanx
   const X = new V3(1, 0, 0), Y = new V3(0, 1, 0), AX = new V3(0, 0, -1);
   u.fingers.forEach((fg, f) => {
     const F = FINGERS[f], L = F.L, r = F.r, d1 = L[0], d2 = L[0] + L[1], dt = d2 + L[2];
@@ -391,11 +391,11 @@ function handGeometry(side, u, h, lod) {
       uv: (uu, v, s, px, py) => atlasUV(py < -r * 0.2 || v > dt - 0.011 ? 'leath' : 'glove', 0.2 + f * 0.2 + px / phys, (v + 0.02) / phys),
     });
   });
-  // ---- pouce : thénar charnu autour du métacarpien (qui part de l'intérieur de la paume), puis deux phalanges courtes et
-  //      épaisses ; pas de pièce rapportée sur le pouce (un anneau de caoutchouc s'y lisait comme un pli)
+  // ---- thumb: fleshy thenar around the metacarpal (which starts inside the palm), then two short and
+  //      thick phalanges; no attached piece on the thumb (a rubber ring there read as a crease)
   const tchain = [{ M: restMatrix(u.tm, h), L: THUMB.L[0] }, { M: restMatrix(u.tb, h), L: THUMB.L[1] }, { M: restMatrix(u.tt, h), L: THUMB.L[2] }];
   const t1 = THUMB.L[0], t2 = t1 + THUMB.L[1], tt = t2 + THUMB.L[2];
-  // [d, x+, x-, dos (ongle), pulpe]
+  // [d, x+, x-, back (nail), pad]
   const tsec = [[0.0, 0.0095, 0.0095, 0.0075, 0.009], [0.01, 0.0125, 0.012, 0.0088, 0.0118], [0.021, 0.0135, 0.0135, 0.0094, 0.0132], [0.031, 0.0128, 0.013, 0.0095, 0.0122],
     [t1 - 0.004, 0.0118, 0.0118, 0.0097, 0.0108], [t1, 0.0116, 0.0116, 0.0101, 0.0106], [t1 + 0.007, 0.0112, 0.0112, 0.0097, 0.0106], [t1 + 0.016, 0.0109, 0.0109, 0.0094, 0.0104],
     [t2 - 0.003, 0.0107, 0.0107, 0.0094, 0.0102], [t2 + 0.001, 0.0108, 0.0108, 0.0095, 0.0103], [t2 + 0.006, 0.0109, 0.0109, 0.009, 0.0108], [tt - 0.008, 0.011, 0.011, 0.0087, 0.0112], [tt - 0.004, 0.0101, 0.0101, 0.008, 0.01]];
@@ -407,10 +407,10 @@ function handGeometry(side, u, h, lod) {
     col: (a, k, p, s) => (Math.sin(a) < -0.3 || s.v > tt - 0.012 ? PALM : WHITE),
     uv: (uu, v, s, px, py) => atlasUV(py < -0.003 || v > tt - 0.012 ? 'leath' : 'glove', 0.85 + px / phys, (v + 0.02) / phys),
   });
-  // ---- palmure : membrane épaisse entre le pouce et l'index. Elle relie le bord intérieur du pouce (du métacarpien au milieu
-  //      de la première phalange) au bord de la paume (de la base du pouce à la jointure de l'index) ; ses deux bords sont
-  //      noyés dans le pouce et dans la paume, ses sommets partagés entre leurs os : elle s'étire quand le pouce s'écarte et
-  //      se replie quand il se referme. Sans elle, le pouce semble partir du poignet.
+  // ---- web: thick membrane between thumb and index. It connects the inner edge of the thumb (from the metacarpal to the middle
+  //      of the first phalanx) to the edge of the palm (from the thumb base to the index knuckle); its two edges are
+  //      buried in the thumb and in the palm, its vertices shared between their bones: it stretches when the thumb spreads and
+  //      folds when it closes. Without it, the thumb seems to start from the wrist.
   {
     const Mt = [restMatrix(u.tm, h), restMatrix(u.tb, h)], half = (z) => {
       for (let i = 0; i < rows.length - 1; i++) if (z <= rows[i][0] && z >= rows[i + 1][0]) return rows[i][1] + (rows[i + 1][1] - rows[i][1]) * (rows[i][0] - z) / (rows[i][0] - rows[i + 1][0]);
@@ -426,7 +426,7 @@ function handGeometry(side, u, h, lod) {
     skinSurf(B, nu, nv, (uu, vv, o) => {
       const th = uu * TAU, sAB = (1 - Math.cos(th)) / 2;
       pA(vv, A); pB(vv, Bp);
-      // point intérieur du pouce : un peu vers la paume, pour que le bord de la membrane reste dans le pouce
+      // inner point of the thumb: slightly toward the palm, so the membrane's edge stays inside the thumb
       T.subVectors(Bp, A); const len = T.length(); T.multiplyScalar(1 / len); A.addScaledVector(T, 0.004); Bp.addScaledVector(T, -0.002);
       N.crossVectors(T, D).normalize(); if (N.y < 0) N.negate();
       const ht = (0.0095 + (0.005 - 0.0095) * vv) * (vv > 0.8 ? Math.sqrt(Math.max(0, 1 - ((vv - 0.8) / 0.2) ** 2)) : 1) * (0.7 + 0.3 * Math.abs(2 * sAB - 1));
@@ -444,16 +444,16 @@ function handGeometry(side, u, h, lod) {
   geo.userData.shared = true;
   return (HAND_GEO[key] = geo);
 }
-/* Matières des bras de la vue subjective : gants (teinte de la tenue) et manches (camouflage de la tenue) */
+/* Materials of the first-person arms: gloves (outfit hue) and sleeves (outfit camouflage) */
 const VM_LOOK = { key: '', fp: '', hand: null, arm: null };
 function vmGearMats() {
   const s = skinMine();
   if (!VM_LOOK.hand) { VM_LOOK.hand = gearMaterial(s, 'fp'); VM_LOOK.arm = gearMaterial(s, 'fp'); vmSetLook(s, 0); }
   return VM_LOOK;
 }
-/* Tenue des bras à l'écran : celle du joueur (vue par un allié : teinte claire), ou celle du tueur pendant la killcam (teinte
-   sombre). Le camouflage fin de la vue subjective n'existe que pour la tenue du joueur (une texture : construite au démarrage,
-   refaite quand il en change, aux menus ou dans la pause) ; un tueur d'une autre tenue prend celle de son modèle (motif plus large). */
+/* Outfit of the arms on screen: the player's (seen by an ally: light hue), or the killer's during the killcam (dark
+   hue). The fine first-person camouflage only exists for the player's outfit (one texture: built at startup,
+   redone when they change it, in the menus or in the pause); a killer in another outfit takes that of their model (wider pattern). */
 function vmSetLook(skin, rel) {
   const L = VM_LOOK, key = skin + rel; if (!L.hand || L.key === key) return;
   L.key = key;
@@ -463,7 +463,7 @@ function vmSetLook(skin, rel) {
   skinTone(skin, rel, L.arm.color); L.hand.color.copy(G.glove).multiply(L.arm.color).multiplyScalar(1.15);
   L.arm.map = T.map; L.hand.map = T.map;
 }
-/* Os d'une main (groupes) : racine (paume), phalanges des quatre doigts, métacarpien et phalanges du pouce */
+/* Bones of a hand (groups): root (palm), phalanges of the four fingers, metacarpal and phalanges of the thumb */
 function handBones(side) {
   const h = new THREE.Group(), fingers = [];
   for (let i = 0; i < 4; i++) {
@@ -484,8 +484,8 @@ function handBones(side) {
   const rest = bones.map((b) => (b === h ? new THREE.Matrix4() : restMatrix(b, h)));
   return { h, u, bones, rest };
 }
-/* Géométrie figée d'une main dans une pose (mains des soldats, qui ne bougent pas les doigts) : sommets déformés une fois
-   par les os de la main, exprimés dans le repère de la paume ; renvoie { p, n, uv, c, idx } */
+/* Frozen geometry of a hand in a pose (soldiers' hands, which do not move their fingers): vertices deformed once
+   by the hand's bones, expressed in the palm frame; returns { p, n, uv, c, idx } */
 const HAND_BAKED = {};
 function handBaked(side, pose, lod = 'lo') {
   const key = side + pose + lod;
@@ -513,11 +513,11 @@ function makeHand(M, side = 1) {
   const H = handBones(side), h = H.h, u = H.u, cur = u.cur;
   const mesh = skinnedMesh(handGeometry(side, u, h), vmGearMats().hand, H.bones, H.rest);
   mesh.frustumCulled = false; h.add(mesh); u.mesh = mesh;
-  /* pose cible (nom), pression du pouce, index de détente (0 à 1) */
+  /* target pose (name), thumb pressure, trigger index (0 to 1) */
   u.set = (name, press = 0, trig = 0, shapes = null) => {
     let P = HAND_POSES[name] || HAND_POSES.grip;
     if (P.free && u.trigSrc) trig = Math.max(trig, u.trigSrc());
-    // objet tenu : les doigts se referment jusqu'au contact (calculé une image sur deux, la main glisse vers le résultat)
+    // held object: the fingers close until contact (computed every other frame, the hand glides toward the result)
     if (shapes) {
       if (!u.G || u.gName !== name || (u.gTick = (u.gTick || 0) + 1) % 2 === 0) { h.updateMatrix(); u.G = handGrasp(u, P, shapes, h.matrix, u.G || {}); u.gName = name; }
       u.G.spread = P.spread; P = u.G;
@@ -533,27 +533,27 @@ function makeHand(M, side = 1) {
   return h;
 }
 
-/* ---------- Bras : squelette avec limites articulaires ----------
-   Manche longue du treillis (camouflage de l'équipe), lissée sur cinq os : bras, os d'aide du coude (orienté à
-   mi-chemin, il garde le volume du coude plié), avant-bras, os de torsion à mi-avant-bras et os du poignet. La torsion
-   de l'avant-bras (pronation) se répartit ainsi du coude au poignet au lieu de vriller d'un coup. La manche plisse
-   au pli du coude et s'accumule au-dessus du gant ; la manchette du gant, avec sa sangle, recouvre le bas de la manche.
+/* ---------- Arms: skeleton with joint limits ----------
+   Long fatigue-uniform sleeve (team camouflage), smoothed over five bones: arm, elbow helper bone (oriented
+   halfway, it keeps the volume of the bent elbow), forearm, twist bone at mid-forearm and wrist bone. The forearm
+   twist (pronation) is thus distributed from elbow to wrist instead of twisting all at once. The sleeve wrinkles
+   at the elbow crease and bunches above the glove; the glove cuff, with its strap, covers the bottom of the sleeve.
 
-   Le bras est une vraie chaîne : épaule (ancrée au corps, elle avance ou recule d'un ou deux
-   centimètres comme une omoplate), coude à charnière (jamais tendu à fond, jamais plié à plus de
-   145°), avant-bras dont la torsion est libre, poignet à deux axes (flexion/extension,
-   déviation radiale/cubitale) aux amplitudes d'un poignet gainé. Une main visée sur l'arme n'est
-   plus suivie aveuglément : on cherche d'abord la position du coude (rotation autour de l'axe
-   épaule-poignet) qui garde le poignet le plus neutre, puis, si l'arme l'impose encore, c'est la
-   main qui se laisse tourner autour de son point d'appui plutôt que le poignet qui casse. */
+   The arm is a real chain: shoulder (anchored to the body, it moves forward or back by an inch or two
+   like a shoulder blade), hinged elbow (never fully extended, never bent beyond
+   145°), forearm whose twist is free, two-axis wrist (flexion/extension,
+   radial/ulnar deviation) with the ranges of a gloved wrist. A hand aimed at the weapon is no
+   longer followed blindly: first the elbow position is searched (rotation around the shoulder-wrist
+   axis) that keeps the wrist most neutral, then, if the weapon still demands it, the
+   hand lets itself turn around its support point rather than the wrist breaking. */
 const ARM_REACH = 0.965, ARM_MINLEN = 0.235, WRIST_OFF = 0.056;
-const WRIST_LIM = { flex: 1.25, ext: 1.1, uln: 0.66, rad: 0.36 }; // 72°, 63°, 38°, 21° : amplitudes d'un poignet ganté, sous le maximum anatomique
-/* longueurs de construction (épaule-coude, coude-poignet) ; en jeu, les os s'étirent un peu si la pose le demande */
+const WRIST_LIM = { flex: 1.25, ext: 1.1, uln: 0.66, rad: 0.36 }; // 72°, 63°, 38°, 21°: ranges of a gloved wrist, below the anatomical maximum
+/* construction lengths (shoulder-elbow, elbow-wrist); in game, the bones stretch slightly if the pose requires */
 const ARM_LU = 0.34, ARM_LF = 0.33;
 const _af = { du: new V3(), df: new V3(), n: new V3(), x: new V3(), y: new V3(), z: new V3(), m: new THREE.Matrix4(), q: new THREE.Quaternion(), q2: new THREE.Quaternion() };
 function _basisQ(x, y, z, out) { _af.m.makeBasis(x, y, z); return out.setFromRotationMatrix(_af.m); }
-/* Place les os du bras entre l'épaule S, le coude E et le poignet W, la main (orientée par Qh) étant au bout.
-   Repère des os : -z le long du membre, +y du côté du dos de la main quand l'avant-bras est neutre (pouce en haut). */
+/* Places the arm bones between the shoulder S, the elbow E and the wrist W, the hand (oriented by Qh) being at the end.
+   Bone frame: -z along the limb, +y on the back-of-hand side when the forearm is neutral (thumb up). */
 function armFrames(arm, S, E, W, Qh) {
   const A = _af, b = arm.bones;
   A.du.subVectors(E, S).normalize(); A.df.subVectors(W, E).normalize();
@@ -565,27 +565,27 @@ function armFrames(arm, S, E, W, Qh) {
   A.z.copy(A.du).negate(); A.x.crossVectors(A.y, A.z); _basisQ(A.x, A.y, A.z, b.up.quaternion); b.up.position.copy(S);
   A.z.copy(A.df).negate(); A.x.crossVectors(A.y, A.z); _basisQ(A.x, A.y, A.z, b.fo.quaternion); b.fo.position.copy(E);
   b.el.quaternion.slerpQuaternions(b.up.quaternion, b.fo.quaternion, 0.5); b.el.position.copy(E);
-  // poignet : même axe que l'avant-bras, tourné comme la main (dos de la main projeté perpendiculairement à l'avant-bras)
+  // wrist: same axis as the forearm, turned like the hand (back of the hand projected perpendicular to the forearm)
   A.y.set(0, 1, 0).applyQuaternion(Qh); A.y.addScaledVector(A.z, -A.y.dot(A.z));
   if (A.y.lengthSq() < 1e-6) A.y.set(0, 1, 0).applyQuaternion(b.fo.quaternion); A.y.normalize();
   A.x.crossVectors(A.y, A.z); _basisQ(A.x, A.y, A.z, b.wr.quaternion); b.wr.position.copy(W);
   b.tw.quaternion.slerpQuaternions(b.fo.quaternion, b.wr.quaternion, 0.5); b.tw.position.addVectors(E, W).multiplyScalar(0.5);
 }
-/* Géométrie d'un bras (côté side) : manche (matière des manches) et manchette de gant (matière des gants) ;
-   os : 0 bras, 1 aide du coude, 2 avant-bras, 3 torsion, 4 poignet, 5 main */
+/* Geometry of an arm (side side): sleeve (sleeve material) and glove cuff (glove material);
+   bones: 0 arm, 1 elbow helper, 2 forearm, 3 twist, 4 wrist, 5 hand */
 const ARM_GEO = {};
 function armGeometry(side, rest) {
   if (ARM_GEO[side]) return ARM_GEO[side];
   const LU = ARM_LU, LF = ARM_LF, dW = LU + LF, X = new V3(1, 0, 0), Y = new V3(0, 1, 0), AX = new V3(0, 0, -1);
   const chain = [{ M: rest[0], L: LU }, { M: rest[2], L: LF }];
-  // poids : bras / aide du coude / groupe de l'avant-bras, lui-même réparti entre avant-bras, torsion et poignet
+  // weights: arm / elbow helper / forearm group, itself divided among forearm, twist and wrist
   const wArm = (d, handK = 0) => {
     const te = clamp((d - (LU - 0.07)) / 0.14, 0, 1), t = clamp((d - LU) / LF, 0, 1);
     const g = te * te, w = [[0, (1 - te) * (1 - te)], [1, 2 * te * (1 - te)], [2, g * (1 - t) * (1 - t)], [3, g * 2 * t * (1 - t)], [4, g * t * t * (1 - handK)]];
     if (handK > 0) w.push([5, g * t * t * handK]);
     return w;
   };
-  // ---- manche : bras large, coude, avant-bras qui s'affine, tissu accumulé au-dessus du gant
+  // ---- sleeve: wide arm, elbow, tapering forearm, fabric bunched above the glove
   const B = new SkinBuilder(), R = mulberry32(side > 0 ? 3 : 4);
   const ph = []; for (let i = 0; i < 8; i++) ph.push(R() * TAU);
   const prof = [[-0.08, 0.056], [-0.03, 0.058], [0.05, 0.056], [0.14, 0.053], [0.22, 0.05], [LU - 0.06, 0.047], [LU - 0.03, 0.046], [LU, 0.047], [LU + 0.03, 0.049], [LU + 0.07, 0.048],
@@ -594,17 +594,17 @@ function armGeometry(side, rest) {
   for (let i = 0; i < prof.length - 1; i++) { const [d0, r0] = prof[i], [d1, r1] = prof[i + 1], n = Math.max(1, Math.round((d1 - d0) / 0.012)); for (let k = 0; k < n; k++) { const t = k / n; S.push({ d: lerp(d0, d1, t), rr: lerp(r0, r1, t) }); } }
   S.push({ d: prof[prof.length - 1][0], rr: prof[prof.length - 1][1] });
   skinSweep(B, chain, [0.035], AX, X, Y, S.map((s) => ({ d: s.d, r: [s.rr * 1.02, s.rr * 1.02, s.rr * 0.92, s.rr * 0.96], n: 2.1, rr: s.rr })), 30, {
-    a0: side > 0 ? Math.PI : 0, // couture de la manche sous le bras, côté fléchisseurs
+    a0: side > 0 ? Math.PI : 0, // sleeve seam under the arm, flexor side
     w: (d) => wArm(d),
     bump: (a, k, s) => {
-      const d = s.v, fl = Math.cos(a) * side; // fl = 1 : côté du pli du coude
+      const d = s.v, fl = Math.cos(a) * side; // fl = 1: elbow crease side
       let b = 0;
-      // coude : pointe de l'olécrane derrière, plis en éventail au creux du coude
+      // elbow: olecranon point behind, fan-shaped wrinkles in the elbow crease
       b += 0.006 * Math.exp(-(((d - LU) / 0.03) ** 2)) * Math.pow(Math.max(0, -fl), 3);
       b += 0.0035 * Math.sin((d - LU) * 150 + ph[0]) * Math.exp(-(((d - LU) / 0.045) ** 2)) * Math.pow(Math.max(0, fl), 1.5);
-      // plis longs de l'avant-bras et du bras, qui tournent un peu autour du membre
+      // long wrinkles of the forearm and arm, turning slightly around the limb
       b += 0.0016 * Math.sin(a * 3 + d * 18 + ph[1]) + 0.0009 * Math.sin(a * 5 - d * 31 + ph[2]);
-      // tissu accumulé au-dessus du gant : bourrelets irréguliers
+      // fabric bunched above the glove: irregular rolls
       const acc = smoothstep(LU + 0.15, LU + 0.22, d) * (1 - smoothstep(dW - 0.085, dW - 0.07, d));
       b += acc * (0.0032 * Math.sin(d * 230 + Math.sin(a * 2 + ph[3]) * 1.6) + 0.0018 * Math.sin(a * 4 + d * 90 + ph[4]));
       return b;
@@ -612,7 +612,7 @@ function armGeometry(side, rest) {
     col: (a, k, p, s) => { const c = 0.92 + 0.08 * Math.sin(a * 3 + s.v * 18 + ph[1]); return new THREE.Color(c, c, c); },
     uv: (u, v) => camoUV(u * 0.34, v, 0.34, side > 0 ? 0.13 : 0.61, 0.07),
   });
-  // ---- manchette du gant : évasée à l'entrée, serrée au poignet, sangle auto-agrippante en travers, bord roulé
+  // ---- glove cuff: flared at the opening, tight at the wrist, hook-and-loop strap across, rolled edge
   const C = new SkinBuilder(), WHITE = new THREE.Color(1, 1, 1), NEO = new THREE.Color(0.55, 0.55, 0.55), STRAP = new THREE.Color(0.42, 0.42, 0.42);
   const cs = [[dW - 0.062, 0.031, 0], [dW - 0.059, 0.0372, 0], [dW - 0.055, 0.0378, 0], [dW - 0.049, 0.0372, 0], [dW - 0.043, 0.0364, 1], [dW - 0.036, 0.0356, 1], [dW - 0.029, 0.0348, 1], [dW - 0.022, 0.0334, 0], [dW - 0.014, 0.0322, 0],
     [dW - 0.006, 0.031, 0], [dW + 0.004, 0.0302, 0], [dW + 0.014, 0.0296, 0]];
@@ -622,21 +622,21 @@ function armGeometry(side, rest) {
     col: (a, k, p, s) => (s.st ? STRAP : k <= 3 ? NEO : WHITE),
     uv: (u, v, s, px, py) => atlasUV('glove', 0.5 + Math.atan2(py, px) / TAU * 0.9, (v - dW + 0.07) / 0.1),
   });
-  // languette de la sangle (sur le dos du poignet) et boucle : placée dans le repère de l'avant-bras, qui part du coude
-  // (distance comptée depuis le coude, et non depuis l'épaule comme les sections : sinon elle flotte 34 cm plus loin)
+  // strap tab (on the back of the wrist) and buckle: placed in the forearm frame, which starts at the elbow
+  // (distance counted from the elbow, not from the shoulder like the sections: otherwise it floats 34 cm farther)
   const tab = new THREE.Matrix4().compose(new V3(0, 0.0352, -(dW - 0.036 - LU)), new THREE.Quaternion(), new V3(1, 1, 1));
   C.geo(rgeo(0.022, 0.004, 0.02, 0.0015), rest[2].clone().multiply(tab), [[3, 0.4], [4, 0.6]], STRAP, () => GEAR_TILE.nyl);
   const out = { sleeve: B.build(), cuff: C.build() };
   out.sleeve.userData.shared = out.cuff.userData.shared = true;
   return (ARM_GEO[side] = out);
 }
-/* side : +1 main gauche, -1 main droite (le pouce est du côté x = side de la main) */
+/* side: +1 left hand, -1 right hand (the thumb is on the x = side of the hand) */
 function makeArm(M, parent, side) {
   const P = parent || VM.holder, L = vmGearMats();
   const hand = makeHand(M, side);
   const bones = { up: new THREE.Object3D(), el: new THREE.Object3D(), fo: new THREE.Object3D(), tw: new THREE.Object3D(), wr: new THREE.Object3D() };
   const arm = { hand, bones, side, phi: 0, psi: 0, chi: 0, jt: { fl: 0, dv: 0, r: 0, elbow: 0, reach: 0 }, lastN: new V3(-1, 0, 0) };
-  // pose de construction : bras le long de -z, coude légèrement plié vers le bas, poignet neutre
+  // construction pose: arm along -z, elbow slightly bent downward, neutral wrist
   const S = new V3(0, 0, 0), E = new V3(0, 0, -ARM_LU), W = E.clone().add(new V3(0, -Math.sin(0.35), -Math.cos(0.35)).multiplyScalar(ARM_LF));
   const fd = new V3().subVectors(W, E).normalize(), yv = new V3(-1, 0, 0).multiplyScalar(-side);
   const Qh = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new V3().crossVectors(yv, fd.clone().negate()), yv, fd.clone().negate()));
@@ -653,13 +653,13 @@ function makeArm(M, parent, side) {
 function setArmVisible(arm, v) { arm.mesh.visible = v; arm.cuffMesh.visible = v; arm.hand.visible = v; if (arm.watch) arm.watch.visible = v; }
 const _aS = new V3(), _aE = new V3(), _aD = new V3(), _aP = new V3(), _aN = new V3(), _aF = new V3(), _aH = new V3(), _aW = new V3(), _aG = new V3(), _aB = new V3(), _aX = new V3();
 const _aQ = new THREE.Quaternion(), _aQi = new THREE.Quaternion(), _aQf = new THREE.Quaternion(), _aM = new THREE.Matrix4();
-/* Épaule éventuellement déplacée, puis coude pour un angle de rotation phi autour de l'axe épaule-poignet
-   (phi = 0 : le coude pointe vers le pôle). Résultats dans oS (épaule) et oE (coude) ; renvoie l'angle intérieur du coude. */
+/* Shoulder possibly displaced, then elbow for a rotation angle phi around the shoulder-wrist axis
+   (phi = 0: the elbow points toward the pole). Results in oS (shoulder) and oE (elbow); returns the inner angle of the elbow. */
 function elbowAt(S, W, a, b, pole, phi, oS, oE) {
   _aD.subVectors(W, S); let len = _aD.length(); _aD.multiplyScalar(1 / Math.max(1e-6, len));
   oS.copy(S);
   const max = (a + b) * ARM_REACH;
-  // trop loin : l'omoplate avance ; trop près : elle recule (le coude ne se plie pas à plus de 145°)
+  // too far: the shoulder blade moves forward; too close: it moves back (the elbow does not bend beyond 145°)
   if (len > max) { oS.addScaledVector(_aD, len - max); len = max; } else if (len < ARM_MINLEN) { oS.addScaledVector(_aD, len - ARM_MINLEN); len = ARM_MINLEN; }
   const cosA = clamp((a * a + len * len - b * b) / (2 * a * len), -1, 1), sinA = Math.sqrt(1 - cosA * cosA);
   _aP.subVectors(pole, oS); _aP.addScaledVector(_aD, -_aP.dot(_aD));
@@ -669,10 +669,10 @@ function elbowAt(S, W, a, b, pole, phi, oS, oE) {
   oE.copy(oS).addScaledVector(_aD, a * cosA).addScaledVector(_aP, a * sinA * c).addScaledVector(_aN, a * sinA * s);
   return len;
 }
-/* Flexion et déviation du poignet quand le coude est en E : dans le repère de la main, le coude est
-   dans la direction +z quand le poignet est droit. Si le coude se retrouve du côté du dos de la main, la main est
-   penchée vers ce même côté par rapport à l'avant-bras : c'est une extension. fl > 0 : flexion palmaire ;
-   dv > 0 : déviation cubitale (vers le petit doigt). Le rapport à la limite vaut 1 en butée. */
+/* Wrist flexion and deviation when the elbow is at E: in the hand frame, the elbow is
+   in the +z direction when the wrist is straight. If the elbow ends up on the back-of-hand side, the hand is
+   tilted toward that same side relative to the forearm: that is an extension. fl > 0: palmar flexion;
+   dv > 0: ulnar deviation (toward the little finger). The ratio to the limit is 1 at the stop. */
 const _bend = { fl: 0, dv: 0, r: 0 };
 function wristBend(Qinv, E, W, side) {
   _aB.subVectors(E, W).normalize().applyQuaternion(Qinv);
@@ -682,10 +682,10 @@ function wristBend(Qinv, E, W, side) {
   return _bend;
 }
 const _sE = new V3(), _sS = new V3();
-const _bs = { phi: 0, cost: 0 }; // (champs d'un objet : une variable de module qui reçoit un nombre à virgule l'alloue à chaque écriture)
-/* Meilleur angle de coude : poignet le plus neutre possible, sans s'éloigner du pôle sans raison,
-   avec une préférence pour l'angle de l'image précédente (pas de saut d'une image à l'autre).
-   Résultat dans _bs.phi (angle) et _bs.cost (coût) */
+const _bs = { phi: 0, cost: 0 }; // (fields of an object: a module variable receiving a floating-point number allocates it on every write)
+/* Best elbow angle: wrist as neutral as possible, without straying from the pole for no reason,
+   with a preference for the previous frame's angle (no jump from one frame to the next).
+   Result in _bs.phi (angle) and _bs.cost (cost) */
 const _bsC = new Float32Array(27);
 function bestSwivel(arm, S, W, Qinv, a, b, pole) {
   let bi = 0, bc = 1e9;
@@ -699,19 +699,19 @@ function bestSwivel(arm, S, W, Qinv, a, b, pole) {
   }
   _bs.phi = (bi - 13) * 0.1 + parabolaStep(_bsC, bi, 27) * 0.1; _bs.cost = bc;
 }
-/* Sommet de la parabole qui passe par l'échantillon i d'un relevé de coûts et ses deux voisins, en fraction de pas (de -0,5 à 0,5) :
-   l'optimum varie alors continûment au lieu de sauter d'un échantillon à l'autre (le coude avançait par crans de 0,1 rad) */
+/* Vertex of the parabola through sample i of a cost survey and its two neighbors, as a fraction of a step (from -0.5 to 0.5):
+   the optimum then varies continuously instead of jumping from one sample to another (the elbow advanced in 0.1 rad notches) */
 function parabolaStep(C, i, n, stride = 1) {
   if (i < stride || i + stride >= n) return 0;
   const c0 = C[i - stride], c1 = C[i], c2 = C[i + stride], den = c0 - 2 * c1 + c2;
   return den > 1e-9 ? clamp((0.5 * (c0 - c2)) / den, -0.5, 0.5) : 0;
 }
-/* Pose le bras entre l'épaule et le poignet, la main étant déjà orientée */
+/* Places the arm between the shoulder and the wrist, the hand already being oriented */
 function drawArm(arm, S, E, W, r0, r1, elbowFlex) {
   arm.wrist = (arm.wrist || new V3()).copy(W); arm.foreDir = (arm.foreDir || new V3()).subVectors(W, E).normalize();
   armFrames(arm, S, E, W, arm.hand.quaternion);
 }
-/* Montre au poignet gauche, cadran sur le dos du poignet, juste derrière la manchette du gant */
+/* Watch on the left wrist, dial on the back of the wrist, just behind the glove cuff */
 function placeWatch(w, arm) {
   if (!arm.foreDir) return;
   const fd = arm.foreDir, dorsal = new V3(0, 1, 0).applyQuaternion(arm.hand.quaternion);
@@ -720,26 +720,26 @@ function placeWatch(w, arm) {
   const x = new V3().crossVectors(dorsal, fd).normalize();
   _m1.makeBasis(x, dorsal, fd); w.quaternion.setFromRotationMatrix(_m1);
 }
-/* Bras de la caméra à une main tenue en un point d'appui (off, dans le repère de la main) : la main est
-   orientée par Q0. Une main qui serre une poignée ou un garde-main peut pivoter autour de cet objet sans le lâcher :
-   axis (dans le repère de la main) et range donnent cette rotation libre ; lift (main d'appui, lHandFrame) donne la distance de
-   la paume à la prise pour chaque roulis (liftAt) : elle reste posée sur un garde-main ou une poignée qui n'est pas rond. On cherche
-   le couple (rotation de la main,
-   position du coude) qui garde le poignet le plus neutre. Si l'arme impose encore un poignet hors limites, la main
-   pivote autour de son point d'appui plutôt que de casser le poignet. */
+/* Camera arm to a hand held at a support point (off, in the hand frame): the hand is
+   oriented by Q0. A hand gripping a handle or a forend can pivot around that object without letting go:
+   axis (in the hand frame) and range give this free rotation; lift (support hand, lHandFrame) gives the distance from
+   the palm to the grip for each roll (liftAt): it stays on a forend or a grip that is not round. We search for
+   the pair (hand rotation,
+   elbow position) that keeps the wrist most neutral. If the weapon still forces an out-of-limits wrist, the hand
+   pivots around its support point rather than breaking the wrist. */
 const _pQ = new THREE.Quaternion(), _pQi = new THREE.Quaternion(), _pQc = new THREE.Quaternion(), _pO = new V3(), _pH = new V3(), _pW = new V3(), _pG = new V3(), _pS = new V3(), _pE = new V3(), _pV = new V3(), _pV2 = new V3();
-function handAt(Q) { // origine de la main et poignet pour une orientation Q, le point d'appui restant fixe
+function handAt(Q) { // hand origin and wrist for an orientation Q, the support point staying fixed
   _pH.copy(_pO).applyQuaternion(Q).negate().add(_pG);
   _pW.set(0, 0, WRIST_OFF).applyQuaternion(Q).add(_pH);
 }
 const _pC = new Float32Array(25);
 function poseArmToHand(arm, S, H0, Q0, pole, pose, press = 0, a = 0.34, b = 0.33, off = null, axis = null, range = 0.6, axis2 = null, range2 = 0.3, shapes = null, lift = null) {
   if (off) _pO.copy(off); else _pO.set(0, 0, 0);
-  _pG.copy(_pO).applyQuaternion(Q0).add(H0); // point d'appui, fixe pendant la recherche
+  _pG.copy(_pO).applyQuaternion(Q0).add(H0); // support point, fixed during the search
   const side = arm.side, dt = Math.min(VM.handDt || 1 / 60, 0.05);
   if (VM.debugArms) arm.dbg = { S: S.clone(), G: _pG.clone(), Q0: Q0.clone(), pole: pole.clone(), axis: axis ? axis.clone() : null, range, axis2: axis2 ? axis2.clone() : null, range2, a, b, off: _pO.clone() };
-  // 1. rotations libres autour de l'objet tenu (rouler autour d'une poignée, s'incliner un peu dessus), avec le coude
-  //    qui s'adapte à chaque essai
+  // 1. free rotations around the held object (rolling around a grip, tilting slightly on it), with the elbow
+  //    adapting to each trial
   const Q = _pQ, N = axis ? 5 : 1, N2 = axis2 ? 5 : 1;
   let bestPsi = 0, bestChi = 0, bestPhi = 0, bc = 1e9, bn = 0, bn2 = 0;
   for (let n = 0; n < N; n++) {
@@ -749,24 +749,24 @@ function poseArmToHand(arm, S, H0, Q0, pole, pose, press = 0, a = 0.34, b = 0.33
       Q.copy(Q0); if (N > 1) Q.multiply(_pQc.setFromAxisAngle(axis, psi)); if (N2 > 1) Q.multiply(_pQc.setFromAxisAngle(axis2, chi));
       if (lift) _pO.y = -liftAt(lift, psi);
       handAt(Q); _pQi.copy(Q).invert(); bestSwivel(arm, S, _pW, _pQi, a, b, pole);
-      // sous un garde-main, un roulis qui ferait descendre la paume (pièce saillante, chargeur) est écarté
+      // under a forend, a roll that would lower the palm (protruding part, magazine) is discarded
       const cost = _bs.cost + (N > 1 ? 0.4 * (psi / range) ** 2 : 0) + (N2 > 1 ? 0.6 * (chi / range2) ** 2 : 0) + 0.4 * (psi - arm.psi) ** 2 + 0.4 * (chi - arm.chi) ** 2
         + (lift ? 2000 * Math.max(0, -_pO.y - lift.lo - 0.003) ** 2 : 0);
       _pC[n * N2 + n2] = cost;
       if (cost < bc) { bc = cost; bestPsi = psi; bestChi = chi; bestPhi = _bs.phi; bn = n; bn2 = n2; }
     }
   }
-  // affinage entre les échantillons (sommet de parabole), comme pour le coude : la main roule continûment
+  // refinement between samples (parabola vertex), as for the elbow: the hand rolls continuously
   if (N > 1) bestPsi += parabolaStep(_pC, bn * N2 + bn2, N * N2, N2) * (2 * range) / (N - 1) * (bn > 0 && bn < N - 1 ? 1 : 0);
   if (N2 > 1) bestChi += parabolaStep(_pC, bn * N2 + bn2, N * N2, 1) * (2 * range2) / (N2 - 1) * (bn2 > 0 && bn2 < N2 - 1 ? 1 : 0);
-  // 2. les angles rejoignent leur cible en douceur (approche exponentielle, au plus 9 rad/s) : ni saut de coude ni main qui tourne
-  //    d'un coup, et plus de mouvement par saccades à vitesse constante
+  // 2. the angles reach their target smoothly (exponential approach, at most 9 rad/s): no elbow jump nor hand turning
+  //    all at once, and no more jerky motion at constant speed
   const step = 9 * dt, f = 1 - Math.exp(-25 * dt);
   if (!arm._init) { arm.psi = bestPsi; arm.chi = bestChi; arm.phi = bestPhi; arm._init = true; }
   else { arm.psi += clamp((bestPsi - arm.psi) * f, -step, step); arm.chi += clamp((bestChi - arm.chi) * f, -step, step); arm.phi += clamp((bestPhi - arm.phi) * f, -step, step); }
   Q.copy(Q0); if (N > 1) Q.multiply(_pQc.setFromAxisAngle(axis, arm.psi)); if (N2 > 1) Q.multiply(_pQc.setFromAxisAngle(axis2, arm.chi));
   if (lift) _pO.y = -liftAt(lift, arm.psi);
-  // 3. poignet encore en butée : la main pivote autour de son point d'appui, en plusieurs passes
+  // 3. wrist still at the stop: the hand pivots around its support point, in several passes
   let bd = null;
   for (let it = 0; it < 4; it++) {
     handAt(Q); _pQi.copy(Q).invert(); elbowAt(S, _pW, a, b, pole, arm.phi, _pS, _pE);
@@ -776,14 +776,14 @@ function poseArmToHand(arm, S, H0, Q0, pole, pose, press = 0, a = 0.34, b = 0.33
     _pV.set(-Math.tan(dv) * side, -Math.tan(fl), 1).normalize();
     _pV2.subVectors(_pE, _pW).normalize().applyQuaternion(_pQi);
     _pQc.setFromUnitVectors(_pV, _pV2); Q.multiply(_pQc);
-    if (it === 3) { // dernier recours : pivot autour du poignet, le contact glisse de quelques millimètres
+    if (it === 3) { // last resort: pivot around the wrist, the contact slides a few millimeters
       _pH.set(0, 0, -WRIST_OFF).applyQuaternion(Q).add(_pW); _pQi.copy(Q).invert(); bd = wristBend(_pQi, _pE, _pW, side);
     }
   }
-  // 4. orientation finale lissée (dans le repère de l'arme) : un changement de prise (un axe libre qui apparaît, le poignet qui entre
-  //    en butée) ne fait plus tourner la main d'un coup d'une image à l'autre ; elle rejoint l'orientation calculée en quelques
-  //    images (approche exponentielle, au plus 14 rad/s), autour du même point d'appui. Un écart de plus de 70° (changement d'arme)
-  //    est pris tel quel.
+  // 4. final orientation smoothed (in the weapon frame): a grip change (a free axis appearing, the wrist entering
+  //    the stop) no longer turns the hand all at once from one frame to the next; it reaches the computed orientation in a few
+  //    frames (exponential approach, at most 14 rad/s), around the same support point. A deviation of more than 70° (weapon switch)
+  //    is taken as is.
   if (arm._qs && VM.handDt) {
     const ang = 2 * Math.acos(Math.min(1, Math.abs(arm._qs.dot(Q))));
     if (ang > 1e-4 && ang < 1.2) {
@@ -793,15 +793,15 @@ function poseArmToHand(arm, S, H0, Q0, pole, pose, press = 0, a = 0.34, b = 0.33
   }
   (arm._qs = arm._qs || new THREE.Quaternion()).copy(Q);
   const J = arm.jt; J.fl = bd.fl; J.dv = bd.dv; J.r = bd.r; J.reach = _pS.distanceTo(S); J.psi = arm.psi; J.chi = arm.chi;
-  J.turn = 2 * Math.acos(Math.min(1, Math.abs(Q.dot(Q0)))); // écart d'orientation par rapport à la pose visée
+  J.turn = 2 * Math.acos(Math.min(1, Math.abs(Q.dot(Q0)))); // orientation offset from the target pose
   _pV.subVectors(_pS, _pE).normalize(); _pV2.subVectors(_pW, _pE).normalize(); J.elbow = Math.PI - Math.acos(clamp(_pV.dot(_pV2), -1, 1));
   arm.hand.position.copy(_pH); arm.hand.quaternion.copy(Q);
   (arm.elbowAt = arm.elbowAt || new V3()).copy(_pE); (arm.wristAt = arm.wristAt || new V3()).copy(_pW);
   drawArm(arm, _pS, _pE, _pW, 0.046, 0.039, J.elbow);
   arm.hand.userData.set(pose, press, 0, shapes);
 }
-/* Bras dont la main prolonge l'avant-bras (grenade) : le poignet est droit, plus une flexion éventuelle (claquement
-   du poignet au lâcher), et un roulis libre de l'avant-bras autour de son axe */
+/* Arm whose hand extends the forearm (grenade): the wrist is straight, plus an optional flexion (wrist snap
+   at release), and a free forearm roll around its axis */
 const _alq = new THREE.Quaternion(), _alr = new THREE.Quaternion(), _alv = new V3();
 function placeArm(arm, S, T, a, b, pole, r0, r1, roll = 0, flex = 0) {
   const len = elbowAt(S, T, a, b, pole, 0, _pS, _pE);
@@ -824,16 +824,16 @@ function buildWatch(M) {
   return w;
 }
 
-/* Repère de la main sur un appareil tenu (terminal, tablette), dans le repère de l'appareil : p, centre de la paume ; f, direction des doigts
-   tendus ; b, dos de la main. Le pouce se place de lui-même du côté radial (en haut pour une main droite dont les doigts vont vers la gauche,
-   paume vers l'avant). */
+/* Hand frame on a held device (terminal, tablet), in the device frame: p, palm center; f, direction of the extended
+   fingers; b, back of the hand. The thumb places itself on the radial side (up for a right hand whose fingers point left,
+   palm forward). */
 function devGrip(parent, p, f, b) {
   const ref = new THREE.Object3D(); ref.position.set(p[0], p[1], p[2]);
   ref.quaternion.copy(frameZY([-f[0], -f[1], -f[2]], b)); parent.add(ref); return ref;
 }
-/* Pose un bras de série sur le repère de main d'un appareil tenu (terminal, tablette) */
+/* Places a streak arm on the hand frame of a held device (terminal, tablet) */
 const _devP = new V3(), _devQ = new THREE.Quaternion();
-const DEV_AXIS = new V3(1, 0, 0); // la poignée est verticale, le long de la ligne des jointures : la main peut rouler autour
+const DEV_AXIS = new V3(1, 0, 0); // the grip is vertical, along the knuckle line: the hand can roll around it
 function armOnDevice(arm, ref, sideKey, pose, press, visible, range = 0.3) {
   setArmVisible(arm, visible); if (!visible) return;
   ref.updateWorldMatrix(true, false); ref.getWorldPosition(_devP); ref.getWorldQuaternion(_devQ);
@@ -841,9 +841,9 @@ function armOnDevice(arm, ref, sideKey, pose, press, visible, range = 0.3) {
   poseArmToHand(arm, S, _devP.clone(), _devQ.clone(), pole, pose, press, 0.34, 0.33, null, DEV_AXIS, range);
 }
 
-/* L'objet tenu suit la main, et non l'inverse : quand le poignet ne peut pas suivre la pose visée, la main reste
-   sur l'objet et c'est l'objet qui s'incline avec elle. ref : repère de la prise dans l'objet (enfant direct ou petit-enfant
-   sans décalage), hand : la main déjà posée, dans le même espace que l'objet. */
+/* The held object follows the hand, not the other way around: when the wrist cannot follow the target pose, the hand stays
+   on the object and it is the object that tilts with it. ref: grip frame in the object (direct child or grandchild
+   with no offset), hand: the already placed hand, in the same space as the object. */
 const _ahM = new THREE.Matrix4(), _ahR = new THREE.Matrix4(), _ahS = new V3();
 function attachToHand(obj, ref, hand) {
   ref.updateMatrix(); hand.updateMatrix();

@@ -1,20 +1,20 @@
-/* Planche de captures d'un ragdoll : un soldat est tué sur la carte avec la force choisie, puis photographié de côté à
-   des instants fixes. node ragdoll-shots.js [dossier] [scénario=fusil] [instants=0.1,0.3,0.6,1,1.6,3]
-   Scénarios : fusil, fusil-dos, tete, jambes, pompe, sniper, explosion, course, cote.
-   SPOT=x,z : lieu du tir (par défaut, le point le plus dégagé de la carte) ; MAP=givre. Assembler avec ImageMagick (montage). */
+/* Contact sheet of a ragdoll: a soldier is killed on the map with the chosen force, then photographed from the side at
+   fixed instants. node ragdoll-shots.js [folder] [scenario=rifle] [instants=0.1,0.3,0.6,1,1.6,3]
+   Scenarios: rifle, rifle-back, head, legs, shotgun, sniper, explosion, running, side.
+   SPOT=x,z: shot location (by default, the most open point of the map) ; MAP=saintgivre. Assemble with ImageMagick (montage). */
 const fs = require('fs'), path = require('path');
 const { openGame } = require('./common');
-const out = process.argv[2] || path.join(__dirname, 'shots'), name = process.argv[3] || 'fusil';
+const out = process.argv[2] || path.join(__dirname, 'shots'), name = process.argv[3] || 'rifle';
 const times = (process.argv[4] || '0.1,0.3,0.6,1,1.6,3').split(',').map(Number);
 const SC = {
-  fusil: { dir: [0, 0, 1], mag: 5.4, lift: 3 }, 'fusil-dos': { dir: [0, 0, -1], mag: 5.4, lift: 3 }, tete: { dir: [0, 0, 1], mag: 6.2, lift: 3, part: 'head' },
-  jambes: { dir: [0, 0, 1], mag: 5.4, lift: 3, part: 'legs' }, pompe: { dir: [0, 0, 1], mag: 8.2, lift: 4.4 }, sniper: { dir: [0, 0, 1], mag: 7.4, lift: 4.2 },
-  explosion: { dir: [0, 0, 1], mag: 14, lift: 12, radial: true }, course: { dir: [0, 0, -1], mag: 5.4, lift: 3, vel: 5.5 }, cote: { dir: [1, 0, 0], mag: 5.4, lift: 3 },
+  rifle: { dir: [0, 0, 1], mag: 5.4, lift: 3 }, 'rifle-back': { dir: [0, 0, -1], mag: 5.4, lift: 3 }, head: { dir: [0, 0, 1], mag: 6.2, lift: 3, part: 'head' },
+  legs: { dir: [0, 0, 1], mag: 5.4, lift: 3, part: 'legs' }, shotgun: { dir: [0, 0, 1], mag: 8.2, lift: 4.4 }, sniper: { dir: [0, 0, 1], mag: 7.4, lift: 4.2 },
+  explosion: { dir: [0, 0, 1], mag: 14, lift: 12, radial: true }, running: { dir: [0, 0, -1], mag: 5.4, lift: 3, vel: 5.5 }, side: { dir: [1, 0, 0], mag: 5.4, lift: 3 },
 };
 (async () => {
   fs.mkdirSync(out, { recursive: true });
-  const s = SC[name]; if (!s) { console.log('scénarios :', Object.keys(SC).join(', ')); process.exit(1); }
-  const { browser, page, logs } = await openGame({ w: 800, h: 450, settings: { quality: 'medium', difficulty: 1, map: process.env.MAP || 'sable' }, noHdri: true });
+  const s = SC[name]; if (!s) { console.log('scenarios:', Object.keys(SC).join(', ')); process.exit(1); }
+  const { browser, page, logs } = await openGame({ w: 800, h: 450, settings: { quality: 'medium', difficulty: 1, map: process.env.MAP || 'chergui' }, noHdri: true });
   await page.evaluate(([s, spot]) => {
     LOCK.fallback = true; startMatch({}); MATCH.state = 'capture';
     document.querySelectorAll('body > *:not(canvas)').forEach((e) => { e.style.display = 'none'; });
@@ -26,7 +26,7 @@ const SC = {
     for (let i = 0; i < 40; i++) { bot.pos.z -= vel * dt; animSoldier(bot, dt); }
     bot.lastForce = { dir: new V3(...s.dir).normalize(), mag: s.mag, lift: s.lift, part: s.part || 'body', radial: !!s.radial };
     bot.alive = false; window.__t = 0;
-  }, [s, (process.env.SPOT || (process.env.MAP === 'givre' ? '7,38' : '0,14')).split(',').map(Number)]);
+  }, [s, (process.env.SPOT || (process.env.MAP === 'saintgivre' ? '7,38' : '0,14')).split(',').map(Number)]);
   let t = 0;
   for (const T of times) {
     await page.evaluate((T) => { const dt = 1 / 60; while (window.__t < T - 1e-6) { animSoldier(window.__bot, dt); window.__t += dt; } }, T);

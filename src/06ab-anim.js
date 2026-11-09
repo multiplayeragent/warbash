@@ -1,17 +1,17 @@
 /* ==========================================================================
-   ANIMATIONS CUITES : clips Mixamo (Pro Rifle Pack, Pistol Handgun Locomotion Pack, Basic Shooter Pack) réduits aux grandeurs que
-   poseSoldier calcule (src/06b-soldier.js), image par image, par tools/dev/anim/cuire.mjs (le pack lui-même reste hors du dépôt : licence).
-   Données livrées dans le socle de la page par build.py (window.SOCLE.anim : assets/anim/clips.bin en base64, index de clips.json) : 30 images par seconde, 31 entiers
-   16 bits par image, dans le repère du corps du jeu (regard vers -z, droite vers +x, pieds à y = 0), à l'échelle du soldat :
-     bassin : position (J_PEL) et orientation (repère des hanches) ; buste : orientation qui porte le segment bassin-cou et les épaules ;
-     tête : orientation ; chevilles gauche et droite (J_FTL, J_FTR) ; inclinaison des pieds (positive pointe en haut, comme S.fp) ; lacet
-     des pieds par rapport aux hanches (positif vers la gauche, comme S.fyG) ; direction des genoux dans le repère du bassin (pôle de
-     l'IK des jambes).
-   Index d'un clip (ANIM.clips[id], id : chemin dans le pack sans .glb, ex. 'fusil/debout/marche-avant') : n images, o première image,
-   loop, dur (s), v (m/s, repère du jeu), dir (degrés : 0 avant, 90 gauche, comme atan2(-lvx, -lvz)), cyc (m par cycle : la phase avance de
-   v / cyc), ty (lacet moyen du buste, rad, positif vers la gauche), head (hauteur de la tête, min et max). Phase 0 d'un clip de déplacement : pose du pied gauche (comme S.cyc = 0).
+   BAKED ANIMATIONS: Mixamo clips (Pro Rifle Pack, Pistol Handgun Locomotion Pack, Basic Shooter Pack) reduced to the quantities that
+   poseSoldier computes (src/06b-soldier.js), frame by frame, by tools/dev/anim/bake.mjs (the pack itself stays out of the repo: license).
+   Data shipped in the page base by build.py (window.BASE_ASSETS.anim: assets/anim/clips.bin in base64, index from clips.json): 30 frames per second, 31 16-bit
+   integers per frame, in the game's body frame (looking toward -z, right toward +x, feet at y = 0), at soldier scale:
+     pelvis: position (J_PEL) and orientation (hip frame); torso: orientation carrying the pelvis-neck segment and the shoulders;
+     head: orientation; left and right ankles (J_FTL, J_FTR); foot pitch (positive points up, like S.fp); foot
+     yaw relative to the hips (positive toward the left, like S.fyG); knee direction in the pelvis frame (pole of
+     the leg IK).
+   Index of a clip (ANIM.clips[id], id: path in the pack without .glb, e.g. 'rifle/standing/walk-forward'): n frames, o first frame,
+   loop, dur (s), v (m/s, game frame), dir (degrees: 0 forward, 90 left, like atan2(-lvx, -lvz)), cyc (m per cycle: the phase advances by
+   v / cyc), ty (mean torso yaw, rad, positive toward the left), head (head height, min and max). Phase 0 of a locomotion clip: left foot pose (like S.cyc = 0).
    ========================================================================== */
-const ANIM_DATA = (window.SOCLE || {}).anim || null; // socle (build.py)
+const ANIM_DATA = (window.BASE_ASSETS || {}).anim || null; // base (build.py)
 const ANIM = { clips: null, d: null, st: 31 };
 function animInit() {
   if (ANIM.clips) return !!ANIM.d;
@@ -24,10 +24,10 @@ function animInit() {
   return true;
 }
 function animClip(id) { animInit(); return ANIM.clips[id] || null; }
-/* une pose (sortie de animSample) */
+/* a pose (output of animSample) */
 function animSmp() { return { pel: new V3(), qP: new THREE.Quaternion(), qT: new THREE.Quaternion(), qH: new THREE.Quaternion(), ft: [new V3(), new V3()], fp: [0, 0], fy: [0, 0], kn: [new V3(), new V3()] }; }
 const _anA = animSmp(), _anB = animSmp();
-/* image f (entière) du clip c dans out */
+/* (whole) frame f of clip c into out */
 function animRead(c, f, out) {
   const d = ANIM.d, i = (c.o + f) * ANIM.st, P = 1e-4, Q = 1 / 32767;
   out.pel.set(d[i] * P, d[i + 1] * P, d[i + 2] * P);
@@ -39,15 +39,15 @@ function animRead(c, f, out) {
   out.kn[0].set(d[i + 25] * P, d[i + 26] * P, d[i + 27] * P); out.kn[1].set(d[i + 28] * P, d[i + 29] * P, d[i + 30] * P);
   return out;
 }
-/* mélange de deux poses (w : part de b) ; out peut être a */
+/* blend of two poses (w: share of b); out may be a */
 function animMix(a, b, w, out) {
   out.pel.lerpVectors(a.pel, b.pel, w);
   out.qP.slerpQuaternions(a.qP, b.qP, w); out.qT.slerpQuaternions(a.qT, b.qT, w); out.qH.slerpQuaternions(a.qH, b.qH, w);
   for (let k = 0; k < 2; k++) { out.ft[k].lerpVectors(a.ft[k], b.ft[k], w); out.fp[k] = lerp(a.fp[k], b.fp[k], w); out.fy[k] = lerp(a.fy[k], b.fy[k], w); out.kn[k].lerpVectors(a.kn[k], b.kn[k], w); }
   return out;
 }
-/* pose du clip c à l'instant t (s) : entre deux images ; une boucle reprend au début (ses n images couvrent exactement sa durée, qui
-   n'est pas toujours un nombre entier d'images à 30 par seconde), un clip simple s'arrête sur sa dernière image */
+/* pose of clip c at time t (s): between two frames; a loop restarts at the beginning (its n frames cover exactly its duration, which
+   is not always a whole number of frames at 30 per second), a simple clip stops on its last frame */
 function animSample(c, t, out) {
   let x;
   if (c.loop) { x = (t / c.dur) * c.n; x = ((x % c.n) + c.n) % c.n; } else x = clamp(t * ANIM.fps, 0, c.n - 1);
@@ -55,7 +55,7 @@ function animSample(c, t, out) {
   animRead(c, i0, _anA); animRead(c, i1, _anB);
   return animMix(_anA, _anB, x - i0, out);
 }
-/* pose tournée de a (rad) autour de la verticale (bassin, chevilles, orientations ; les genoux sont dans le repère du bassin) */
+/* pose rotated by a (rad) around the vertical (pelvis, ankles, orientations; knees are in the pelvis frame) */
 const _anQ = new THREE.Quaternion(), _anY = new V3(0, 1, 0);
 function animYaw(m, a) {
   _anQ.setFromAxisAngle(_anY, a);
@@ -63,5 +63,5 @@ function animYaw(m, a) {
   m.qP.premultiply(_anQ); m.qT.premultiply(_anQ); m.qH.premultiply(_anQ);
   return m;
 }
-/* pose d'une boucle à la phase ph (0 à 1, 0 : pose du pied gauche) */
+/* pose of a loop at phase ph (0 to 1, 0: left foot pose) */
 function animPhase(c, ph, out) { return animSample(c, ph * c.dur, out); }

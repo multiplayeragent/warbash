@@ -5,9 +5,9 @@
 
 Groups and outputs:
   logo   assets/logo.webp (1000x230, transparent), assets/deck/logo.png
-  icons  assets/icon/*.png and favicon.ico, assets/deck/icone.png       (from emblem)
-  menu   assets/menu-bg.webp and assets/menu-depth.webp, assets/apercu.jpg (from keyart, + logo for the preview)
-  deck   assets/deck/capsule.jpg, hero.jpg, jaquette.jpg                  (from keyart + logo)
+  icons  assets/icon/*.png and favicon.ico, assets/deck/icon.png       (from emblem)
+  menu   assets/menu-bg.webp and assets/menu-depth.webp, assets/preview.jpg (from keyart, + logo for the preview)
+  deck   assets/deck/capsule.jpg, hero.jpg, cover.jpg                  (from keyart + logo)
   ranks  assets/ranks.webp: the 11 rank insignia (rank01..rank11) in one sprite sheet of 256 px cells
   crests assets/crests.webp: victory and defeat crests of the end-of-match announcement (two 512 px cells)
   maps   assets/maps/<id>.webp: map cards repainted from their in-game screenshots (map-<id>)
@@ -74,7 +74,7 @@ def do_icons():
     save(sq(96), A('icon', 'favicon-96.png'), optimize=True)
     save(sq(192), A('icon', 'icon-192.png'), optimize=True)
     save(sq(512), A('icon', 'icon-512.png'), optimize=True)
-    save(sq(256).convert('RGBA'), A('deck', 'icone.png'), optimize=True)
+    save(sq(256).convert('RGBA'), A('deck', 'icon.png'), optimize=True)
     # maskable: the launcher may cut everything outside the central 80 % circle, so the crest shrinks onto a matching backdrop
     for n in (192, 512):
         bg = em.resize((n, n), Image.LANCZOS).filter(ImageFilter.GaussianBlur(n / 10))
@@ -100,7 +100,7 @@ def soldier_mask(img):
 
 
 def depth_map(img):
-    """White = near, black = far (src/09w-fond.js reads it at half size, dilated and blurred). The soldier is the fixed plane;
+    """White = near, black = far (src/09w-background.js reads it at half size, dilated and blurred). The soldier is the fixed plane;
     the sky is far, the rubble gets nearer toward the bottom of the frame."""
     import cv2
     w, h = img.size; y = np.linspace(0, 1, h)[:, None] * np.ones((1, w))
@@ -128,7 +128,7 @@ def do_menu():
         pv = Image.alpha_composite(pv, Image.fromarray(grad))
         lg = fit(logo_cut(), 640, 160)
         pv.alpha_composite(lg, (40, 40))
-        save(pv.convert('RGB'), A('apercu.jpg'), quality=88, optimize=True)
+        save(pv.convert('RGB'), A('preview.jpg'), quality=88, optimize=True)
 
 
 def do_deck():
@@ -139,7 +139,7 @@ def do_deck():
     save(with_logo(cap, 560, 140, (30, 270)), A('deck', 'capsule.jpg'), quality=88)
     save(cover(k, 1920, 620, 0.55, 0.42), A('deck', 'hero.jpg'), quality=86)
     jq = cover(k, 600, 900, 0.68, 0.5)
-    save(with_logo(jq, 540, 140, (30, 720)), A('deck', 'jaquette.jpg'), quality=88)
+    save(with_logo(jq, 540, 140, (30, 720)), A('deck', 'cover.jpg'), quality=88)
 
 
 def do_ranks():

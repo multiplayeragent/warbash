@@ -19,7 +19,7 @@
      refuse { code }     4002 full, 4003 kicked, 4004 no such room, 4005 version, 4010 identity taken, 4011 host taken
      m { f, d | c, x? }  a game message from f; x: a guest's state fanned out to the room */
 var MAX_PLAYERS = 8;
-var PROTO = 10;
+var PROTOS = { 10: 1, 11: 1 }; // protocol versions served (NET_PROTO in src/09c-net.js); the host also turns away a guest on another version
 var S = { host: '', hostKey: '', hostGoneAt: -1e9, code: '', sess: {}, ids: {}, keys: {}, banned: {} };
 var GRACE = 45; // seconds a departed host keeps the room (its guests wait for it)
 var clock = 0;
@@ -45,7 +45,7 @@ function onLeave(sid) {
 function hello(sid, d) {
   var r = d.r === 'host' ? 'host' : 'guest', id = str(d.id, 40), k = str(d.k, 48), c = str(d.c, 8);
   if (!id || !k) return emitTo(sid, 'refuse', { code: 4001 });
-  if (d.v !== PROTO) return emitTo(sid, 'refuse', { code: 4005 });
+  if (!PROTOS[d.v]) return emitTo(sid, 'refuse', { code: 4005 });
   var old = S.sess[sid]; if (old) return; // one hello per connection
   if (r === 'host') {
     var same = S.hostKey === k;

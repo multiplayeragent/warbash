@@ -1,0 +1,216 @@
+{
+ "mapKey": "floralia",
+ "naming": "Floralia",
+ "date": "2026-11-09",
+ "measures": {
+  "type": "open",
+  "meanView": 13.1,
+  "groundShortView": 5.6,
+  "viewsOver60m": 15.3,
+  "plazaShare": 49.8,
+  "elevatedShare": 8.3,
+  "walking": [
+   90.3,
+   102.9
+  ],
+  "routes": 6,
+  "deadEnds": 0,
+  "detour90": 1.36,
+  "junctions": 6,
+  "landmark": 65.1,
+  "chokepoint": {
+   "front": 17,
+   "passages": 12,
+   "detail": [
+    {
+     "whereAt": [
+      30,
+      9.5
+     ],
+     "breadth": 4,
+     "elevated": true,
+     "zone": "Plateau"
+    },
+    {
+     "whereAt": [
+      -12,
+      4.5
+     ],
+     "breadth": 2,
+     "zone": "Great Greenhouse"
+    },
+    {
+     "whereAt": [
+      13,
+      9.5
+     ],
+     "breadth": 2,
+     "elevated": true,
+     "zone": "Rock"
+    },
+    {
+     "whereAt": [
+      22.5,
+      -7.5
+     ],
+     "breadth": 1,
+     "zone": "Ravine"
+    },
+    {
+     "whereAt": [
+      24.5,
+      -7.5
+     ],
+     "breadth": 1,
+     "zone": "Ravine"
+    },
+    {
+     "whereAt": [
+      12.5,
+      -4.5
+     ],
+     "breadth": 1,
+     "zone": "Grotto"
+    },
+    {
+     "whereAt": [
+      -20.5,
+      4.5
+     ],
+     "breadth": 1,
+     "zone": "Japanese garden"
+    },
+    {
+     "whereAt": [
+      -17.5,
+      6.5
+     ],
+     "breadth": 1,
+     "zone": "Great Greenhouse"
+    }
+   ]
+  },
+  "tightTurns": 0,
+  "tightTurnsAt": [],
+  "points": [
+   {
+    "naming": "A",
+    "point": [
+     0,
+     30
+    ],
+    "entrances": 2,
+    "walkable": 82,
+    "cover9m": 6,
+    "walking": [
+     26.1,
+     87.2
+    ],
+    "seenFromSpawns": [
+     4,
+     0
+    ]
+   },
+   {
+    "naming": "B",
+    "point": [
+     -12,
+     0
+    ],
+    "entrances": 4,
+    "walkable": 77,
+    "cover9m": 1,
+    "walking": [
+     53.5,
+     54
+    ],
+    "seenFromSpawns": [
+     0,
+     0
+    ]
+   },
+   {
+    "naming": "C",
+    "point": [
+     0,
+     -30
+    ],
+    "entrances": 3,
+    "walkable": 82,
+    "cover9m": 6,
+    "walking": [
+     86.3,
+     26.8
+    ],
+    "seenFromSpawns": [
+     0,
+     4
+    ]
+   }
+  ]
+ },
+ "defects": {
+  "navigation": [],
+  "decor": {
+   "blockedDoors": 0,
+   "pots": 0,
+   "badPosters": 0,
+   "bikes": 0,
+   "bridgeIssues": 0,
+   "sand": 0,
+   "overlapCount": 0,
+   "itemList": []
+  },
+  "slits": {
+   "slits": 0,
+   "bulletPass": 0,
+   "wallHoles": 0,
+   "margins": 175,
+   "marginsOver30cm": 175,
+   "itemList": [
+    "margin 0.73 m (-26.73, -10.51) concrete",
+    "margin 0.73 m (-26.47, -9.89) concrete",
+    "margin 0.7 m (-15.4, 23.4) wood",
+    "margin 0.67 m (-35.8, -14.87) wood",
+    "margin 0.67 m (-35.64, -15.13) wood",
+    "margin 0.67 m (-35.96, -8.05) wood",
+    "margin 0.67 m (-36.24, -7.15) wood",
+    "margin 0.67 m (-36.24, 3.82) wood",
+    "margin 0.67 m (-35.96, 3.95) wood",
+    "margin 0.67 m (32.27, -10.03) wood",
+    "margin 0.67 m (32.4, -10.3) wood",
+    "margin 0.67 m (35.47, 10.78) wood",
+    "margin 0.67 m (34.56, 11.05) wood",
+    "margin 0.67 m (34.54, 8.81) wood",
+    "margin 0.67 m (34.39, 8.54) wood",
+    "margin 0.67 m (21.09, -12.81) wood",
+    "margin 0.67 m (21.36, -12.96) wood",
+    "margin 0.67 m (21.36, 9.13) wood",
+    "margin 0.67 m (21.51, 8.87) wood",
+    "margin 0.66 m (-35.96, -11.72) wood"
+   ]
+  },
+  "snags": {
+   "snagCount": 0,
+   "pathCount": 160,
+   "itemList": []
+  },
+  "zfight": {
+   "visibleCount": 0,
+   "blocking": 0,
+   "itemList": []
+  },
+  "crossing": {
+   "pairCount": 0,
+   "outOf": 2850,
+   "itemList": [],
+   "jumpLinks": [
+    "(-9.5, 5.5) step-over from 0 to 0 m: 2"
+   ]
+  }
+ },
+ "outOfRange": [],
+ "waived": [],
+ "blocking": 0,
+ "minutes": 7.9
+}

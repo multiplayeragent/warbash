@@ -1,26 +1,26 @@
 /* ==========================================================================
-   RELIEF ET ZONE RONDE : le sol en relief d'une carte qui le déclare (les dunes de Simoun), et le cercle hors duquel on meurt.
-   Sans relief, le sol reste le plan implicite y = 0 des autres cartes ; sans zone, les bornes rectangulaires de la définition retiennent.
-   - Relief (MAP_DEFS.<id>.relief = { fn(x, z) : hauteur, pad }) : une grille de hauteurs de 1 m couvre les bornes de la carte et pad m
-     autour, échantillonnée au chargement (reliefBuild). Chaque case est coupée en deux triangles par sa diagonale (x0, z0)-(x1, z1) et
-     reliefAt interpole sur ces triangles : c'est exactement le maillage affiché (reliefMesh), les pieds et les balles sont sur le sable
-     qu'on voit. Hors de la grille, la hauteur de son bord. Tout le moteur lit le sol implicite par gy0(x, z) : groundHeight, rayWorld
-     (reliefRay), la navigation, les props, les corps, les particules, les apparitions et l'éclairage cuit (la grille remplit le volume
-     d'occlusion sous le sable).
-   - reliefFlat : sous un objet posé (voiture, tente, cabane), le sable est aplani à sa hauteur moyenne et raccordé en pente douce ; le
-     décor l'appelle avant de poser l'objet, si bien qu'aucun objet n'entre dans une dune ni ne flotte au-dessus d'un creux ;
-   - reliefRay : rayon contre le relief, par tronçons de 4 m ; un tronçon qui passe au-dessus du point le plus haut de ses cases de 8 m
-     (RELIEF.mx) est sauté, les autres sont parcourus par pas de 0,4 m puis affinés par dichotomie.
-   - Zone ronde (MAP_DEFS.<id>.ring = { r, hard, t }) : hors du cercle de rayon r, l'écran s'assombrit et un compte à rebours de t s
-     commence (ringCheck, appelé après le déplacement de chaque soldat local, comme voidCheck) ; à zéro, le soldat meurt (zoneDeath,
-     NET_WSPECIAL.zone). Au-delà de hard m, on ne va pas plus loin (collideCircle). Les bots n'ont aucun nœud de navigation hors du cercle.
+   RELIEF AND ROUND ZONE: the terrain of a map that declares it (Sirocco's dunes), and the circle outside which you die.
+   Without relief, the ground stays the implicit plane y = 0 of the other maps; without a zone, the definition's rectangular bounds hold you back.
+   - Relief (MAP_DEFS.<id>.relief = { fn(x, z): height, pad }): a 1 m height grid covers the map bounds and pad m
+     around them, sampled at load (reliefBuild). Each cell is cut into two triangles by its diagonal (x0, z0)-(x1, z1) and
+     reliefAt interpolates over those triangles: this is exactly the displayed mesh (reliefMesh), feet and bullets are on the sand
+     you see. Outside the grid, the height of its edge. The whole engine reads the implicit ground through gy0(x, z): groundHeight, rayWorld
+     (reliefRay), navigation, props, bodies, particles, spawns and baked lighting (the grid fills the occlusion
+     volume under the sand).
+   - reliefFlat: under a placed object (car, tent, hut), the sand is flattened to its average height and blended in with a gentle slope; the
+     scenery calls it before placing the object, so that no object sinks into a dune or floats above a hollow;
+   - reliefRay: ray against the relief, in 4 m segments; a segment that passes above the highest point of its 8 m cells
+     (RELIEF.mx) is skipped, the others are walked in 0.4 m steps then refined by bisection.
+   - Round zone (MAP_DEFS.<id>.ring = { r, hard, t }): outside the circle of radius r, the screen darkens and a countdown of t s
+     begins (ringCheck, called after each local soldier's movement, like voidCheck); at zero, the soldier dies (zoneDeath,
+     NET_WSPECIAL.zone). Beyond hard m, you go no further (collideCircle). Bots have no navigation nodes outside the circle.
    ========================================================================== */
 const RELIEF = { on: false, x0: 0, z0: 0, W: 0, H: 0, h: null, mc: 8, mW: 0, mH: 0, mx: null, fn: null, lock: null };
 const RING = { on: false, x: 0, z: 0, r: 1e9, hard: 1e9, t: 10 };
-/* Hauteur du sol implicite (relief, sinon 0) */
+/* Implicit ground height (relief, otherwise 0) */
 const gy0 = (x, z) => (RELIEF.on ? reliefAt(x, z) : 0);
 
-/* Grille de hauteurs de la carte chargée (après mapSetup : bornes connues) ; D.relief absent : relief éteint */
+/* Height grid of the loaded map (after mapSetup: bounds known); D.relief absent: relief off */
 function reliefBuild(D) {
   const R = RELIEF, P = D && D.relief;
   R.on = !!P; R.h = R.mx = R.lock = null; R.fn = null;
@@ -32,11 +32,11 @@ function reliefBuild(D) {
   const n = R.W + 1, h = new Float32Array(n * (R.H + 1));
   for (let j = 0; j <= R.H; j++) for (let i = 0; i <= R.W; i++) h[j * n + i] = P.fn(R.x0 + i, R.z0 + j);
   R.h = h; R.lock = new Uint8Array(h.length);
-  // hauteur maximale par case de mc m (bords compris) : les rayons qui passent au-dessus sautent la case
+  // maximum height per cell of mc m (edges included): rays that pass above skip the cell
   R.mW = Math.ceil(R.W / R.mc); R.mH = Math.ceil(R.H / R.mc); R.mx = new Float32Array(R.mW * R.mH);
   reliefMaxUpdate(0, 0, R.mW - 1, R.mH - 1);
 }
-/* Recalcule la hauteur maximale des cases de mc m de (ci0, cj0) à (ci1, cj1) */
+/* Recomputes the maximum height of the mc m cells from (ci0, cj0) to (ci1, cj1) */
 function reliefMaxUpdate(ci0, cj0, ci1, cj1) {
   const R = RELIEF, n = R.W + 1;
   for (let cj = Math.max(0, cj0); cj <= Math.min(R.mH - 1, cj1); cj++) for (let ci = Math.max(0, ci0); ci <= Math.min(R.mW - 1, ci1); ci++) {
@@ -45,17 +45,17 @@ function reliefMaxUpdate(ci0, cj0, ci1, cj1) {
     R.mx[cj * R.mW + ci] = m;
   }
 }
-/* Sol aplani sous un objet posé (voiture, tente, cabane, mirador) : le sable ne doit ni entrer dans l'objet ni le laisser en l'air. Rectangle de
-   centre (cx, cz), demi-côtés hw (le long de x local) et hd (z local), tourné de rot comme Maker.rotY, agrandi de o.margin (0,4 m) : ramené à sa
-   hauteur moyenne (o.y pour l'imposer), puis fondu vers le relief sur une largeur qui tient la pente sous 0,6 m par mètre (o.fade au moins,
-   2,5 m). Une case déjà aplanie pour un autre objet ne bouge plus ; si le rectangle en recouvre, il prend leur hauteur. À appeler pendant la
-   construction de la carte, avant de poser l'objet et avant reliefMesh (le maillage lit la grille). Rend la hauteur du sol aplani. */
+/* Ground flattened under a placed object (car, tent, hut, watchtower): the sand must neither enter the object nor leave it in the air. Rectangle with
+   center (cx, cz), half-sides hw (along local x) and hd (local z), rotated by rot like Maker.rotY, enlarged by o.margin (0.4 m): brought to its
+   average height (o.y to force it), then blended into the relief over a width that keeps the slope under 0.6 m per meter (o.fade at least,
+   2.5 m). A cell already flattened for another object no longer moves; if the rectangle overlaps some, it takes their height. To be called during
+   map construction, before placing the object and before reliefMesh (the mesh reads the grid). Returns the height of the flattened ground. */
 function reliefFlat(cx, cz, hw, hd, rot = 0, o = {}) {
   const R = RELIEF; if (!R.on) return 0;
   const n = R.W + 1, m = o.margin !== undefined ? o.margin : 0.4, c = Math.cos(rot), s = Math.sin(rot), ex = hw + m, ez = hd + m;
   const dist = (x, z) => { const dx = x - cx, dz = z - cz, lx = dx * c - dz * s, lz = dx * s + dz * c; return hyp(Math.max(0, Math.abs(lx) - ex), Math.max(0, Math.abs(lz) - ez)); };
   const span = (r) => [Math.max(0, Math.floor(cx - r - R.x0)), Math.min(R.W, Math.ceil(cx + r - R.x0)), Math.max(0, Math.floor(cz - r - R.z0)), Math.min(R.H, Math.ceil(cz + r - R.z0))];
-  // hauteur du dessous : celle des cases déjà aplanies qu'il recouvre, sinon la moyenne
+  // underside height: that of the already flattened cells it covers, otherwise the average
   let [i0, i1, j0, j1] = span(hyp(ex, ez)), sum = 0, cnt = 0, lsum = 0, lcnt = 0;
   for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
     if (dist(R.x0 + i, R.z0 + j) > 0) continue;
@@ -63,7 +63,7 @@ function reliefFlat(cx, cz, hw, hd, rot = 0, o = {}) {
   }
   if (!cnt) return reliefAt(cx, cz);
   const y = o.y !== undefined ? o.y : lcnt ? lsum / lcnt : sum / cnt;
-  // largeur du fondu : la pente du raccord (au plus 1,5 fois l'écart sur la largeur, avec smoothstep) reste sous 0,6
+  // blend width: the slope of the transition (at most 1.5 times the delta over the width, with smoothstep) stays under 0.6
   let gap = 0; [i0, i1, j0, j1] = span(hyp(ex, ez) + 2.5);
   for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const d = dist(R.x0 + i, R.z0 + j); if (d > 0 && d <= 2.5) gap = Math.max(gap, Math.abs(R.h[j * n + i] - y)); }
   const F = Math.max(o.fade || 2.5, gap * 2.5);
@@ -79,9 +79,9 @@ function reliefFree() {
   RELIEF.on = false; RELIEF.h = RELIEF.mx = RELIEF.lock = null; RELIEF.fn = null; RING.on = false;
   if (WMU.tGround.value !== WMU.tGround.zero) { WMU.tGround.value.dispose(); WMU.tGround.value = WMU.tGround.zero; WMU.uGroundB.value.set(0, 0, 0, 0); }
 }
-/* Hauteurs du relief pour les shaders du décor (WMU.tGround, demi-flottants, un texel par point de la grille de 1 m), après la construction (les
-   objets ont aplani le sable) : la crasse et la poussière du pied des murs se comptent depuis le sable. Le plus bas à 2 m à la ronde : sous un
-   rocher, le relief monte (la congère qui grimpe sur son dos s'y prolonge), et le bandeau du pied tombait au milieu de la paroi */
+/* Relief heights for the scenery shaders (WMU.tGround, half-floats, one texel per point of the 1 m grid), after construction (objects
+   have flattened the sand): the grime and dust at the foot of walls are counted from the sand. The lowest within 2 m around: under a
+   rock, the relief rises (the snowdrift that climbs onto its back continues there), and the foot band fell in the middle of the wall */
 function reliefGroundTex() {
   const R = RELIEF; if (!R.on || !R.h) return;
   const n = R.W + 1, m = R.H + 1, d = new Uint16Array(n * m), K = 2;
@@ -95,7 +95,7 @@ function reliefGroundTex() {
   if (WMU.tGround.value !== WMU.tGround.zero) WMU.tGround.value.dispose();
   WMU.tGround.value = t; WMU.uGroundB.value.set(R.x0 - 0.5, R.z0 - 0.5, 1 / n, 1 / m);
 }
-/* Hauteur du relief en (x, z), interpolée sur les deux triangles de la case */
+/* Relief height at (x, z), interpolated over the cell's two triangles */
 function reliefAt(x, z) {
   const R = RELIEF;
   let u = x - R.x0, v = z - R.z0;
@@ -104,20 +104,20 @@ function reliefAt(x, z) {
   const i = u | 0, j = v | 0, fu = u - i, fv = v - j, n = R.W + 1, k = j * n + i, h = R.h, h00 = h[k], h11 = h[k + n + 1];
   return fu >= fv ? h00 + (h[k + 1] - h00) * fu + (h11 - h[k + 1]) * fv : h00 + (h11 - h[k + n]) * fu + (h[k + n] - h00) * fv;
 }
-/* Normale du relief en (x, z) (différences centrées sur 0,5 m) dans out [x, y, z] */
+/* Relief normal at (x, z) (central differences over 0.5 m) into out [x, y, z] */
 function reliefNormal(x, z, out = [0, 1, 0]) {
   const sx = (reliefAt(x + 0.5, z) - reliefAt(x - 0.5, z)), sz = (reliefAt(x, z + 0.5) - reliefAt(x, z - 0.5)), l = hyp3(sx, 1, sz);
   out[0] = -sx / l; out[1] = 1 / l; out[2] = -sz / l;
   return out;
 }
-/* Hauteur maximale des cases de 8 m qui contiennent (x, z) ; hors de la grille, celle du bord */
+/* Maximum height of the 8 m cells that contain (x, z); outside the grid, that of the edge */
 function reliefMaxAt(x, z) {
   const R = RELIEF, ci = clamp(Math.floor((x - R.x0) / R.mc), 0, R.mW - 1), cj = clamp(Math.floor((z - R.z0) / R.mc), 0, R.mH - 1);
   return R.mx[cj * R.mW + ci];
 }
-/* Distance le long du rayon (direction unitaire) jusqu'au relief, ou -1 au-delà de maxD */
+/* Distance along the ray (unit direction) to the relief, or -1 beyond maxD */
 function reliefRay(ox, oy, oz, dx, dy, dz, maxD) {
-  if (oy < reliefAt(ox, oz) - 0.05) return 0; // origine sous le sable : le rayon ne va nulle part
+  if (oy < reliefAt(ox, oz) - 0.05) return 0; // origin under the sand: the ray goes nowhere
   const SEG = 4, ST = 0.4;
   for (let t0 = 0; t0 < maxD; t0 += SEG) {
     const t1 = Math.min(maxD, t0 + SEG), xa = ox + dx * t0, za = oz + dz * t0, xb = ox + dx * t1, zb = oz + dz * t1;
@@ -136,16 +136,16 @@ function reliefRay(ox, oy, oz, dx, dy, dz, maxD) {
   return -1;
 }
 
-/* Un trou du sol (HOLES, le conduit d'un puits) est au milieu de cette case de 1 m de côté, de coin (x, z) ? */
+/* Is a ground hole (HOLES, a well shaft) in the middle of this 1 m cell with corner (x, z)? */
 function holeInCell(x, z) { for (const h of HOLES) if (h.x > x && h.x < x + 1 && h.z > z && h.z < z + 1) return true; return false; }
-/* Maillage du relief dans l'atelier (matière du sol, splat compris) : la grille de 1 m sur le disque de rayon rIn (tuiles de 8 m, rangées
-   par tronçon pour le culling), puis des anneaux de plus en plus lâches jusqu'à rOut, sur la fonction du relief (au-delà de la grille).
-   Le bord intérieur des anneaux reprend la grille au rayon rIn : pas de couture. o : tint (sRGB), tintAt(x, z, h) (teinte linéaire par sommet :
-   crêtes plus claires, creux plus sombres), ring (rangs des anneaux), seg (directions) */
+/* Relief mesh in the workshop (ground material, splat included): the 1 m grid over the disc of radius rIn (8 m tiles, stored
+   per segment for culling), then increasingly loose rings out to rOut, on the relief function (beyond the grid).
+   The inner edge of the rings picks up the grid at radius rIn: no seam. o: tint (sRGB), tintAt(x, z, h) (linear per-vertex tint:
+   lighter crests, darker hollows), ring (ring ranks), seg (directions) */
 function reliefMesh(rIn, rOut, o = {}) {
   const R = RELIEF, M = DECOR, n = R.W + 1, fn = R.fn, nv = (x, z, f) => { const sx = f(x + 0.5, z) - f(x - 0.5, z), sz = f(x, z + 0.5) - f(x, z - 0.5), l = hyp3(sx, 1, sz); return [-sx / l, 1 / l, -sz / l]; };
   M.save().color(o.tint || [1, 1, 1]).world(1); M.aoFn = null;
-  // grille : tuiles de 8 m, une case n'est posée que si l'un de ses coins est dans le disque
+  // grid: 8 m tiles, a cell is placed only if one of its corners is in the disc
   const T = 8, i0 = Math.max(0, Math.floor((-rIn - 1 - R.x0))), i1 = Math.min(R.W, Math.ceil(rIn + 1 - R.x0)), j0 = Math.max(0, Math.floor(-rIn - 1 - R.z0)), j1 = Math.min(R.H, Math.ceil(rIn + 1 - R.z0));
   const inD = (i, j) => { const x = R.x0 + i, z = R.z0 + j; return x * x + z * z <= rIn * rIn; };
   for (let tj = j0; tj < j1; tj += T) for (let ti = i0; ti < i1; ti += T) {
@@ -157,12 +157,12 @@ function reliefMesh(rIn, rOut, o = {}) {
     const vid = (i, j) => { const k = j * n + i; let v = ids.get(k); if (v === undefined) { const x = R.x0 + i, z = R.z0 + j, nn = nv(x, z, reliefAt); if (o.tintAt) M.tint = o.tintAt(x, z, R.h[k]); v = M.v(B, x, R.h[k], z, nn[0], nn[1], nn[2], x, -z); ids.set(k, v); } return v; };
     for (let j = tj; j < je; j++) for (let i = ti; i < ie; i++) {
       if (!(inD(i, j) || inD(i + 1, j) || inD(i, j + 1) || inD(i + 1, j + 1))) continue;
-      if (HOLES.length && holeInCell(R.x0 + i, R.z0 + j)) continue; // la case d'un puits : le conduit descend dessous, la margelle la recouvre
+      if (HOLES.length && holeInCell(R.x0 + i, R.z0 + j)) continue; // a well's cell: the shaft goes down beneath it, the curb covers it
       const a = vid(i, j), b = vid(i + 1, j), c = vid(i + 1, j + 1), d = vid(i, j + 1);
       M.tri(B, a, c, b); M.tri(B, a, d, c);
     }
   }
-  // anneaux : du contour de la grille (les cases posées vont jusqu'à rIn + 1,5 m) vers l'horizon, rangs resserrés près du bord
+  // rings: from the grid outline (placed cells go up to rIn + 1.5 m) toward the horizon, ranks tightened near the edge
   const NU = o.seg || 192, rings = o.ring || 26, r0 = rIn - 0.5;
   for (let s = 0; s < NU; s++) {
     const a0 = (s / NU) * TAU, a1 = ((s + 1) / NU) * TAU, B = M.buf('ground', Math.cos((a0 + a1) / 2) * 200, 0, Math.sin((a0 + a1) / 2) * 200);
@@ -181,9 +181,9 @@ function reliefMesh(rIn, rOut, o = {}) {
   M.tint = null; M.restore();
 }
 
-/* ---------- Zone ronde : compte à rebours hors du cercle ---------- */
-/* Après le déplacement d'un soldat local (joueur, bot de cette machine) : hors du cercle depuis RING.t s, il meurt. Rend vrai s'il vient
-   de mourir. Le temps passé dehors (e.outT) se remet à zéro dès qu'il revient. */
+/* ---------- Round zone: countdown outside the circle ---------- */
+/* After a local soldier moves (player, bot on this machine): outside the circle for RING.t s, he dies. Returns true if he has just
+   died. The time spent outside (e.outT) resets to zero as soon as he comes back. */
 function ringCheck(e, dt) {
   if (!RING.on || !e.alive) { e.outT = 0; return false; }
   const out = (e.pos.x - RING.x) ** 2 + (e.pos.z - RING.z) ** 2 > RING.r * RING.r;
@@ -192,7 +192,7 @@ function ringCheck(e, dt) {
   e.outT = 0; zoneDeath(e);
   return !e.alive;
 }
-/* Mort dans le désert : créditée, comme une chute dans le vide, au dernier adversaire qui l'a touché depuis moins de 5 s */
+/* Death in the desert: credited, like a fall into the void, to the last opponent who hit him less than 5 s ago */
 function zoneDeath(e) {
   if (!e.alive || !(MATCH.state === 'playing' || MATCH.state === 'paused')) return;
   let a = e, best = -1;
@@ -201,7 +201,7 @@ function zoneDeath(e) {
   if (!e.isPlayer) e.lastForce = { dir: dir.clone(), mag: 1, part: 'body' };
   killEnt(e, a, NET_WSPECIAL.zone, false, dir);
 }
-/* Écran du joueur hors de la zone : voile qui s'assombrit à mesure que le temps passe, message et secondes restantes */
+/* Player screen outside the zone: veil that darkens as time passes, message and seconds remaining */
 const RINGHUD = { on: false, n: -1 };
 function ringHud(e) {
   const el = $('ringOut'); if (!el) return;

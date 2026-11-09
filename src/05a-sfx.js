@@ -1,25 +1,25 @@
 /* ==========================================================================
-   SONS ENREGISTRÉS
-   Les bruitages sont des enregistrements libres de droits (CC0 pour l'essentiel : armes de la Free Firearm Sound Library,
-   impacts, pas, ambiances ; voir README « Crédits et licences » et assets/sfx/credits.json), préparés par
-   tools/build_sfx.py et livrés en paquets à côté de la page (dist/sfx/<paquet>.<condensat>.js, chargés par une balise
-   script : marche aussi en file://). Chaque fichier appelle sfxPack(clé, { rate, s: { id: [n, pk, MP3 en base64] } }).
-   Paquets : l'interface (ui) au démarrage du son (sfxBoot) ; ceux de la partie (armes, foley, impacts, series, voix_<langue>)
-   au lancement de la première partie (sfxBootGame, pendant le chargement de la carte) : les menus restent légers ; l'ambiance
-   d'une carte (amb_<carte>) se charge au lancement de la carte et se libère avec elle (05c-ambiance.js).
-   Mémoire : sur téléphone (COARSE), les sons se décodent à 32 kHz (24 kHz les ambiances et les voix), les réponses
-   impulsionnelles à la fréquence du contexte (la convolution l'exige), et une banque garde au plus deux variantes.
-   Tant qu'un son n'est pas décodé (ou si son paquet manque), la synthèse de 05-audio.js le remplace.
-   Variantes : « id-1 », « id-2 »... forment la banque « id », dont on tire une prise sans répéter la précédente.
+   RECORDED SOUNDS
+   The sound effects are royalty-free recordings (mostly CC0: weapons from the Free Firearm Sound Library,
+   impacts, footsteps, ambiences; see README "Credits and licenses" and assets/sfx/credits.json), prepared by
+   tools/build_sfx.py and delivered in packs next to the page (dist/sfx/<pack>.<hash>.js, loaded by a script
+   tag: works in file:// too). Each file calls sfxPack(key, { rate, s: { id: [n, pk, MP3 in base64] } }).
+   Packs: the interface (ui) when the sound starts (sfxBoot); those of the match (weapons, foley, impacts, series, voice_<language>)
+   when the first match starts (sfxBootGame, during map loading): the menus stay light; a map's
+   ambience (amb_<map>) loads when the map starts and is freed with it (05c-ambiance.js).
+   Memory: on phones (COARSE), sounds are decoded at 32 kHz (24 kHz for ambiences and voices), impulse
+   responses at the context's rate (convolution requires it), and a bank keeps at most two variants.
+   As long as a sound isn't decoded (or if its pack is missing), the synthesis in 05-audio.js replaces it.
+   Variants: "id-1", "id-2"... form the bank "id", from which a take is drawn without repeating the previous one.
    ========================================================================== */
 const SFX_PACKS = /*__SFX_PACKS__*/ {};
-const SFX_GAME = ['armes', 'foley', 'impacts', 'series', 'fin', 'mecha'];
-// bank : id → [{ b : AudioBuffer, o : début du son dans le tampon (s), d : durée (s), pk : instant de la crête (s) }]
-// state : paquet → { s : 'loading' | 'ready' | 'failed', p : promesse } ; of : paquet → banques qu'il a remplies
+const SFX_GAME = ['weaponry', 'foley', 'impacts', 'series', 'outro', 'mecha'];
+// bank: id → [{ b: AudioBuffer, o: start of the sound in the buffer (s), d: duration (s), pk: instant of the peak (s) }]
+// state: pack → { s: 'loading' | 'ready' | 'failed', p: promise }; of: pack → banks it has filled
 const SFX = { bank: new Map(), last: new Map(), state: new Map(), cb: new Map(), of: new Map(), dec: new Map() };
 
 function sfxPack(key, d) { const f = SFX.cb.get(key); if (f) f(d); }
-/* Le fichier du paquet, par une balise script (comme les textures, voir fetchTexPack) */
+/* The pack's file, through a script tag (like the textures, see fetchTexPack) */
 function sfxFetch(key) {
   if (!SFX_PACKS[key]) return Promise.resolve(null);
   return new Promise((res) => {
@@ -31,7 +31,7 @@ function sfxFetch(key) {
     s.src = SFX_PACKS[key]; document.head.appendChild(s);
   });
 }
-/* MP3 en base64 → AudioBuffer (rappels et promesse : Safari ancien n'a que les rappels) ; null si le navigateur refuse */
+/* Base64 MP3 → AudioBuffer (callbacks and promise: old Safari has only callbacks); null if the browser refuses */
 function sfxDecode(ctx, b64) {
   return new Promise((res) => {
     let u;
@@ -39,22 +39,22 @@ function sfxDecode(ctx, b64) {
     try { const p = ctx.decodeAudioData(u.buffer, res, () => res(null)); if (p && p.catch) p.catch(() => res(null)); } catch (e) { res(null); }
   });
 }
-/* Contexte de décodage d'un son : celui du jeu sur ordinateur ; sur téléphone, un contexte hors ligne à fréquence réduite
-   (le tampon garde sa fréquence, la lecture rééchantillonne), sauf pour une réponse impulsionnelle (ir_*) */
+/* Decoding context of a sound: the game's on desktop; on phones, an offline context at reduced rate
+   (the buffer keeps its rate, playback resamples), except for an impulse response (ir_*) */
 function sfxDecodeCtx(key, id) {
   if (!COARSE || /^ir_/.test(id)) return AU.ctx;
-  const sr = Math.min(AU.ctx.sampleRate, /^(amb_|voix_|fin$)/.test(key) ? 24000 : 32000); // fin : musiques de fin de partie, 11 s stéréo
+  const sr = Math.min(AU.ctx.sampleRate, /^(amb_|voice_|outro$)/.test(key) ? 24000 : 32000); // end: end-of-match music, 11 s stereo
   if (sr >= AU.ctx.sampleRate) return AU.ctx;
   if (!SFX.dec.has(sr)) {
     let c = null;
-    try { const O = window.OfflineAudioContext || window.webkitOfflineAudioContext; c = new O(1, 1, sr); } catch (e) { c = null; } // fréquence refusée (Safari ancien) : on décode à celle du jeu
+    try { const O = window.OfflineAudioContext || window.webkitOfflineAudioContext; c = new O(1, 1, sr); } catch (e) { c = null; } // rate refused (old Safari): we decode at the game's rate
     SFX.dec.set(sr, c);
   }
   return SFX.dec.get(sr) || AU.ctx;
 }
-/* Début réel du son dans le tampon décodé : certains décodeurs laissent en tête le délai de l'encodeur MP3 (576 ou 1105
-   échantillons à la fréquence du fichier), d'autres l'enlèvent. On cherche la crête du son (pk, connue à 48 kHz) près de
-   sa place attendue et on garde le délai candidat qui l'aligne le mieux. */
+/* Real start of the sound in the decoded buffer: some decoders leave the MP3 encoder delay at the head (576 or 1105
+   samples at the file's rate), others remove it. We look for the sound's peak (pk, known at 48 kHz) near
+   its expected place and keep the candidate delay that aligns it best. */
 function sfxLead(b, n, pk, rate) {
   const r = b.sampleRate / 48000, k = b.sampleRate / rate, e = pk * r, d = b.getChannelData(0);
   const lo = Math.max(0, Math.floor(e - 200 * r)), hi = Math.min(d.length, Math.ceil(e + 1105 * k + 400 * r));
@@ -62,10 +62,10 @@ function sfxLead(b, n, pk, rate) {
   for (let i = lo; i < hi; i++) { const v = Math.abs(d[i]); if (v > m) { m = v; im = i; } }
   let best = 0, err = Infinity;
   for (const c of [0, 576 * k, 1105 * k]) { const x = Math.abs(im - (e + c)); if (x < err) { err = x; best = c; } }
-  if (b.length < n * r + best - 64) best = 0; // tampon trop court pour contenir ce délai : le décodeur l'a déjà enlevé
+  if (b.length < n * r + best - 64) best = 0; // buffer too short to contain this delay: the decoder has already removed it
   return best / b.sampleRate;
 }
-/* Charge et décode un paquet (une seule fois) ; renvoie une promesse vraie si le paquet est prêt */
+/* Loads and decodes a pack (only once); returns a promise that's true if the pack is ready */
 function sfxLoad(key) {
   const cur = SFX.state.get(key); if (cur) return cur.p;
   const st = { s: 'loading', p: null }; SFX.state.set(key, st);
@@ -74,8 +74,8 @@ function sfxLoad(key) {
     if (!d || !d.s || !AU.ctx) { st.s = 'failed'; return false; }
     const ids = new Set(); SFX.of.set(key, ids);
     for (const id of Object.keys(d.s)) {
-      if (SFX.state.get(key) !== st || !AU.ctx) return false; // paquet libéré pendant le décodage
-      if (COARSE && +((id.match(/-(\d+)$/) || [])[1] || 0) > 2) continue; // téléphone : deux variantes par banque
+      if (SFX.state.get(key) !== st || !AU.ctx) return false; // pack freed during decoding
+      if (COARSE && +((id.match(/-(\d+)$/) || [])[1] || 0) > 2) continue; // phone: two variants per bank
       const v = d.s[id], b = await sfxDecode(sfxDecodeCtx(key, id), v[2]);
       if (!b || SFX.state.get(key) !== st) continue;
       const g = id.replace(/-\d+$/, '');
@@ -88,33 +88,33 @@ function sfxLoad(key) {
   return st.p;
 }
 function sfxReady(key) { const st = SFX.state.get(key); return !!st && st.s === 'ready'; }
-/* Libère un paquet (ambiance d'une carte quittée) */
+/* Frees a pack (ambience of a map that was left) */
 function sfxUnload(key) {
   const ids = SFX.of.get(key);
   if (ids) for (const g of ids) { SFX.bank.delete(g); SFX.last.delete(g); }
   SFX.of.delete(key); SFX.state.delete(key);
 }
-/* Au démarrage du son : l'interface seulement (les menus) ; les paquets de la partie suivent si une partie a déjà été lancée */
+/* When the sound starts: the interface only (the menus); the match packs follow if a match has already been started */
 function sfxBoot() {
   if (SFX.boot) return; SFX.boot = true;
   sfxLoad('ui');
   if (SFX.wantGame) sfxBootGame();
 }
-/* Paquets de la partie, l'un après l'autre (appelé au lancement d'une carte, une seule fois). Sans le paquet des armes, on
-   revient aux tirs synthétisés (calculés seulement dans ce cas : ils pèsent une vingtaine de Mo en mémoire). */
+/* Match packs, one after the other (called when a map starts, only once). Without the weapons pack, we
+   fall back to the synthesized shots (computed only in that case: they weigh about twenty MB in memory). */
 function sfxBootGame() {
   if (SFX.game) return;
-  if (!AU.ctx) { SFX.wantGame = true; return; } // le son n'a pas démarré (premier geste du joueur) : sfxBoot s'en chargera
+  if (!AU.ctx) { SFX.wantGame = true; return; } // the sound hasn't started (player's first gesture): sfxBoot will take care of it
   SFX.game = true;
   (async () => {
-    for (const k of SFX_GAME.concat(['voix_' + (LANG === 'fr' ? 'fr' : 'en')])) {
+    for (const k of SFX_GAME.concat(['voice_en'])) {
       const ok = await sfxLoad(k);
-      if (k === 'armes') { if (ok) sfxVerbSetup(); else gunBuffersBuild(false); }
+      if (k === 'weaponry') { if (ok) sfxVerbSetup(); else gunBuffersBuild(false); }
     }
   })();
 }
 function sfxHas(id) { const a = SFX.bank.get(id); return !!(a && a.length); }
-/* Une prise de la banque, jamais deux fois la même d'affilée */
+/* A take from the bank, never the same one twice in a row */
 function sfxPick(id) {
   const a = SFX.bank.get(id); if (!a || !a.length) return null;
   if (a.length === 1) return a[0];
@@ -122,8 +122,8 @@ function sfxPick(id) {
   if (i === SFX.last.get(id)) i = (i + 1) % a.length;
   SFX.last.set(id, i); return a[i];
 }
-/* Joue une prise de la banque id vers dest à l'instant t ; renvoie { s, g, e } (source, gain, prise) ou null si la banque n'est pas prête.
-   o : rate (vitesse de lecture), gain, off (secondes sautées au début), loop (boucle à l'échantillon près), dur (arrêt au bout de dur s), e (prise imposée) */
+/* Plays a take from bank id toward dest at instant t; returns { s, g, e } (source, gain, take) or null if the bank isn't ready.
+   o: rate (playback speed), gain, off (seconds skipped at the start), loop (sample-accurate loop), dur (stop after dur s), e (imposed take) */
 function sfxPlay(id, dest, t, o) {
   o = o || {};
   const e = o.e || sfxPick(id); if (!e || !AU.ctx) return null;
@@ -135,15 +135,15 @@ function sfxPlay(id, dest, t, o) {
   else { s.start(t, e.o + Math.min(o.off || 0, e.d)); if (o.dur) s.stop(t + o.dur); }
   return { s, g, e };
 }
-/* Coupe une voix en fondu (constante de temps tau) à partir de t */
+/* Fades out a voice (time constant tau) starting at t */
 function sfxFadeOut(v, t, tau = 0.04) {
   if (!v) return;
-  try { v.g.gain.cancelScheduledValues(t); v.g.gain.setTargetAtTime(0, t, tau); v.s.stop(t + tau * 8); } catch (e) { /* déjà arrêtée */ }
+  try { v.g.gain.cancelScheduledValues(t); v.g.gain.setTargetAtTime(0, t, tau); v.s.stop(t + tau * 8); } catch (e) { /* already stopped */ }
 }
 
-/* ---------- Réverbération : réponses impulsionnelles réelles ----------
-   Une rue (claquement des façades) pour tout le jeu ; une salle en béton en plus sur ordinateur, que l'on entend à mesure qu'on
-   entre sous un toit (VM.sky). Sur téléphone, une seule convolution, raccourcie. */
+/* ---------- Reverb: real impulse responses ----------
+   A street (slap of the facades) for the whole game; plus a concrete room on desktop, heard as you
+   enter under a roof (VM.sky). On phones, a single, shortened convolution. */
 function sfxIR(id, max) {
   const e = sfxPick(id); if (!e) return null;
   const ctx = AU.ctx, sr = e.b.sampleRate, n = Math.min(Math.floor(e.d * sr), Math.floor(max * sr)), i0 = Math.floor(e.o * sr), fade = Math.floor(0.25 * sr);
@@ -156,7 +156,7 @@ function sfxIR(id, max) {
 }
 function sfxVerbSetup() {
   if (!AU.ctx || !AU.conv || AU.verbReal) return;
-  if (AU.ctx.sampleRate !== (SFX.bank.get('ir_out') || [{ b: {} }])[0].b.sampleRate) return; // tampon décodé dans un autre contexte (banc audio)
+  if (AU.ctx.sampleRate !== (SFX.bank.get('ir_out') || [{ b: {} }])[0].b.sampleRate) return; // buffer decoded in another context (audio bench)
   const out = sfxIR('ir_out', COARSE ? 1.2 : 1.8); if (!out) return;
   AU.conv.buffer = out; AU.verbReal = true;
   if (!COARSE && sfxHas('ir_in')) {
@@ -166,13 +166,13 @@ function sfxVerbSetup() {
     }
   }
 }
-/* Part de la réverbération d'intérieur (0 dehors, 1 sous un toit), lissée ; appelée à chaque image */
+/* Share of the indoor reverb (0 outside, 1 under a roof), smoothed; called every frame */
 function sfxTick(dt) {
   if (!AU.ready) return;
   const inside = MATCH.state === 'playing' ? 1 - clamp(VM.sky === undefined ? 1 : VM.sky, 0, 1) : 0;
   AU.inside = (AU.inside || 0) + (inside - (AU.inside || 0)) * Math.min(1, dt * 4);
-  // fondu des deux réverbérations (rue, salle) : une consigne seulement quand l'intérieur a changé d'au moins 2 %, et dix fois par seconde au plus
-  // (setTargetAtTime à chaque image ajoutait 560 évènements par seconde aux deux lignes de temps à 280 images par seconde)
+  // crossfade of the two reverbs (street, room): a target only when the interior has changed by at least 2%, and at most ten times per second
+  // (setTargetAtTime on every frame added 560 events per second to the two timelines at 280 frames per second)
   if (AU.convIn && performance.now() - (AU.verbT || 0) > 100 && Math.abs(AU.inside - (AU.verbIn === undefined ? -1 : AU.verbIn)) > 0.02) {
     const t = AU.ctx.currentTime; AU.verbT = performance.now(); AU.verbIn = AU.inside;
     AU.verbOutG.gain.setTargetAtTime(1 - AU.inside * 0.7, t, 0.1); AU.verbInG.gain.setTargetAtTime(AU.inside * 1.1, t, 0.1);
@@ -181,19 +181,19 @@ function sfxTick(dt) {
   ambTick(dt);
 }
 
-/* ---------- Annonces radio ----------
-   Séries d'éliminations, objectifs : un court signal (stinger) et, si l'option « Annonces vocales » est
-   cochée, une phrase radio (squelch, voix, fin de transmission) dans la langue du jeu. Une annonce à la fois : les autres
-   attendent leur tour (au plus 4 s, sinon elles sont abandonnées). line à null : le signal seul (départ de la partie, 09y-decompte.js). */
+/* ---------- Radio announcements ----------
+   Killstreaks, objectives: a short signal (stinger) and, if the "Voice announcements" option is
+   checked, a radio phrase (squelch, voice, end of transmission) in the game's language. One announcement at a time: the others
+   wait their turn (at most 4 s, otherwise they are dropped). line at null: the signal alone (match start, 09y-countdown.js). */
 const ANN = { q: [], until: 0, last: new Map() };
 function sfxAnnounce(line, sting) {
   if (!AU.ready) return;
   const now = AU.ctx.currentTime;
-  if (now - (ANN.last.get(line) || -9) < 2.5) return; // même annonce en double (deux événements pour la même série)
+  if (now - (ANN.last.get(line) || -9) < 2.5) return; // same announcement twice (two events for the same streak)
   ANN.last.set(line, now);
   let sg = null;
   if (sting && sfxHas(sting)) { sg = uiOut(0.8); sfxPlay(sting, sg, now + 0.02); }
-  // après un signal musical, la voix attend que son attaque soit passée (sinon elle tombe dessus et on ne la comprend pas)
+  // after a musical signal, the voice waits for its attack to pass (otherwise it lands on top and can't be understood)
   if (line && Settings.voice !== false && sfxHas('v_' + line)) ANN.q.push({ line, t: now, at: now + (sg ? 0.45 : 0), sg });
 }
 function annTick() {
@@ -203,7 +203,7 @@ function annTick() {
   const a = ANN.q.shift();
   if (now - a.t > 4) return;
   const o = uiOut(1.0), t = now + 0.03;
-  // le signal s'efface sous la voix (-12 dB)
+  // the signal fades under the voice (-12 dB)
   if (a.sg) { const g = a.sg.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0.2, t + 0.12); }
   sfxPlay('r_on', o, t, { gain: 0.55 });
   const v = sfxPlay('v_' + a.line, o, t + 0.12, { gain: 1.15 });

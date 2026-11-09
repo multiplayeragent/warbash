@@ -24,7 +24,7 @@ terms as the code.
 
 ## Music and hit sound
 
-`assets/rankup.mp3`, `assets/sfx/fin/m_victory.mp3`, `assets/sfx/fin/m_defeat.mp3` and `assets/music/menu-theme.mp3` are
+`assets/rankup.mp3`, `assets/sfx/outro/m_victory.mp3`, `assets/sfx/outro/m_defeat.mp3` and `assets/music/menu-theme.mp3` are
 original pieces written note by note in `tools/music/score.py` and are under the MIT License. They are played by FluidSynth
 (a tool, not distributed here) with the MuseScore General SoundFont, which is under the MIT License; its notice reads:
 
@@ -43,7 +43,7 @@ Most are CC0. The ones below require credit:
 - Woodpecker by Benboncan (freesound.org/s/66955), CC BY 3.0
 - Waterfall by Samuel Strägefors (straget) (freesound.org/s/489073), CC BY
 - "Grenade pin pull" by CGEffex (freesound.org/s/93837), CC BY 4.0
-- Voice references: LibriTTS-R (Koizumi et al., Google) and Multilingual LibriSpeech (Pratap et al., Facebook AI), CC BY 4.0
+- Voice reference: LibriTTS-R (Koizumi et al., Google), CC BY 4.0
 - Impulse responses: Conner's Impulse Response Library (itsmusician), MIT
 - Voices generated with Chatterbox by Resemble AI (MIT model) for Riposte: Frontline
 

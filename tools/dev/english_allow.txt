@@ -1,0 +1,16 @@
+# French that is meant to stay (python3 tools/dev/check_english.py skips these phrases): place names and in-world sign text of
+# the maps set in France, written in the language of the country. One phrase per line; the map files' own string literals
+# (src/02*.js) are exempt already.
+Hôtel des Cimes
+Café du Môle
+Rue des Hirondelles
+Port-Maël
+Saint-Givre
+Bel-Horizon
+Halle aux marchandises
+Poste d'aiguillage
+Grange à fenil
+Cour de la gare
+Rue du Port
+Fabrique de glace
+Ravin des fougères

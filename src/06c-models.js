@@ -1,14 +1,14 @@
 /* ==========================================================================
-   MODÈLES DÉTAILLÉS (remplacent les versions de base)
-   Armes en pièces arrondies avec leurs détails fonctionnels, mains gantées
-   articulées (doigts à deux phalanges, pouce), poses par action, terminal UAV
-   tenu en main et actionné au pouce, grenade M67 avec cuillère et goupille.
-   Les organes de visée gardent exactement leurs positions (alignement ADS).
+   DETAILED MODELS (replace the base versions)
+   Weapons made of rounded pieces with their functional details, gloved articulated
+   hands (two-phalanx fingers, thumb), per-action poses, UAV terminal
+   held in hand and operated with the thumb, M67 grenade with spoon and pin.
+   The sighting parts keep exactly their positions (ADS alignment).
    ========================================================================== */
 const RBG = new Map();
 function rgeo(w, h, d, r) {
   const k = `${w}|${h}|${d}|${r}`;
-  // dimensions gardées pour la version allégée des armes vues de loin (lowPolyGeometry : boîte simple)
+  // dimensions kept for the lightweight version of weapons seen from afar (lowPolyGeometry: simple box)
   if (!RBG.has(k)) { const g = new THREE.RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2 - 1e-4, h / 2 - 1e-4, d / 2 - 1e-4)); g.userData.box = [w, h, d]; RBG.set(k, g); }
   return RBG.get(k);
 }
@@ -16,12 +16,12 @@ const rb = (p, mat, x, y, z, w, h, d, r = 0.004, rx = 0, ry = 0, rz = 0) => part
 const G_CYL12 = new THREE.CylinderGeometry(1, 1, 1, 20), G_CAP = new THREE.CapsuleGeometry(1, 1, 4, 10), G_TOR = new THREE.TorusGeometry(1, 0.18, 8, 20);
 const cy = (p, mat, x, y, z, r, len, rx = Math.PI / 2, ry = 0, rz = 0, geo = G_CYL12) => part(p, geo, mat, x, y, z, r, len, r, rx, ry, rz);
 function rail(p, M, x, y, z, len, vertical) {
-  // rail Picatinny : semelle et dents
+  // Picatinny rail: base and teeth
   rb(p, M.dark, x, y, z, vertical ? 0.008 : 0.022, vertical ? 0.022 : 0.008, len, 0.002);
   for (let i = 0; i < Math.floor(len / 0.012); i++) { const zz = z - len / 2 + 0.006 + i * 0.012; if (vertical) bx(p, M.dark, x + Math.sign(x) * 0.005, y, zz, 0.004, 0.024, 0.006); else bx(p, M.dark, x, y + 0.005, zz, 0.024, 0.004, 0.006); }
 }
 function curvedMag(parent, M, n, len, w, d, curve, mat) {
-  // chargeur courbe : un seul profil le long d'un arc (l'arc penche vers l'avant), plaque de talon et nervures sur la face avant
+  // curved magazine: a single profile along an arc (the arc leans forward), heel plate and ribs on the front face
   const N = Math.max(8, n * 2), pts = [], front = [], rear = [], ds = len / N;
   let y = 0, z = 0;
   for (let i = 0; i <= N; i++) {
@@ -29,7 +29,7 @@ function curvedMag(parent, M, n, len, w, d, curve, mat) {
     front.push([z - nz * h, y - ny * h]); rear.push([z + nz * h, y + ny * h]);
     if (i < N) { y -= Math.cos(a + curve / N / 2) * ds; z -= Math.sin(a + curve / N / 2) * ds; }
   }
-  front[0][1] += 0.012; rear[0][1] += 0.012; // le haut dépasse dans le puits
+  front[0][1] += 0.012; rear[0][1] += 0.012; // the top protrudes into the well
   for (const q of front) pts.push([q[0], q[1], 0]); for (let i = N; i >= 0; i--) pts.push([rear[i][0], rear[i][1], 0]);
   prof(parent, mat || M.poly, pts, w, 0, 0.0035, 0.002);
   const a = curve;
@@ -40,23 +40,23 @@ function curvedMag(parent, M, n, len, w, d, curve, mat) {
   rb(parent, M.dark, 0, y - 0.006, z, w + 0.004, 0.014, d + 0.008, 0.003, a);
 }
 
-/* buildGunModel (assemblage d'une arme montée) et les modèles eux-mêmes : 06j-modeles.js et suivants */
+/* buildGunModel (assembly of a mounted weapon) and the models themselves: 06j-models.js and following */
 
-/* ---------- Grenade M67 : corps, cuillère, goupille ---------- */
-/* Grenade en main, par type (NADE_TYPES) : frag (M67, ovoïde), flash (M84, cylindre gris percé), fumigène (M18, boîte kaki à bandeau clair) ; même
-   bouchon, cuillère et anneau, au même endroit */
+/* ---------- M67 grenade: body, spoon, pin ---------- */
+/* Grenade in hand, by type (NADE_TYPES): frag (M67, ovoid), flash (M84, pierced gray cylinder), smoke (M18, khaki box with light band); same
+   plug, spoon and ring, in the same place */
 function buildGrenadeModel(M, type = 'frag') {
   const g = new THREE.Group();
   const body = new THREE.MeshStandardMaterial({ color: 0x2f3421, roughness: 0.62, metalness: 0.12, normalMap: M.poly.normalMap, normalScale: new THREE.Vector2(0.3, 0.3) });
   if (type === 'flash') {
     cy(g, M.metal, 0, -0.01, 0, 0.021, 0.085, 0);
-    for (const y of [-0.035, 0.015]) cy(g, body, 0, y, 0, 0.0225, 0.012, 0); // bandes sombres
+    for (const y of [-0.035, 0.015]) cy(g, body, 0, y, 0, 0.0225, 0.012, 0); // dark bands
   } else if (type === 'smoke') {
     cy(g, body, 0, -0.012, 0, 0.029, 0.1, 0);
-    cy(g, M.metal, 0, 0.026, 0, 0.0295, 0.014, 0); // bandeau clair
+    cy(g, M.metal, 0, 0.026, 0, 0.0295, 0.014, 0); // light band
   } else if (type === 'knife') {
     throwKnifeBuild(g, throwKnifeSteel(), M.rubber);
-    g.userData.spoon = new THREE.Object3D(); g.userData.ring = new THREE.Object3D(); g.add(g.userData.ring); // (ni cuillère ni anneau)
+    g.userData.spoon = new THREE.Object3D(); g.userData.ring = new THREE.Object3D(); g.add(g.userData.ring); // (no spoon or ring)
     return g;
   } else part(g, new THREE.SphereGeometry(1, 18, 14), body, 0, 0, 0, 0.032, 0.037, 0.032);
   cy(g, M.metal, 0, 0.038, 0, 0.011, 0.018, 0);
@@ -64,22 +64,22 @@ function buildGrenadeModel(M, type = 'frag') {
   const ring = part(g, G_TOR, M.metal, -0.018, 0.045, 0, 0.012, 0.012, 0.012, 0, Math.PI / 2, 0); g.userData.ring = ring;
   return g;
 }
-/* Couteau de lancer d'une pièce (repère : la pointe vers +y, la lame finit en y = 0,115, le pommeau en y = -0,08 ; plat dans le plan xy), en main
-   (buildGrenadeModel) et en vol (tknifeTemplate, 07-bots.js) : une seule découpe d'acier, lame en pointe de lance et manche plein, extrudée avec un
-   biseau tout autour qui fait le fil (pas de jour entre la lame et le manche : retour du propriétaire, l'ancien modèle de boîtes en laissait un) ;
-   sur le manche, une cordelette noire enroulée en spires jointives, un peu inclinées. Géométries construites une fois, partagées */
+/* One-piece throwing knife (frame: tip toward +y, the blade ends at y = 0.115, the pommel at y = -0.08; flat in the xy plane), in hand
+   (buildGrenadeModel) and in flight (tknifeTemplate, 07-bots.js): a single steel cutout, spearpoint blade and solid handle, extruded with a
+   bevel all around that forms the edge (no gap between blade and handle: owner's feedback, the old box model left one);
+   on the handle, a black cord wound in tight, slightly tilted coils. Geometries built once, shared */
 const THROW_KNIFE_G = { steel: null, cord: null };
 function throwKnifeSteel() { return THROW_KNIFE_G.mat || (THROW_KNIFE_G.mat = new THREE.MeshStandardMaterial({ color: 0xa3a7ab, roughness: 0.32, metalness: 0.9 })); }
 function throwKnifeBuild(g, steel, cord) {
   const G = THROW_KNIFE_G;
   if (!G.steel) {
-    const sh = new THREE.Shape(); // contour : du pommeau arrondi au bout de la lame, symétrique
+    const sh = new THREE.Shape(); // outline: from the rounded pommel to the blade tip, symmetric
     sh.moveTo(-0.0105, -0.072); sh.quadraticCurveTo(-0.0105, -0.08, 0, -0.08); sh.quadraticCurveTo(0.0105, -0.08, 0.0105, -0.072);
     sh.lineTo(0.0105, -0.002); sh.lineTo(0.0135, 0.018); sh.quadraticCurveTo(0.0142, 0.05, 0.0085, 0.084); sh.lineTo(0, 0.115);
     sh.lineTo(-0.0085, 0.084); sh.quadraticCurveTo(-0.0142, 0.05, -0.0135, 0.018); sh.lineTo(-0.0105, -0.002); sh.closePath();
     G.steel = new THREE.ExtrudeGeometry(sh, { depth: 0.0012, bevelEnabled: true, bevelThickness: 0.0011, bevelSize: 0.0028, bevelOffset: -0.0028, bevelSegments: 1, curveSegments: 6, steps: 1 });
     G.steel.translate(0, 0, -0.0006); G.steel.computeVertexNormals();
-    G.cord = rgeo(0.0252, 0.0086, 0.0086, 0.0038); // une spire de cordelette autour du manche (plat de 2,1 x 0,34 cm)
+    G.cord = rgeo(0.0252, 0.0086, 0.0086, 0.0038); // one coil of cord around the handle (flat of 2.1 x 0.34 cm)
   }
   const m = new THREE.Mesh(G.steel, steel); m.castShadow = true; g.add(m);
   for (let i = 0; i < 8; i++) { const c = new THREE.Mesh(G.cord, cord); c.position.set(0, -0.069 + i * 0.0084, 0); c.rotation.z = (i % 2 ? -1 : 1) * 0.08; c.castShadow = true; g.add(c); }
@@ -99,13 +99,13 @@ function rigArm(a, S, T, pole, pose, roll, flex = 0) {
 }
 const _nv = (x, y, z) => new V3(x, y, z);
 function keyLerp(keys, t) {
-  // interpolation douce entre positions clés [temps, x, y, z]
+  // smooth interpolation between key positions [time, x, y, z]
   if (t <= keys[0][0]) return _nv(keys[0][1], keys[0][2], keys[0][3]);
   for (let i = 1; i < keys.length; i++) if (t <= keys[i][0]) { const a = keys[i - 1], b = keys[i], u = smoothstep(0, 1, (t - a[0]) / (b[0] - a[0])); return _nv(lerp(a[1], b[1], u), lerp(a[2], b[2], u), lerp(a[3], b[3], u)); }
   const k = keys[keys.length - 1]; return _nv(k[1], k[2], k[3]);
 }
-/* Courbe de Catmull-Rom par positions clés [temps, x, y, z] : contrairement à keyLerp, la main ne
-   s'arrête pas à chaque clé, la vitesse est continue (indispensable pour un geste de lancer) */
+/* Catmull-Rom curve through key positions [time, x, y, z]: unlike keyLerp, the hand does not
+   stop at each key, the velocity is continuous (essential for a throwing gesture) */
 function keySpline(keys, t) {
   const n = keys.length;
   if (t <= keys[0][0]) return _nv(keys[0][1], keys[0][2], keys[0][3]);
@@ -116,37 +116,37 @@ function keySpline(keys, t) {
   const c = (j) => 0.5 * (2 * p1[j] + (-p0[j] + p2[j]) * u + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * u2 + (-p0[j] + 3 * p1[j] - 3 * p2[j] + p3[j]) * u3);
   return _nv(c(1), c(2), c(3));
 }
-/* Grenade, trois temps comme dans CoD :
-   pull  : l'arme descend, la grenade monte dans la main droite, la gauche arrache l'anneau ;
-   cook  : bras droit armé derrière l'épaule, grenade en haut à droite, bras gauche tendu vers l'avant ;
-   throw : le bras passe par-dessus l'épaule, la grenade part à l'avant, le bras finit sa course en bas à gauche. */
+/* Grenade, three beats as in CoD:
+   pull  : the weapon lowers, the grenade rises in the right hand, the left tears off the ring;
+   cook  : right arm cocked behind the shoulder, grenade at upper right, left arm extended forward;
+   throw : the arm comes over the shoulder, the grenade leaves forward, the arm finishes its sweep at lower left. */
 const NADE_POSE = {
   armed: [0.24, -0.02, -0.26], guide: [-0.14, -0.14, -0.46],
   rollPull: [-1.9, -1.4], rollArmed: -1.4, rollThrow: -0.6, guidePose: 'relaxed', rollL: 0.9,
   pole: [0.8, -0.5, 0.35], poleThrow: [0.7, 0.4, 0.2], shoulderUp: 0.12, shoulderThrow: 0.16,
   pullR: [[0, 0.28, -0.4, -0.3], [0.1, 0.13, -0.2, -0.36], [0.24, 0.16, -0.18, -0.35], [0.42, 0.24, -0.02, -0.26]],
   pullL: [[0, -0.24, -0.42, -0.3], [0.1, 0.03, -0.22, -0.37], [0.2, 0.08, -0.16, -0.35], [0.28, -0.06, -0.2, -0.42], [0.42, -0.14, -0.14, -0.46]],
-  // armé loin derrière l'épaule, fouetté très court jusqu'au point de lâcher (0,12 s), puis le bras croise vers le bas à gauche
+  // cocked far behind the shoulder, whipped very short to the release point (0.12 s), then the arm crosses down to the left
   throwR: [[0, 0.24, -0.02, -0.26], [0.07, 0.31, 0.08, -0.1], [0.12, 0.07, 0.09, -0.5], [0.2, -0.1, -0.2, -0.53], [0.38, -0.08, -0.68, -0.36]],
   throwL: [[0, -0.14, -0.14, -0.46], [0.07, -0.1, -0.11, -0.52], [0.16, -0.28, -0.34, -0.38], [0.34, -0.32, -0.74, -0.2]],
-  // rotation du buste pendant le lancer (lacet, roulis) : vers la droite à l'armé, vers la gauche à la détente
+  // torso rotation during the throw (yaw, roll): to the right when cocked, to the left at the release
   twist: [[0, 0, 0, 0], [0.07, 0.08, -0.05, 0], [0.15, -0.1, 0.07, 0], [0.38, 0, 0, 0]],
 };
-/* Chaque grenade dans la main droite, par type : p, son centre dans le repère de la main (m ; x petit doigt, y dos de la main, z coude) ; r, sa
-   rotation dans ce repère (degrés, x puis y puis z) ; les doigts : HAND_POSES.n<type> (06f-hands.js). Réglable au banc de réglage des grenades
-   (?grenade=1, 09zj-grenade-reglage.js), qui donne la configuration à copier */
-const NADE_GRIP = { // (réglé par le propriétaire au banc)
+/* Each grenade in the right hand, by type: p, its center in the hand frame (m; x little finger, y back of the hand, z elbow); r, its
+   rotation in that frame (degrees, x then y then z); the fingers: HAND_POSES.n<type> (06f-hands.js). Adjustable on the grenade tuning bench
+   (?grenade=1, 09zj-grenade-tuning.js), which gives the configuration to copy */
+const NADE_GRIP = { // (tuned by the owner on the bench)
   frag: { p: [-0.003, -0.03, -0.021], r: [-136, 180, -80] },
   flash: { p: [-0.003, -0.03, -0.021], r: [-136, 180, -80] },
   smoke: { p: [-0.01, -0.027, -0.019], r: [-136, 180, -85] },
   knife: { p: [-0.081, -0.03, -0.021], r: [-66, 174, 86] },
 };
 const _ngE = new THREE.Euler(), _ngQ = new THREE.Quaternion();
-/* Poignard de combat (couteau de tranchée) : lame de 18 cm à pointe en « clip », méplat rectifié jusqu'au tranchant,
-   dents de scie sur le dos près de la garde, garde droite, manche rainuré en caoutchouc, pommeau avec son anneau.
-   Repère : lame vers -z, dos de la lame (dents) vers +y, tranchant vers -y, garde en z = 0, manche vers +z.
-   La lame est une surface lofée : à chaque tranche, cinq points (dos plat, méplat, tranchant) ; chaque face a ses
-   propres sommets, donc ses arêtes restent vives. */
+/* Combat dagger (trench knife): 18 cm blade with a "clip" point, flat ground down to the edge,
+   saw teeth on the spine near the guard, straight guard, grooved rubber handle, pommel with its ring.
+   Frame: blade toward -z, blade spine (teeth) toward +y, edge toward -y, guard at z = 0, handle toward +z.
+   The blade is a lofted surface: at each slice, five points (flat spine, flat, edge); each face has its
+   own vertices, so its edges stay sharp. */
 const KNIFE_L = 0.185;
 function knifeBladeGeometry() {
   const L = KNIFE_L, pitch = 0.0046, serr0 = 0.014, serr1 = 0.088, depth = 0.0019;
@@ -155,11 +155,11 @@ function knifeBladeGeometry() {
   ss.push(L);
   const top = (s) => {
     let y = 0.0155;
-    if (s > 0.108) y -= (0.0155 + 0.0016) * Math.pow((s - 0.108) / (L - 0.108), 1.7); // dos qui plonge vers la pointe
-    if (s >= serr0 && s < serr1) { const u = ((s - serr0) / pitch) % 1; y -= depth * (u < 0.72 ? u / 0.72 : 1 - (u - 0.72) / 0.28); } // dents
+    if (s > 0.108) y -= (0.0155 + 0.0016) * Math.pow((s - 0.108) / (L - 0.108), 1.7); // spine that dips toward the tip
+    if (s >= serr0 && s < serr1) { const u = ((s - serr0) / pitch) % 1; y -= depth * (u < 0.72 ? u / 0.72 : 1 - (u - 0.72) / 0.28); } // teeth
     return y;
   };
-  const bot = (s) => -0.0185 + (s > 0.095 ? 0.0165 * Math.pow((s - 0.095) / (L - 0.095), 2.3) : 0); // ventre puis remontée vers la pointe
+  const bot = (s) => -0.0185 + (s > 0.095 ? 0.0165 * Math.pow((s - 0.095) / (L - 0.095), 2.3) : 0); // belly then rise toward the tip
   const pos = [], idx = [], N = ss.length;
   for (let i = 0; i < N; i++) {
     const s = ss[i], last = i === N - 1;
@@ -179,41 +179,41 @@ function knifeBladeGeometry() {
 function buildKnifeModel(M) {
   const g = new THREE.Group();
   g.add(new THREE.Mesh(knifeBladeGeometry(), M.knifeSteel));
-  // gouttière peinte (rainure sombre le long du méplat, des deux côtés)
+  // painted fuller (dark groove along the flat, on both sides)
   for (const sx of [-1, 1]) bx(g, M.dark, sx * 0.0023, 0.004, -0.058, 0.0008, 0.0042, 0.075);
-  // talon (ricasso) et garde droite aux quillons arrondis
+  // heel (ricasso) and straight guard with rounded quillons
   bx(g, M.knifeSteel, 0, -0.001, -0.004, 0.0055, 0.034, 0.012);
   bx(g, M.metal, 0, -0.001, 0.0045, 0.0125, 0.062, 0.0085);
   for (const sy of [-1, 1]) part(g, G_CYL, M.metal, 0, -0.001 + sy * 0.031, 0.0045, 0.0064, 0.0085, 0.0064, Math.PI / 2, 0, 0);
-  // manche : anneaux alternés (rainures des doigts), ovale (plus haut que large), caoutchouc noir
+  // handle: alternating rings (finger grooves), oval (taller than wide), black rubber
   for (let i = 0; i < 11; i++) {
     const ridge = i % 2 === 0;
     part(g, G_CYL, ridge ? M.poly : M.dark, 0, -0.002, 0.0125 + i * 0.0104 + 0.005, ridge ? 0.0136 : 0.0123, 0.0104, ridge ? 0.0158 : 0.0145, Math.PI / 2, 0, 0);
   }
-  // pommeau : calotte d'acier et anneau pour la dragonne
+  // pommel: steel cap and ring for the lanyard
   part(g, G_CYL, M.metal, 0, -0.002, 0.1305, 0.0135, 0.012, 0.0155, Math.PI / 2, 0, 0);
   part(g, new THREE.TorusGeometry(0.0072, 0.0019, 8, 16), M.metal, 0, -0.002, 0.1425, 1, 1, 1, 0, Math.PI / 2, 0);
   bakeRig(g);
   return g;
 }
-/* Coup de couteau : un balayage de gauche à droite, comme un coup d'épée. Le couteau reste tenu comme en main (KNIFE_HELD.grip, HAND_POSES.kgrip) ; le bras part sur la gauche, le
-   poignet armé, puis balaie vers la droite en faisant tourner la lame autour de l'avant-bras comme l'aiguille d'une montre (KNIFE_STAB plus bas). Avant, un coup retournait le
-   couteau en prise inversée, comme dans Modern Warfare 2, puis il piquait : le passage de la main tenue au coup se voyait. */
-const KNIFE_DUR = 0.42, KNIFE_HIT = 0.34; // durée du geste (s) ; instant du contact (part de la durée)
-/* Magnétisme du couteau (comme dans les anciens Call of) : à moins de near m, la visée est tirée vers le torse de la cible, plus
-   faiblement jusqu'à range m, d'au plus max radians en tout (environ 11 degrés) ; cone : cosinus de l'angle de sélection de très près */
+/* Knife strike: a sweep from left to right, like a sword stroke. The knife stays held as in hand (KNIFE_HELD.grip, HAND_POSES.kgrip); the arm starts on the left, the
+   wrist cocked, then sweeps to the right while turning the blade around the forearm like a clock hand (KNIFE_STAB below). Before, a strike flipped the
+   knife into a reverse grip, as in Modern Warfare 2, then stabbed: the change from the held hand to the strike was visible. */
+const KNIFE_DUR = 0.42, KNIFE_HIT = 0.34; // duration of the gesture (s); instant of contact (share of the duration)
+/* Knife magnetism (as in the old Call of games): within near m, aim is pulled toward the target's torso, more
+   weakly out to range m, by at most max radians in total (about 11 degrees); cone: cosine of the very-close selection angle */
 const KNIFE_MAG = { near: 1.9, range: 2.8, cone: 0.7, rate: 6, max: 0.2 };
-/* Le coup d'origine, celui d'un appui simple sur le bouton couteau quand le couteau n'est pas en main : la main sort d'en bas, fend l'air et redescend, avec
-   la prise de base (_km) et les doigts de HAND_POSES.grip. Poignet (espace de la caméra), puis [t, roulis de l'avant-bras, flexion du poignet, 0] : la main prolonge l'avant-bras */
+/* The original strike, that of a simple press of the knife button when the knife is not in hand: the hand comes up from below, cuts the air and goes back down, with
+   the base grip (_km) and the fingers of HAND_POSES.grip. Wrist (camera space), then [t, forearm roll, wrist flexion, 0]: the hand extends the forearm */
 const KNIFE_ANIM = {
   pos: [[0, 0.3, -0.45, -0.22], [0.09, 0.25, -0.14, -0.29], [0.2, 0.21, -0.08, -0.31], [0.27, 0.1, -0.07, -0.39], [0.34, -0.04, -0.08, -0.41], [0.41, -0.19, -0.11, -0.37], [0.53, -0.26, -0.18, -0.29], [0.76, -0.1, -0.42, -0.21], [1, 0.3, -0.45, -0.22]],
   rot: [[0, 0.3, 0, 0], [0.09, 0.4, 0, 0], [0.2, 0.45, 0.1, 0], [0.27, 0.35, 0, 0], [0.34, 0.25, 0, 0], [0.41, 0.15, 0, 0], [0.53, 0.15, 0, 0], [0.76, 0.25, 0, 0], [1, 0.3, 0, 0]],
   S: [0.24, -0.18, 0.2], pole: [0.8, -0.1, 0.15],
 };
-/* Base de la prise du couteau (knifeGripMatrix la retourne et la tourne), trouvée à l'écran de débogage sur la référence (repère de la main : x vers le petit doigt,
-   y vers le dos de la main, z vers le coude). Ici : la lame revient vers le coude (back : angle avec l'axe du poing) en
-   surplombant l'avant-bras (lift), dos denté contre l'avant-bras, tranchant vers le haut ; puis réglage fin : position de la
-   garde (cm), rotation dans le repère de la main (rotH, degrés) et dans celui du couteau (rotK, degrés). */
+/* Base of the knife grip (knifeGripMatrix flips and turns it), found on the debug screen against the reference (hand frame: x toward the little finger,
+   y toward the back of the hand, z toward the elbow). Here: the blade comes back toward the elbow (back: angle with the fist axis) while
+   overhanging the forearm (lift), toothed spine against the forearm, edge up; then fine tuning: guard
+   position (cm), rotation in the hand frame (rotH, degrees) and in the knife frame (rotK, degrees). */
 const KNIFE_POSE = { back: 1.5, lift: 0.6, guard: [0.012, 0.014, -0.034], pos: [7.1, -3.7, 0], rotH: [-23, 57, -80], rotK: [3, 0, 2] };
 const _km = (() => {
   const P = KNIFE_POSE, D = Math.PI / 180, cb = Math.cos(P.back), sb = Math.sin(P.back), cl = Math.cos(P.lift), sl = Math.sin(P.lift);
@@ -224,35 +224,35 @@ const _km = (() => {
   return rot(P.rotH).multiply(B).multiply(rot(P.rotK)).setPosition(P.guard[0] + P.pos[0] / 100, P.guard[1] + P.pos[1] / 100, P.guard[2] + P.pos[2] / 100);
 })();
 const _kg = new THREE.Matrix4();
-/* Plus rien en main dans la vue subjective (mort du joueur, début d'une relecture) : couteau, bras et grenade du lancer, terminal et
-   ordinateur des séries. updateRigs ne tourne que tant que le joueur vit : une mort au milieu d'un lancer ou d'un coup de couteau laissait
-   ses bras figés à l'écran, sur la vue du corps qui tombe et pendant la killcam */
+/* Nothing left in hand in the first-person view (player death, start of a replay): knife, throwing arm and grenade, terminal and
+   streak computer. updateRigs only runs while the player is alive: a death in the middle of a throw or a knife strike left
+   the arms frozen on screen, over the view of the falling body and during the killcam */
 function vmClearHeld() {
   if (VM.knifeRig) VM.knifeRig.visible = false;
   if (VM.nadeRig) VM.nadeRig.visible = false;
   if (NADE_RIG.g) { NADE_RIG.g.visible = false; NADE_RIG.nade.userData.spoon.visible = true; }
   if (typeof ksAbort === 'function') ksAbort();
 }
-/* Couteau en main (bouton couteau maintenu, voir knifeButton) et coup de couteau : une seule prise, celle du poing refermé sur le manche, en poignée de main comme dans
-   Counter-Strike (lame presque verticale). Tout se règle en direct avec le banc de réglage (?couteau=1, 09zk-couteau-reglage.js), qui donne la configuration à copier,
-   ou à l'image avec couteau.js ; tout doit rester dans le champ, de la sortie à la course et au coup, sur un écran de 16:9 comme de 2,05:1 (couteau-main.js).
-   KNIFE_HELD : le poignet (espace de la caméra, en mètres), le roulis de l'avant-bras (-1,57 : pouce en haut) et la flexion du poignet (rad), le coude (pole) et l'épaule (S) ;
-   grip : flip, lame du côté du pouce plutôt que du petit doigt ; pitch, phi et tilt, degrés dont le couteau tourne autour de x (en travers du poing), y (dans la paume) et z
-   (de l'avant-bras) dans le repère de la main ; roll, degrés autour du manche ; mid, milieu du manche dans la main.
-   run : la course. Décalage du poignet, du roulis et de la flexion à fond de sprint, puis amplitude des foulées (amp : x, va-et-vient latéral ; y, creux de chaque pas ; z, le
-   bras qui pompe d'avant en arrière ; rouler et flexAmp : roulis et flexion du poignet), phase de la foulée en radians. */
+/* Knife in hand (knife button held, see knifeButton) and knife strike: a single grip, that of the fist closed on the handle, a handshake grip as in
+   Counter-Strike (blade almost vertical). Everything is tuned live with the tuning bench (?knife=1, 09zk-knife-tuning.js), which gives the configuration to copy,
+   or frame by frame with knifeBench.js; everything must stay in the field of view, from drawing to running and striking, on a 16:9 screen as well as 2.05:1 (knife-hand.js).
+   KNIFE_HELD: the wrist (camera space, in meters), the forearm roll (-1.57: thumb up) and the wrist flexion (rad), the elbow (pole) and the shoulder (S);
+   grip: flip, blade on the thumb side rather than the little finger side; pitch, phi and tilt, degrees by which the knife turns around x (across the fist), y (in the palm) and z
+   (of the forearm) in the hand frame; roll, degrees around the handle; mid, middle of the handle in the hand.
+   run: running. Offset of the wrist, roll and flexion at full sprint, then stride amplitude (amp: x, lateral back-and-forth; y, dip of each step; z, the
+   arm pumping front to back; wristRoll and flexAmp: wrist roll and flexion), stride phase in radians. */
 const KNIFE_HELD = {
   pos: [0.205, -0.18, -0.41], roll: -1.02, flex: -0.12, pole: [1.2, -0.85, 0], S: [0.24, -0.18, 0.2],
   grip: { flip: true, phi: -16, tilt: 3, pitch: 0, roll: -3, mid: [-0.01, -0.022, -0.015] },
-  run: { pos: [0, 0.05, 0], roll: -0.1, flex: 0.15, amp: [0.02, 0.02, 0.04], rouler: 0.12, flexAmp: 0.15, phase: 0 },
+  run: { pos: [0, 0.05, 0], roll: -0.1, flex: 0.15, amp: [0.02, 0.02, 0.04], wristRoll: 0.12, flexAmp: 0.15, phase: 0 },
 };
-/* Le coup, de la pose tenue à deux poses complètes : start (le geste armé, à gauche) et end (la fin du balayage, à droite), chacune avec tous les réglages de la main tenue :
-   poignet (mètres, caméra), roulis de l'avant-bras et flexion du poignet (rad), coude (pole), épaule (S), prise du couteau (phi, tilt, pitch, roll en degrés, mid : milieu du manche
-   dans la main ; flip reste celui de KNIFE_HELD.grip) et doigts (fingers : mêmes champs que HAND_POSES.kgrip, le pouce en huit angles). Réglage du propriétaire : le balayage vient du
-   poignet (de -0,285 à 0,6 en x), du coude et de l'épaule, le roulis restant autour de -0,9 ; la prise tourne en fin de coup (phi de -13 à -49, tilt 9, pitch 27).
-   Le temps t va de 0 à 1 sur KNIFE_DUR : de la pose tenue à start (jusqu'à tStart), de start à end (jusqu'à tEnd, avec ease : 0 à vitesse constante, 1 doux au départ et à l'arrivée,
-   et arc, un détour du poignet au milieu du balayage, en mètres), puis de end à la pose tenue. Le contact tombe à KNIFE_HIT. Sans couteau en main, la main monte de low
-   (hors champ) pendant rise et y redescend pendant fall. */
+/* The strike, from the held pose to two full poses: start (the cocked gesture, on the left) and end (the end of the sweep, on the right), each with all the settings of the held hand:
+   wrist (meters, camera), forearm roll and wrist flexion (rad), elbow (pole), shoulder (S), knife grip (phi, tilt, pitch, roll in degrees, mid: middle of the handle
+   in the hand; flip stays that of KNIFE_HELD.grip) and fingers (fingers: same fields as HAND_POSES.kgrip, the thumb in eight angles). Owner's tuning: the sweep comes from the
+   wrist (from -0.285 to 0.6 in x), the elbow and the shoulder, the roll staying around -0.9; the grip turns at the end of the strike (phi from -13 to -49, tilt 9, pitch 27).
+   Time t goes from 0 to 1 over KNIFE_DUR: from the held pose to start (up to tStart), from start to end (up to tEnd, with ease: 0 at constant speed, 1 soft at start and arrival,
+   and arc, a detour of the wrist in the middle of the sweep, in meters), then from end to the held pose. Contact falls at KNIFE_HIT. With no knife in hand, the hand rises by low
+   (out of view) during rise and goes back down there during fall. */
 const KNIFE_STAB = {
   low: [0.3, -0.45, -0.22], rise: [0, 0.18], fall: [0.72, 1], tStart: 0.14, tEnd: 0.46, ease: 0.5, arc: [0, 0, -0.08],
   start: {
@@ -266,8 +266,8 @@ const KNIFE_STAB = {
     fingers: { i: [1.37, 1.35, 0.67], m: [1.48, 1.5, 0.95], r: [1.3, 1.5, 0.95], p: [1.3, 1.5, 0.95], t: [0.42, 0.47, -0.16, 0.89, -1.37, 0.06, 0.28, -0.16], spread: 0 },
   },
 };
-/* Une pose à plat, pour mélanger deux poses d'un coup : poignet (3), roulis, flexion, coude (3), épaule (3), prise phi tilt pitch roll (4) et milieu du manche (3), doigts i m r p
-   (12), pouce (8), écart (1) : 39 nombres. P : poignet, coude, épaule et prise ; G : les doigts (HAND_POSES.kgrip pour la pose tenue, start.fingers pour le début du coup). */
+/* A flat pose, to blend two poses at once: wrist (3), roll, flexion, elbow (3), shoulder (3), grip phi tilt pitch roll (4) and middle of the handle (3), fingers i m r p
+   (12), thumb (8), spread (1): 39 numbers. P: wrist, elbow, shoulder and grip; G: the fingers (HAND_POSES.kgrip for the held pose, start.fingers for the start of the strike). */
 const KP_N = 39, _kpB = new Float64Array(KP_N), _kpS = new Float64Array(KP_N), _kpE = new Float64Array(KP_N), _kpF = new Float64Array(KP_N);
 function knifePut(out, n, a) { for (let j = 0; j < a.length; j++) out[n++] = a[j]; return n; }
 function knifeFlat(P, G, out) {
@@ -277,8 +277,8 @@ function knifeFlat(P, G, out) {
   return out;
 }
 function knifeMix(a, b, w, out) { for (let j = 0; j < KP_N; j++) out[j] = a[j] + (b[j] - a[j]) * w; return out; }
-/* Matrice couteau vers main d'une prise : la base (_km, lame vers le coude), retournée bout pour bout (flip) et tournée autour du manche (roll), puis tournée dans le repère
-   de la main : pitch autour de x, phi autour de y, tilt autour de z ; le milieu du manche posé en mid. Écrite dans out si on en donne une (rien d'alloué). */
+/* Knife-to-hand matrix of a grip: the base (_km, blade toward the elbow), flipped end for end (flip) and turned around the handle (roll), then turned in the hand
+   frame: pitch around x, phi around y, tilt around z; the middle of the handle set at mid. Written into out if one is given (nothing allocated). */
 const _gmX = new THREE.Matrix4(), _gmC = new V3();
 function knifeGripMatrix(P, out = new THREE.Matrix4()) {
   const D = Math.PI / 180, R = out.extractRotation(_km);
@@ -287,23 +287,23 @@ function knifeGripMatrix(P, out = new THREE.Matrix4()) {
   if (P.pitch) R.premultiply(_gmX.makeRotationX(P.pitch * D));
   R.premultiply(_gmX.makeRotationY((P.phi || 0) * D));
   if (P.tilt) R.premultiply(_gmX.makeRotationZ(P.tilt * D));
-  const c = _gmC.set(0, -0.002, 0.07).applyMatrix4(R); // milieu du manche, dans le repère du couteau tourné
+  const c = _gmC.set(0, -0.002, 0.07).applyMatrix4(R); // middle of the handle, in the turned knife frame
   return R.setPosition(P.mid[0] - c.x, P.mid[1] - c.y, P.mid[2] - c.z);
 }
 const _kgmH = new THREE.Matrix4(), _kgmS = new THREE.Matrix4(), _gpS = { flip: true, phi: 0, tilt: 0, pitch: 0, roll: 0, mid: [0, 0, 0] }, _knP = new V3();
-function knifeGripSet() { knifeGripMatrix(KNIFE_HELD.grip, _kgmH); } // la prise tenue, une fois pour toutes (le banc de réglage la recalcule)
+function knifeGripSet() { knifeGripMatrix(KNIFE_HELD.grip, _kgmH); } // the held grip, once and for all (the tuning bench recomputes it)
 knifeGripSet();
 const _knH = { p: new V3(), roll: 0, flex: 0 };
-/* La pose tenue : montée depuis le bas selon hold (0 hors champ, 1 en main), puis la course (S.sprint, foulée de VM.bobT) */
+/* The held pose: raised from below according to hold (0 out of view, 1 in hand), then running (S.sprint, stride of VM.bobT) */
 function knifeHeld(S, hold) {
   const H = KNIFE_HELD, R = H.run, r0 = KNIFE_STAB.low, e = smoothstep(0, 1, hold), sp = clamp(S.sprint || 0, 0, 1.08), k = sp * Math.min(1, VM.bobAmt || 0), p = _knH.p;
   const ph = VM.bobT + R.phase, s1 = Math.sin(ph), c1 = Math.cos(ph), c2 = (Math.cos(2 * ph) - 1) * 0.5;
   p.set(lerp(r0[0], H.pos[0], e), lerp(r0[1], H.pos[1], e), lerp(r0[2], H.pos[2], e));
   p.x += R.pos[0] * sp + c1 * R.amp[0] * k; p.y += R.pos[1] * sp + Math.sin(VM.breath * 1.6) * 0.003 * (1 - sp) + c2 * R.amp[1] * k; p.z += R.pos[2] * sp + s1 * R.amp[2] * k;
-  _knH.roll = H.roll - (1 - e) * 0.9 + R.roll * sp + s1 * R.rouler * k; _knH.flex = H.flex + R.flex * sp + c1 * R.flexAmp * k;
+  _knH.roll = H.roll - (1 - e) * 0.9 + R.roll * sp + s1 * R.wristRoll * k; _knH.flex = H.flex + R.flex * sp + c1 * R.flexAmp * k;
   return _knH;
 }
-/* La pose du coup à l'instant t (0 à 1), dans F : de la pose tenue (B) à start, de start à end, de end à la pose tenue */
+/* The strike pose at time t (0 to 1), in F: from the held pose (B) to start, from start to end, from end to the held pose */
 function knifeStabPose(t, B, F) {
   const Z = KNIFE_STAB, t0 = Math.max(0.001, Z.tStart), t1 = Math.max(t0 + 0.001, Z.tEnd);
   knifeFlat(Z.start, Z.start.fingers, _kpS); knifeFlat(Z.end, Z.end.fingers, _kpE);
@@ -315,12 +315,12 @@ function knifeStabPose(t, B, F) {
   }
   return knifeMix(_kpE, B, smoothstep(0, 1, (t - t1) / Math.max(0.001, 1 - t1)), F);
 }
-/* Crochet du banc de réglage (09zk-couteau-reglage.js, ouvert avec ?couteau=1) : il peut forcer l'état passé à updateRigs (repos, course, coup) */
+/* Hook of the tuning bench (09zk-knife-tuning.js, opened with ?knife=1): it can force the state passed to updateRigs (rest, run, strike) */
 let KNIFE_DEBUG = null;
-let NADE_DEBUG = null; // crochet du banc de réglage des grenades (09zj-grenade-reglage.js, ?grenade=1) : il peut forcer l'état passé à updateRigs (tenue, dégoupillage, lancer)
+let NADE_DEBUG = null; // hook of the grenade tuning bench (09zj-grenade-tuning.js, ?grenade=1): it can force the state passed to updateRigs (held, pin pulled, throw)
 function updateRigs(dt, S) {
   const k = VM.knifeRig, hold = S.knifeHold || 0, stab = S.knifeT > 0;
-  if (stab && !S.knifeNew) { // appui simple, le couteau n'était pas en main : le coup d'origine
+  if (stab && !S.knifeNew) { // simple press, the knife was not in hand: the original strike
     const t = 1 - S.knifeT / KNIFE_DUR, A = KNIFE_ANIM, arm = VM.knifeArm; k.visible = true;
     k.position.copy(VM.bobO); k.rotation.set(VM.bobR.x, VM.bobR.y, VM.bobR.z);
     const p = keySpline(A.pos, t), r = keySpline(A.rot, t);
@@ -329,17 +329,17 @@ function updateRigs(dt, S) {
     arm.hand.updateMatrix(); _kg.copy(arm.hand.matrix).multiply(_km); _kg.decompose(VM.knife.position, VM.knife.quaternion, VM.knife.scale);
   } else if (stab || hold > 0.01) {
     const arm = VM.knifeArm, Z = KNIFE_STAB, F = _kpF, B = _kpB, low = Z.low;
-    const H = knifeHeld(S, stab ? 1 : hold); // la pose tenue (à la course comprise) : celle d'où le coup part et où il revient, ou la montée du couteau qu'on sort
+    const H = knifeHeld(S, stab ? 1 : hold); // the held pose (running included): the one the strike starts from and returns to, or the rise of the knife being drawn
     knifeFlat(KNIFE_HELD, HAND_POSES.kgrip, B); B[0] = H.p.x; B[1] = H.p.y; B[2] = H.p.z; B[3] = H.roll; B[4] = H.flex;
     if (stab) {
       const t = 1 - S.knifeT / KNIFE_DUR, up = Math.max(hold, smoothstep(Z.rise[0], Z.rise[1], t) * (1 - smoothstep(Z.fall[0], Z.fall[1], t))), e = smoothstep(0, 1, up);
       knifeStabPose(t, B, F);
-      for (let j = 0; j < 3; j++) F[j] = lerp(low[j], F[j], e); F[3] -= (1 - e) * 0.9; // à mains nues, la main monte d'en bas et y redescend
+      for (let j = 0; j < 3; j++) F[j] = lerp(low[j], F[j], e); F[3] -= (1 - e) * 0.9; // bare-handed, the hand rises from below and goes back down there
     } else F.set(B);
     k.visible = true;
     k.position.copy(VM.bobO); k.rotation.set(VM.bobR.x, VM.bobR.y, VM.bobR.z);
     placeArm(arm, _nv(F[8], F[9], F[10]), _knP.set(F[0], F[1], F[2]), 0.34, 0.34, _nv(F[8] + F[5], F[9] + F[6], F[10] + F[7]), 0.05, 0.043, F[3], F[4]);
-    // les doigts et le poignard suivent la pose : pendant le coup, les doigts passent par HAND_POSES.kstab et la prise est recalculée à chaque image
+    // the fingers and the dagger follow the pose: during the strike, the fingers go through HAND_POSES.kstab and the grip is recomputed every frame
     let M = _kgmH, pose = 'kgrip';
     if (stab) {
       const D = HAND_POSES.kstab, g = _gpS;
@@ -356,30 +356,30 @@ function updateRigs(dt, S) {
   const N = NADE_RIG, g = N.g, P = NADE_POSE;
   if (VM.nadeRig) VM.nadeRig.visible = false;
   if (!S.nadeState) { g.visible = false; N.nade.userData.spoon.visible = true; return; }
-  const want = N.models[PL.nadeType] || N.models.frag; // la grenade de la classe
+  const want = N.models[PL.nadeType] || N.models.frag; // the class's grenade
   if (N.nade !== want) { if (N.ring.parent !== N.nade) N.nade.add(N.ring); N.nade.visible = false; N.nade = want; N.ring = want.userData.ring; }
   g.visible = true;
-  // les bras suivent le pas et le regard comme l'arme
+  // the arms follow the step and the gaze like the weapon
   g.position.copy(VM.bobO); g.rotation.set(VM.bobR.x, VM.bobR.y, VM.bobR.z);
   const t = S.nadeT || 0;
-  // l'épaule droite se lève quand le bras s'arme, le coude monte pendant le lancer
+  // the right shoulder rises when the arm cocks, the elbow rises during the throw
   const up = S.nadeState === 'pull' ? smoothstep(0.2, 0.42, t) : S.nadeState === 'cook' ? 1 : 1 - smoothstep(0.12, 0.3, t);
   const th = S.nadeState === 'throw' ? Math.sin(clamp(t / 0.24, 0, 1) * Math.PI) : 0;
-  // au fouetté, l'épaule monte encore : le bras passe par-dessus au lieu d'arriver d'en bas
+  // at the whip, the shoulder rises further: the arm comes over the top instead of arriving from below
   const SR = _nv(0.22, -0.34 + P.shoulderUp * up + P.shoulderThrow * th, 0.22), SL = _nv(-0.24, -0.36, 0.2);
   const pole = _nv(lerp(P.pole[0], P.poleThrow[0], th), lerp(P.pole[1], P.poleThrow[1], th), lerp(P.pole[2], P.poleThrow[2], th));
-  const ty = NADE_GRIP[PL.nadeType] ? PL.nadeType : 'frag', NG = NADE_GRIP[ty], hPose = 'n' + ty; // la prise et les doigts du type
+  const ty = NADE_GRIP[PL.nadeType] ? PL.nadeType : 'frag', NG = NADE_GRIP[ty], hPose = 'n' + ty; // the grip and fingers of the type
   let hr, hl, lVis = true, nadeInHand = true, rRoll = P.rollArmed, lRoll = P.rollL, rPose = hPose, lPose = 'pinch', ringL = true;
   if (S.nadeState === 'pull') {
     hr = keySpline(P.pullR, t); hl = keySpline(P.pullL, t);
-    // secousse de la main droite quand l'anneau est arraché
+    // jerk of the right hand when the ring is torn off
     hr.x += Math.sin(clamp((t - 0.22) / 0.08, 0, 1) * Math.PI) * 0.012;
     rRoll = lerp(P.rollPull[0], P.rollPull[1], smoothstep(0.22, 0.42, t));
     ringL = t >= NADE_ANIM.pin; lPose = t < 0.12 || t > 0.34 ? 'open' : 'pinch';
     lRoll = lerp(1.9, P.rollL, smoothstep(0.28, 0.42, t));
   } else if (S.nadeState === 'cook') {
-    // bras armé : léger balancement, tremblement qui monte quand la mèche approche de la fin
-    const c = S.cookT || 0, f = nadeFuse(PL.nadeType), tr = f > 0 ? smoothstep(f * 0.43, f, c) * 0.004 : 0; // (le couteau de lancer n'a pas de mèche)
+    // cocked arm: slight sway, tremor that grows as the fuse nears its end
+    const c = S.cookT || 0, f = nadeFuse(PL.nadeType), tr = f > 0 ? smoothstep(f * 0.43, f, c) * 0.004 : 0; // (the throwing knife has no fuse)
     hr = _nv(P.armed[0] + Math.sin(c * 1.7) * 0.003 + (Math.random() - 0.5) * tr, P.armed[1] + Math.sin(c * 2.3) * 0.004 + (Math.random() - 0.5) * tr, P.armed[2]);
     hl = _nv(P.guide[0], P.guide[1] + Math.sin(c * 1.9 + 1) * 0.003, P.guide[2]);
     rRoll = P.rollArmed; lPose = P.guidePose;
@@ -393,7 +393,7 @@ function updateRigs(dt, S) {
   rigArm(N.R, SR, hr, pole, rPose, rRoll);
   rigArm(N.L, SL, hl, _nv(-0.7, -0.7, 0), lPose, lRoll);
   setArmVisible(N.L, lVis);
-  // l'anneau et sa goupille restent au doigt de la main gauche une fois arrachés
+  // the ring and its pin stay on the left hand's finger once torn off
   if (ringL) { if (N.ring.parent !== N.L.hand) N.L.hand.add(N.ring); N.ring.position.set(0.004, -0.018, -0.075); N.ring.visible = lVis; }
   else { if (N.ring.parent !== N.nade) N.nade.add(N.ring); N.ring.position.set(-0.018, 0.045, 0); N.ring.visible = true; }
   if (S.nadeState === 'pull' && t < 0.05) N.nade.userData.spoon.visible = true;
@@ -405,13 +405,13 @@ function updateRigs(dt, S) {
   }
 }
 
-/* ---------- Terminal des séries (UAV, hélicoptère) : boîtier durci tenu dans la main droite, bouton d'appel pressé au pouce ----------
-   Repère du boîtier : x vers la droite, y vers le haut, z vers l'avant de l'écran. Le dos repose dans la paume, les doigts
-   passent derrière et se referment sur le flanc gauche, le pouce passe par-dessus le flanc droit et vient sur le bouton d'appel,
-   sous l'écran. */
+/* ---------- Streak terminal (UAV, helicopter): hardened case held in the right hand, call button pressed with the thumb ----------
+   Case frame: x toward the right, y up, z toward the front of the screen. The back rests in the palm, the fingers
+   go behind and close on the left side, the thumb goes over the right side and onto the call button,
+   under the screen. */
 const PHONE = { w: 0.074, h: 0.142, d: 0.022, btn: [0, -0.044], scr: [0.058, 0.07, 0.024] };
-/* Matières des appareils des séries (terminal, tablette) : coque olive, façade sombre et lisse, sans le grain des armes (sur une coque de
-   26 cm, la carte de relief des armes, tendue sur chaque face, faisait de la pierre) */
+/* Materials of the streak devices (terminal, tablet): olive shell, dark smooth front, without the weapons' grain (on a 26 cm shell,
+   the weapons' relief map, stretched over each face, looked like stone) */
 function ksDevMats() {
   if (KS.mats) return KS.mats;
   const M = gunMaterials();
@@ -421,20 +421,20 @@ function buildPhoneRig() {
   const M = gunMaterials(), K = ksDevMats(), g = new THREE.Group(), D = PHONE;
   g.visible = false; VM.root.add(g);
   const dev = new THREE.Group(); g.add(dev);
-  // coque olive, bandes de caoutchouc sur les flancs, coins renforcés
+  // olive shell, rubber strips on the sides, reinforced corners
   rb(dev, K.shell, 0, 0, 0, D.w, D.h, D.d, 0.009);
   for (const sx of [-1, 1]) {
     rb(dev, K.rubber, sx * (D.w / 2 - 0.002), -0.006, 0, 0.007, D.h - 0.036, D.d + 0.002, 0.003);
     for (const sy of [-1, 1]) rb(dev, K.rubber, sx * (D.w / 2 - 0.006), sy * (D.h / 2 - 0.007), 0, 0.016, 0.018, D.d + 0.004, 0.005);
   }
-  // façade : cadre sombre de l'écran, grille du haut-parleur, bouton d'appel dans sa garde, deux touches
+  // front: dark screen frame, speaker grille, call button in its guard, two keys
   rb(dev, K.face, 0, 0.014, D.d / 2 + 0.0004, 0.064, 0.096, 0.002, 0.004);
   for (let i = 0; i < 4; i++) rb(dev, K.rubber, -0.012 + i * 0.008, 0.063, D.d / 2 + 0.0006, 0.005, 0.0014, 0.001, 0.0005);
   const ring = new THREE.Mesh(G_TOR, K.metal); ring.scale.set(0.0118, 0.0118, 0.016); ring.position.set(D.btn[0], D.btn[1], D.d / 2 + 0.0008); dev.add(ring);
   const btn = new THREE.Mesh(new THREE.CylinderGeometry(0.0095, 0.0095, 0.004, 20), new THREE.MeshStandardMaterial({ color: 0x8fd16a, emissive: new THREE.Color().setRGB(0.2, 0.5, 0.15), roughness: 0.4 }));
   btn.rotation.x = Math.PI / 2; btn.position.set(D.btn[0], D.btn[1], D.d / 2 + 0.0015); dev.add(btn);
   for (const sx of [-1, 1]) rb(dev, K.face, sx * 0.024, D.btn[1], D.d / 2 + 0.0006, 0.012, 0.007, 0.002, 0.002);
-  // antenne courte en caoutchouc sur le coin supérieur gauche, embase crantée ; anneau de dragonne en bas
+  // short rubber antenna on the upper left corner, notched base; lanyard ring at the bottom
   cy(dev, K.metal, -0.022, D.h / 2 + 0.003, -0.002, 0.0062, 0.008, 0);
   cy(dev, K.rubber, -0.022, D.h / 2 + 0.022, -0.002, 0.0045, 0.032, 0);
   part(dev, new THREE.SphereGeometry(1, 10, 8), K.rubber, -0.022, D.h / 2 + 0.038, -0.002, 0.0045, 0.0045, 0.0045);
@@ -443,15 +443,15 @@ function buildPhoneRig() {
   const tex = new THREE.CanvasTexture(sc); tex.encoding = THREE.sRGBEncoding;
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(D.scr[0], D.scr[1]), new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color().setRGB(1.5, 1.5, 1.5) }));
   scr.position.set(0, D.scr[2], D.d / 2 + 0.0016); dev.add(scr);
-  // main droite : paume derrière la moitié droite du boîtier, doigts vers la gauche et l'arrière (ils se referment sur le flanc gauche),
-  // dos de la main vers l'extérieur ; le pouce, du côté radial, passe par-dessus le flanc droit jusqu'au bouton
+  // right hand: palm behind the right half of the case, fingers toward the left and back (they close on the left side),
+  // back of the hand outward; the thumb, on the radial side, goes over the right side to the button
   const grip = devGrip(dev, PHONE_GRIP.p, PHONE_GRIP.f, PHONE_GRIP.b);
   const arm = makeArm(M, VM.root, -1); setArmVisible(arm, false);
   bakeRig(g, { keep: [btn] });
   KS.phone = { g, tex, sc, grip, arm, btn, press: (pk) => { btn.position.z = D.d / 2 + 0.0015 - pk * 0.0018; } };
 }
 const PHONE_GRIP = { p: [0.042, -0.046, -0.024], f: [-0.6, 0.6, -0.5], b: [0.55, 0.2, -0.85] };
-/* Écran du terminal : titre (série appelée), balayage radar, état ; les textes sont ramenés à la largeur de l'écran */
+/* Terminal screen: title (streak called), radar sweep, status; texts are fitted to the screen width */
 function drawPhoneScreen(pressed) {
   const P = KS.phone, g = P.sc.getContext('2d'), W = P.sc.width, H = P.sc.height, t = MATCH.time;
   g.fillStyle = '#081109'; g.fillRect(0, 0, W, H);
@@ -469,23 +469,23 @@ function drawPhoneScreen(pressed) {
   if (pressed) { g.fillStyle = '#ff5a48'; for (const [x, y] of [[0.4, -0.5], [-0.55, 0.2], [0.15, 0.6]]) { g.beginPath(); g.arc(cx + x * R, cy + y * R, 3.5, 0, TAU); g.fill(); } }
   const on = pressed && Math.floor(t * 5) % 2 === 0;
   g.fillStyle = pressed ? (on ? 'rgba(143,209,106,0.5)' : 'rgba(143,209,106,0.28)') : 'rgba(143,209,106,0.16)'; g.fillRect(8, H - 32, W - 16, 24);
-  const done = { heli: _t('Hélicoptère en approche'), sat: _t('Satellite en ligne'), iem: _t('IEM déclenchée'), fpv: _t('Drone en vol') }[KS.mode] || _t('UAV en ligne');
-  fit(pressed ? done : _t('Appuyer pour appeler'), H - 14, 17, '#d4f7d8');
+  const done = { heli: _t('Helicopter inbound'), sat: _t('Satellite online'), emp: _t('EMP triggered'), fpv: _t('Drone in flight') }[KS.mode] || _t('UAV online');
+  fit(pressed ? done : _t('Press to call'), H - 14, 17, '#d4f7d8');
   g.textAlign = 'left'; P.tex.needsUpdate = true;
 }
 
-/* ---------- Mains posées sur l'arme ----------
-   Le repère de chaque main est défini dans l'espace de l'arme : la poignée est au creux
-   des doigts refermés (et non plus au poignet), puis l'avant-bras rejoint le poignet par IK. */
+/* ---------- Hands resting on the weapon ----------
+   Each hand's frame is defined in weapon space: the grip is in the hollow
+   of the closed fingers (and no longer at the wrist), then the forearm reaches the wrist by IK. */
 const _hm = new THREE.Matrix4(), _hx = new V3(), _hy = new V3(), _hz = new V3();
-/* repère à partir de l'axe du poignet (z, de la paume vers l'avant-bras) et d'une indication pour le dos de la main (y) */
+/* frame from the wrist axis (z, from the palm toward the forearm) and a hint for the back of the hand (y) */
 function frameZY(z, y) { _hz.set(...z).normalize(); _hy.set(...y); _hx.crossVectors(_hy, _hz).normalize(); _hy.crossVectors(_hz, _hx).normalize(); _hm.makeBasis(_hx, _hy, _hz); return new THREE.Quaternion().setFromRotationMatrix(_hm); }
-/* Main d'appui sous un garde-main (main gauche) : la paume est posée sur le dessous gauche du garde-main (roulis roll autour du
-   canon, rad) ; les doigts partent vers la droite et l'avant, à yaw (rad) du canon, et remontent sur le flanc droit ; le pouce (côté
-   x de la main) file vers la bouche le long du flanc gauche. Avec pitch nul, la paume est tangente au garde-main, mais le poignet
-   casse : l'avant-bras, qui arrive d'en bas, n'est pas dans le plan de la paume. pitch (rad) relève la paume vers l'avant (base des
-   doigts contre le garde-main, talon plus bas, comme une vraie main) et remet le poignet dans le prolongement de l'avant-bras ; la
-   hauteur mesurée sur le maillage (palmLift) garde la paume hors de l'arme. */
+/* Support hand under a forend (left hand): the palm rests on the lower left of the forend (roll roll around the
+   barrel, rad); the fingers go to the right and forward, at yaw (rad) from the barrel, and rise up the right side; the thumb (x side
+   of the hand) runs toward the muzzle along the left side. With zero pitch, the palm is tangent to the forend, but the wrist
+   bends: the forearm, which comes from below, is not in the plane of the palm. pitch (rad) tilts the palm forward (base of the
+   fingers against the forend, heel lower, like a real hand) and puts the wrist back in line with the forearm; the
+   height measured on the mesh (palmLift) keeps the palm clear of the weapon. */
 function frameUnder(roll, yaw, pitch = 0) {
   const sr = Math.sin(roll), cr = Math.cos(roll), sy = Math.sin(yaw), cy = Math.cos(yaw);
   _hy.set(-sr, -cr, 0); _hz.set(-sy * cr, sy * sr, cy); _hx.crossVectors(_hy, _hz); _hm.makeBasis(_hx, _hy, _hz);
@@ -493,84 +493,84 @@ function frameUnder(roll, yaw, pitch = 0) {
 }
 function frameQ(x, y) { _hx.set(...x).normalize(); _hy.set(...y).normalize(); _hz.crossVectors(_hx, _hy).normalize(); _hy.crossVectors(_hz, _hx).normalize(); _hm.makeBasis(_hx, _hy, _hz); return new THREE.Quaternion().setFromRotationMatrix(_hm); }
 const HAND_FRAMES = {
-  // x : alignement des jointures (le long de la poignée), y : dos de la main ; off : position de l'objet tenu dans le repère de la main
+  // x: knuckle alignment (along the grip), y: back of the hand; off: position of the held object in the hand frame
   R: { q: frameQ([0, -0.946, 0.324], [1, 0, 0]), off: new V3(0.008, -0.03, -0.015), pose: 'trigger', side: -1, axis: new V3(1, 0, 0), range: 0.6 },
   Rp: { q: frameQ([0, -0.976, 0.218], [1, 0, 0]), off: new V3(0.012, -0.028, -0.018), pose: 'ptrig', side: -1, axis: new V3(1, 0, 0), range: 0.5, axis2: new V3(0, 1, 0), range2: 0.5 },
-  // main gauche sous le garde-main : voir frameUnder ; off.y est remplacé par la distance mesurée sur chaque arme (lHandFrame)
+  // left hand under the forend: see frameUnder; off.y is replaced by the distance measured on each weapon (lHandFrame)
   L: { q: frameUnder(0.55, 1.0, 0.5), off: new V3(0, -0.048, -0.012), pose: 'support', side: 1, range: 0.5 },
   Lp: { q: frameQ([0, 0.976, -0.218], [-1, 0, 0]), off: new V3(-0.004, -0.028, -0.028), pose: 'psup', side: 1, axis: new V3(1, 0, 0), range: 0.5, axis2: new V3(0, 1, 0), range2: 0.5 },
-  // culasse du pistolet saisie par le flanc gauche : main à plat contre la glissière, doigts vers l'avant, pouce en haut ;
-  // rien au-dessus de la glissière, les organes de visée restent dégagés
+  // pistol slide gripped from the left side: hand flat against the slide, fingers forward, thumb up;
+  // nothing above the slide, the sighting parts stay clear
   Lr: { q: frameQ([0, 1, 0], [-1, 0, 0]), off: new V3(0, -0.015, -0.02), pose: 'slap', side: 1, axis: new V3(1, 0, 0), range: 0.4 },
-  // poignée de culasse saisie par le dessus, doigts refermés sur la boule
-  // l'avant-bras arrive de l'arrière et de la droite (et non perpendiculairement à l'arme, ce qu'aucun poignet n'accepte) ;
-  // la main peut tourner autour de la boule de la poignée
+  // bolt handle gripped from above, fingers closed on the knob
+  // the forearm arrives from behind and from the right (not perpendicular to the weapon, which no wrist accepts);
+  // the hand can turn around the handle knob
   Rb: { q: frameQ([0.66, -0.15, -0.75], [0, 1, -0.2]), off: new V3(0, -0.02, -0.03), pose: 'pinch', side: -1, axis: new V3(0, 1, 0), range: 0.55 },
 };
-// prise en « C » des fusils modernes : paume sur le flanc gauche du garde-main, pouce tendu par-dessus vers l'avant,
-// doigts qui passent dessous ; le poignet arrive de l'arrière et de la gauche (main bien visible à l'écran)
+// "C" grip of modern rifles: palm on the left side of the forend, thumb extended over the top toward the front,
+// fingers passing underneath; the wrist arrives from behind and from the left (hand clearly visible on screen)
 HAND_FRAMES.Lcc = { q: frameZY([-0.15, -0.12, 1], [-0.92, 0.28, 0.1]), off: new V3(0.012, -0.046, -0.042), pose: 'cclamp', side: 1, range: 0.35 };
-// le garde-main est un cylindre : la main gauche peut rouler autour du canon sans le lâcher
+// the forend is a cylinder: the left hand can roll around the barrel without letting go
 for (const k of ['L', 'Lcc']) HAND_FRAMES[k].axis = new V3(0, 0, -1).applyQuaternion(HAND_FRAMES[k].q.clone().invert());
-// poignée d'appui verticale, empoignée comme la main droite tient la sienne (en miroir) : jointures le long de la poignée, index en
-// haut sous la semelle de la poignée, paume sur son flanc gauche, doigts qui passent devant et se referment sur le flanc droit, pouce
-// qui fait le tour par l'arrière. Comme une vraie main qui empoigne, la poignée passe en travers de la paume (0,35 rad autour de sa
-// normale) et la main est tournée de 0,55 rad autour d'elle : l'avant-bras, qui arrive d'en bas, de l'arrière et de la gauche,
-// prolonge alors le poignet au lieu de le casser ; elle tient la poignée 2 cm sous le garde-main, où l'index, incliné, a sa place.
-// La main peut tourner autour de la poignée, et un peu en travers (axis2). frameFgrip : même prise sur une poignée inclinée vers
-// l'arrière de rake (rad, le bas vers le tireur), en travers de la paume de diag (rad)
+// vertical support grip, grasped like the right hand holds its own (mirrored): knuckles along the grip, index at the
+// top under the grip's base, palm on its left side, fingers passing in front and closing on the right side, thumb
+// wrapping around the back. Like a real grasping hand, the grip passes across the palm (0.35 rad around its
+// normal) and the hand is turned 0.55 rad around it: the forearm, which arrives from below, from behind and from the left,
+// then extends the wrist instead of bending it; it holds the grip 2 cm below the forend, where the tilted index fits.
+// The hand can turn around the grip, and slightly across (axis2). frameFgrip: same grip on a grip tilted toward
+// the rear by rake (rad, the bottom toward the shooter), across the palm by diag (rad)
 function frameFgrip(rake, diag) {
   return new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), -rake).multiply(frameQ([0, 1, -0.05], [-1, 0, 0]))
     .multiply(new THREE.Quaternion().setFromAxisAngle(new V3(1, 0, 0), -0.55)).multiply(new THREE.Quaternion().setFromAxisAngle(new V3(0, 1, 0), diag));
 }
 HAND_FRAMES.Lv = { q: frameFgrip(0, -0.35), off: new V3(0.02, -0.03, -0.015), pose: 'fgrip', side: 1, axis: new V3(1, 0, 0), range: 0.6, axis2: new V3(0, 1, 0), range2: 0.5 };
-// poignée angulaire (06p-accessoires.js) : inclinée de AGRIP_RAKE vers l'arrière, empoignée comme la verticale mais bien plus en
-// travers de la paume (son bas vient vers l'avant-bras, qui arrive d'en bas : sans cela le poignet casse, surtout en visée), la
-// main 2,8 cm plus bas sur le fût (le haut du poing toucherait le garde-main). Les soldats, dont le poing figé est fait pour une
-// poignée droite dans la main (SOLDIER_LGRIP), la prennent comme la verticale (soldat)
+// angled grip (06p-attachments.js): tilted back by AGRIP_RAKE, grasped like the vertical one but much more
+// across the palm (its bottom comes toward the forearm, which arrives from below: otherwise the wrist bends, especially when aiming), the
+// hand 2.8 cm lower on the handguard (the top of the fist would touch the forend). Soldiers, whose frozen fist is made for a
+// straight grip in the hand (SOLDIER_LGRIP), take it like the vertical one (soldier)
 const AGRIP_RAKE = 0.5;
 HAND_FRAMES.La = { q: frameFgrip(AGRIP_RAKE, -0.85), off: new V3(0.028, -0.03, -0.015), pose: 'fgrip', side: 1, axis: new V3(1, 0, 0), range: 0.6, axis2: new V3(0, 1, 0), range2: 0.5 };
-HAND_FRAMES.La.soldat = Object.assign({}, HAND_FRAMES.La, { q: frameFgrip(AGRIP_RAKE, -0.35) });
-/* Formes de prise des mains (gripDef) et détente (trigDef) de chaque arme : dans le modèle (06j-modeles.js, gripShapes) */
-/* Repère de la main d'appui d'une arme (vue subjective et soldats) : sous le garde-main (L) sur toutes les armes longues (la main
-   soutient l'arme, coude plié), autour de la poignée d'appui quand l'arme en porte une (info.lFrame, posé par l'accessoire), sur la
-   main droite au pistolet ; la prise en « C » (Lcc) reste disponible. La paume se pose sur le garde-main (ou contre la poignée), à la
-   distance mesurée sur le maillage de l'arme pour chaque roulis de la main (palmLift). Un repère par arme montée et par point de
-   prise G (celui de la vue subjective, ou celui des soldats quand le modèle en donne un autre : tag le distingue), et par écrasement
-   de la base des doigts (soft : celui de la main figée des soldats est plus grand, voir palmGrid). */
+HAND_FRAMES.La.soldier = Object.assign({}, HAND_FRAMES.La, { q: frameFgrip(AGRIP_RAKE, -0.35) });
+/* Grip shapes of the hands (gripDef) and trigger (trigDef) of each weapon: in the model (06j-models.js, gripShapes) */
+/* Frame of a weapon's support hand (first person and soldiers): under the forend (L) on all long weapons (the hand
+   supports the weapon, elbow bent), around the support grip when the weapon carries one (info.lFrame, set by the accessory), on the
+   right hand for the pistol; the "C" grip (Lcc) remains available. The palm rests on the forend (or against the grip), at the
+   distance measured on the weapon mesh for each hand roll (palmLift). One frame per mounted weapon and per grip
+   point G (the first-person one, or the soldiers' when the model gives another: tag tells them apart), and per squash
+   of the finger base (soft: that of the soldiers' frozen hand is larger, see palmGrid). */
 const L_FRAMES = {};
 function lHandFrame(m, G = m.gripL, tag = '', soft = PG.soft) {
   if (m.kind === 'pistol') return HAND_FRAMES.Lp;
   const k = m.key + tag + (soft === PG.soft ? '' : '~t');
   if (L_FRAMES[k]) return L_FRAMES[k];
-  const F0 = HAND_FRAMES[m.lFrame || 'L'], F = soft !== PG.soft && F0.soldat ? F0.soldat : F0;
-  // main figée des soldats : elle roule moins (SOLDIER_ROLL), 7 roulis suffisent
+  const F0 = HAND_FRAMES[m.lFrame || 'L'], F = soft !== PG.soft && F0.soldier ? F0.soldier : F0;
+  // soldiers' frozen hand: it rolls less (SOLDIER_ROLL), 7 rolls are enough
   const v = palmLift(m.group, G, F.q, -F.off.z, F.axis, F.range, soft === PG.soft ? 13 : 7, soft), lift = { v, range: F.range, lo: Math.min(...v) };
   return (L_FRAMES[k] = Object.assign({}, F, { off: new V3(F.off.x, -liftAt(lift, 0), F.off.z), lift }));
 }
 
-/* Épaules fixées au corps (espace de la caméra) et non plus à l'arme : en visée, et surtout au
-   pistolet, les bras partent du bas de l'écran au lieu de passer devant l'objectif. Elles sont
-   converties dans le repère de l'arme à chaque image. Pôles : direction où pointe le coude à partir de
-   l'épaule. Les valeurs viennent d'un calcul hors ligne des angles du poignet : l'épaule est haute et en retrait
-   (comme celle d'un vrai tireur, la caméra étant à hauteur des yeux). Aux armes longues le coude est au niveau de
-   la main ; au pistolet il est plus bas, ce qui fait sortir les avant-bras du bas de l'écran comme dans CoD4. */
+/* Shoulders fixed to the body (camera space) and no longer to the weapon: when aiming, and especially with the
+   pistol, the arms start from the bottom of the screen instead of passing in front of the lens. They are
+   converted into the weapon frame every frame. Poles: direction the elbow points from the
+   shoulder. Values come from an offline calculation of the wrist angles: the shoulder is high and set back
+   (like a real shooter's, the camera being at eye level). On long weapons the elbow is at the level of
+   the hand; on the pistol it is lower, which makes the forearms come out of the bottom of the screen as in CoD4. */
 const VM_BODY = {
-  // armes longues
+  // long guns
   R: new V3(0.2, -0.14, 0.3), L: new V3(-0.3, -0.14, -0.02),
   poleR: new V3(0.14, -0.12, -0.27), poleL: new V3(-0.04, -0.3, -0.14),
-  poleRs: new V3(0.1, -0.4, 0), poleLs: new V3(-0.1, -0.4, 0), // sprint : coudes vers le bas, sous l'épaule
+  poleRs: new V3(0.1, -0.4, 0), poleLs: new V3(-0.1, -0.4, 0), // sprint: elbows down, under the shoulder
   RA: new V3(0.2, -0.14, 0.3), LA: new V3(-0.3, -0.14, -0.02),
   poleRA: new V3(0.06, -0.12, -0.3), poleLA: new V3(0.0, -0.3, -0.12),
-  // pistolet : épaules basses et en retrait, si bien que les avant-bras sortent du bas de l'écran au lieu de le traverser
-  // à l'horizontale ; en visée, les coudes s'écartent (position isocèle, bras presque tendus) au lieu de tomber : l'avant-bras
-  // prolonge alors la poignée et le poignet reste presque droit (déviation ramenée de 29° à 14°)
+  // pistol: shoulders low and set back, so the forearms come out of the bottom of the screen instead of crossing it
+  // horizontally; when aiming, the elbows spread (isosceles stance, arms almost straight) instead of dropping: the forearm
+  // then extends the grip and the wrist stays almost straight (deviation reduced from 29° to 14°)
   Rp: new V3(0.1, -0.2, 0.3), Lp: new V3(-0.15, -0.25, 0.3), RAp: new V3(0.1, -0.19, 0.32), LAp: new V3(-0.15, -0.22, 0.32),
   poleRp: new V3(0.5, -0.8, 0), poleLp: new V3(-0.5, -0.8, 0), poleRAp: new V3(0.7, -0.6, 0), poleLAp: new V3(-0.7, -0.6, 0),
-  // main gauche loin du garde-main (ceinture, chargeur) : le coude tombe, l'avant-bras monte vers la main
+  // left hand far from the forend (belt, magazine): the elbow drops, the forearm rises toward the hand
   poleLD: new V3(-0.1, -1, 0.15),
-  // appareils : tablette tenue à deux mains par le bas des flancs, épaules basses et coudes écartés vers le bas (les avant-bras montent du
-  // bas de l'écran) ; terminal tenu à une main, coude sous le corps
+  // devices: tablet held with both hands by the bottom of the sides, shoulders low and elbows spread downward (the forearms rise from the
+  // bottom of the screen); terminal held in one hand, elbow under the body
   dev: {
     R: { S: new V3(0.24, -0.36, 0.1), pole: new V3(0.7, -0.5, 0.1) },
     L: { S: new V3(-0.24, -0.36, 0.1), pole: new V3(-0.7, -0.5, 0.1) },
@@ -583,22 +583,22 @@ function placeHands(m, gR, gL) {
   const pistol = m.kind === 'pistol', M = gunMaterials(), LF = lHandFrame(m);
   VM.holder.updateMatrix(); _hInv.copy(VM.holder.matrix).invert();
   const toGun = (v) => v.clone().applyMatrix4(_hInv);
-  const ka = smoothstep(0, 1, VM.ads), sp = VM.sprK; // (pose de sprint effective : effacée pendant un rechargement, updateViewmodel)
+  const ka = smoothstep(0, 1, VM.ads), sp = VM.sprK; // (effective sprint pose: cleared during a reload, updateViewmodel)
   _sR.lerpVectors(pistol ? VM_BODY.Rp : VM_BODY.R, pistol ? VM_BODY.RAp : VM_BODY.RA, ka); _sL.lerpVectors(pistol ? VM_BODY.Lp : VM_BODY.L, pistol ? VM_BODY.LAp : VM_BODY.LA, ka);
   _pR.lerpVectors(pistol ? VM_BODY.poleRp : VM_BODY.poleR, pistol ? VM_BODY.poleRAp : VM_BODY.poleRA, ka); _pL.lerpVectors(pistol ? VM_BODY.poleLp : VM_BODY.poleL, pistol ? VM_BODY.poleLAp : VM_BODY.poleLA, ka);
-  // sprint : l'arme baissée met la main gauche dans l'axe épaule-pôle, où le repère du coude devient instable (il bascule
-  // d'une image à l'autre et le coude jaillit dans l'écran) ; le pôle passe donc sous l'épaule, vers l'extérieur
+  // sprint: the lowered weapon puts the left hand in the shoulder-pole axis, where the elbow frame becomes unstable (it flips
+  // from one frame to the next and the elbow shoots into the screen); the pole therefore goes under the shoulder, outward
   if (sp > 0) { _pR.lerp(VM_BODY.poleRs, sp); _pL.lerp(VM_BODY.poleLs, sp); }
-  // pistolet au sprint : épaule droite avancée (buste penché) et coude vers le bas et l'extérieur, comme dans pistolRunPose
+  // pistol sprinting: right shoulder forward (torso leaning) and elbow down and outward, as in pistolRunPose
   if (pistol && sp > 0 && !VM.action) { const k = smoothstep(0, 1, sp); _sR.lerp(_vRun.set(...VM_PRUN.S), k); _pR.lerp(_vRun.set(...VM_PRUN.pole), k); }
-  // chorégraphie en cours (rechargement, culasse) : chaque main peut suivre son propre trajet, entre l'arme et la ceinture
-  // chorégraphie coupée : la main revient à sa prise en quelques images (vmHandExit, 06d-reload.js)
+  // choreography in progress (reload, bolt): each hand can follow its own path, between the weapon and the belt
+  // choreography cut: the hand returns to its grip within a few frames (vmHandExit, 06d-reload.js)
   const lho = vmHandExit(VM_HX.L, VM.rlT ? vmLeftHand(m, (v) => v.applyMatrix4(_hInv)) : null, gL, 'support');
   const rho = vmHandExit(VM_HX.R, VM.rlT ? vmRightHand(m) : null, gR, 'trigger');
   const pairs = [[VM.arms.R, rho ? rho.G : gR, _sR, _pR, HAND_FRAMES[pistol ? 'Rp' : 'R'], 0.33], [VM.arms.L, lho ? lho.G : gL, _sL, _pL, LF, 0.34]];
   const GS = gripShapes(m);
-  // sprint au pistolet : la main gauche lâche l'arme et balance le long du corps au rythme des foulées (on ne court pas
-  // l'arme serrée à deux mains, les poignets casseraient) ; elle revient envelopper la poignée dès qu'on ralentit
+  // pistol sprint: the left hand lets go of the weapon and swings along the body with the strides (you don't run with
+  // the weapon clenched in both hands, the wrists would bend); it returns to wrap the grip as soon as you slow down
   const pRun = pistol && !lho ? smoothstep(0.15, 0.85, sp) : 0;
   for (const [arm, G0, Sb, Pb0, F0, fore] of pairs) {
     let F = F0, Pb = Pb0, G = G0, shapes = GS ? (arm === VM.arms.R ? GS.R : GS.L) : null;
@@ -611,15 +611,15 @@ function placeHands(m, gR, gL) {
       if (pRun > 0.15) shapes = null;
     }
     if (lho && arm === VM.arms.L) {
-      // fb 0 à 1 : du garde-main vers la prise de chargeur (ou, repère 1, vers la culasse du pistolet saisie par le flanc)
+      // fb 0 to 1: from the forend toward the magazine grip (or, frame 1, toward the pistol slide gripped by the side)
       const Fb = lho.frame === 1 ? HAND_FRAMES.Lr : HAND_FRAMES.Lp, kf = lho.fb;
       F = { q: _fq.copy(F0.q).slerp(Fb.q, kf), off: _fo.lerpVectors(F0.off, Fb.off, kf), pose: lho.pose === 'support' || (pistol && lho.pose === 'grip') ? F0.pose : lho.pose, side: F0.side, axis: kf < 0.5 ? F0.axis : Fb.axis, range: kf < 0.5 ? F0.range : Fb.range, axis2: kf < 0.5 ? F0.axis2 : Fb.axis2, range2: kf < 0.5 ? F0.range2 : Fb.range2 };
-      if (kf > 0.25 || F.pose !== F0.pose) shapes = null; // la main quitte la poignée : plus de prise
-      // hors du garde-main, le coude tombe : l'avant-bras monte vers la main au lieu de traverser l'écran à l'horizontale
+      if (kf > 0.25 || F.pose !== F0.pose) shapes = null; // the hand leaves the grip: no more grip
+      // off the forend, the elbow drops: the forearm rises toward the hand instead of crossing the screen horizontally
       Pb = _pLd.lerpVectors(_pL, VM_BODY.poleLD, smoothstep(0.03, 0.16, G.distanceTo(gL)));
     } else if (rho && arm === VM.arms.R) { const Fb = HAND_FRAMES.Rb; if (rho.fb > 0.25) shapes = null; F = { q: _fq2.copy(F0.q).slerp(Fb.q, rho.fb), off: _fo2.lerpVectors(F0.off, Fb.off, rho.fb), pose: rho.pose === 'trigger' ? F0.pose : rho.pose, side: F0.side, axis: rho.fb < 0.5 ? F0.axis : Fb.axis, range: rho.fb < 0.5 ? F0.range : Fb.range, axis2: rho.fb < 0.5 ? F0.axis2 : Fb.axis2, range2: rho.fb < 0.5 ? F0.range2 : Fb.range2 }; }
     const H = G.clone().sub(F.off.clone().applyQuaternion(F.q));
-    // pistolet : la main gauche se referme aussi sur les doigts de la main droite
+    // pistol: the left hand also closes over the fingers of the right hand
     if (pistol && shapes && arm === VM.arms.L) { VM.arms.R.hand.updateMatrix(); shapes = handCapsules(VM.arms.R.hand.userData, VM.arms.R.hand.matrix, _gCaps).concat(shapes); }
     poseArmToHand(arm, toGun(Sb), H, F.q, toGun(Sb.clone().add(Pb)), F.pose, 0, 0.34, fore, F.off, F.axis, F.range, F.axis2, F.range2, shapes, F === F0 ? F.lift : null);
   }
@@ -627,13 +627,13 @@ function placeHands(m, gR, gL) {
 }
 const _fq = new THREE.Quaternion(), _fo = new V3(), _fq2 = new THREE.Quaternion(), _fo2 = new V3(), _gCaps = [];
 const _fq3 = new THREE.Quaternion(), _fo3 = new V3(), _gRun = new V3(), _vRun = new V3(), _qRun = new THREE.Quaternion();
-/* Sprint au pistolet, piloté par le bras : le bras droit descend le long du flanc, coude en arrière et en dehors, l'avant-bras
-   remonte vers l'avant ; tout le bras pompe au rythme des foulées. La main prolonge l'avant-bras (poignet droit) et le
-   pistolet est posé dans la main : c'est l'arme qui suit le bras, et non le poignet qui rattrape une arme placée à part.
-   k : poids (0 à 1) du sprint ; la pose du support d'arme est fondue vers celle-ci. */
+/* Pistol sprint, driven by the arm: the right arm goes down along the side, elbow back and out, the forearm
+   rises forward; the whole arm pumps with the strides. The hand extends the forearm (straight wrist) and the
+   pistol is placed in the hand: the weapon follows the arm, rather than the wrist catching up with a weapon placed separately.
+   k: weight (0 to 1) of the sprint; the weapon mount pose is blended toward this one. */
 const _ra = { s: new V3(), e: new V3(), w: new V3(), p: new V3(), df: new V3(), x: new V3(), y: new V3(), z: new V3(), g: new V3(), m: new THREE.Matrix4(), qh: new THREE.Quaternion(), qg: new THREE.Quaternion(), q: new THREE.Quaternion() };
-/* espace de la caméra : épaule (avancée par la bascule du buste au sprint), poignet visé, direction du coude, dos de la main,
-   balancement du poignet à chaque foulée (bas-haut, avant-arrière) */
+/* camera space: shoulder (advanced by the torso tilt when sprinting), target wrist, elbow direction, back of the hand,
+   wrist sway at each stride (up-down, front-back) */
 const VM_PRUN = { S: [0.15, -0.22, 0.05], W: [0.11, -0.195, -0.3], pole: [0.7, -0.6, 0.3], back: [0.3, 1, 0.0], swing: [0.008, 0.016, 0.03] };
 function pistolRunPose(m, k) {
   const A = _ra, F = HAND_FRAMES.Rp, P = VM_PRUN;
@@ -641,30 +641,30 @@ function pistolRunPose(m, k) {
   A.s.set(...P.S); A.w.set(P.W[0] + c * P.swing[0] * kb, P.W[1] + s2 * P.swing[1] * kb, P.W[2] + c * P.swing[2] * kb);
   elbowAt(A.s, A.w, ARM_LU, ARM_LF, A.p.set(...P.pole).add(A.s), 0, A.s, A.e);
   A.df.subVectors(A.w, A.e).normalize();
-  // main dans l'axe de l'avant-bras : -z vers les doigts, dos de la main vers le haut (pistolet couché vers la gauche,
-  // bas et devant, prêt à revenir en visée)
+  // hand in the forearm axis: -z toward the fingers, back of the hand up (pistol laid toward the left,
+  // low and forward, ready to come back to aiming)
   A.z.copy(A.df).negate(); A.y.set(...P.back); A.y.addScaledVector(A.z, -A.y.dot(A.z)).normalize(); A.x.crossVectors(A.y, A.z);
   A.m.makeBasis(A.x, A.y, A.z); A.qh.setFromRotationMatrix(A.m);
-  // arme : repère de la main dans l'arme (Rp) inversé ; la poignée au creux de la main
+  // weapon: hand frame in the weapon (Rp) inverted; the grip in the hollow of the hand
   A.qg.copy(A.qh).multiply(A.q.copy(F.q).invert());
   A.g.set(0, 0, -WRIST_OFF).applyQuaternion(A.qh).add(A.w).add(A.x.copy(F.off).applyQuaternion(A.qh));
   A.g.sub(A.y.copy(m.gripR).applyQuaternion(A.qg));
   VM.holder.position.lerp(A.g, k); VM.holder.quaternion.slerp(A.qg, k);
 }
-/* main gauche qui court (espace de la caméra) : doigts vers l'avant et le bas, dos de la main vers l'extérieur */
+/* running left hand (camera space): fingers forward and down, back of the hand outward */
 const VM_RUNQ = frameZY([-0.25, 0.75, 0.6], [-1, 0.1, 0.2]);
 
-/* Niveau de détail d'un soldat et de son arme : modèle détaillé de près, allégé de loin. Le modèle allégé projette
-   toujours l'ombre ; quand le détaillé est affiché, l'allégé passe sur le calque d'ombre seule (LAYER_SHADOW) : il
-   n'est plus dessiné à l'écran, pas même en matière invisible. */
+/* Level of detail of a soldier and their weapon: detailed model up close, lightweight from afar. The lightweight model
+   always casts the shadow; when the detailed one is shown, the lightweight one moves to the shadow-only layer (LAYER_SHADOW): it
+   is no longer drawn on screen, not even with an invisible material. */
 function setSoldierLod(S, hi) {
   const L = S.lod; L.hiOn = hi;
   L.hi.visible = hi; L.hi.layers.mask = MASK_SCREEN;
   L.lo.layers.mask = hi ? MASK_SHADOW : MASK_SCREEN;
   if (S.gun) setGunLod(S.gun, hi);
 }
-/* Choix par la taille apparente (hauteur d'un corps de 1,8 m à l'écran, focale courante) : un soldat vu à la
-   lunette passe au modèle détaillé bien plus loin. Seuil par profil de qualité (lodPx), avec hystérésis. */
+/* Chosen by apparent size (height of a 1.8 m body on screen, current focal length): a soldier seen through the
+   scope switches to the detailed model much farther away. Threshold per quality profile (lodPx), with hysteresis. */
 function updateSoldierLods() {
   const k = 1.8 * VIEW.h / (2 * Math.tan(camera.fov * Math.PI / 360)), th = RQ.q.lodPx;
   const one = (S) => {

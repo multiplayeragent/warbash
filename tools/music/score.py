@@ -8,9 +8,9 @@ The scores below are original work under the project's MIT License.
     python3 tools/music/score.py --meta      # after swapping in other end-of-match tracks: their meta.json entries
 
 Writes:
-  assets/rankup.mp3                 level-up fanfare (about 4 s), embedded in the page (build.py, socle)
-  assets/sfx/fin/m_victory.mp3      end of match, win (about 5 s), plus its entry in assets/sfx/fin/meta.json
-  assets/sfx/fin/m_defeat.mp3       end of match, loss (about 8 s), same
+  assets/rankup.mp3                 level-up fanfare (about 4 s), embedded in the page (build.py, base bundle)
+  assets/sfx/outro/m_victory.mp3      end of match, win (about 5 s), plus its entry in assets/sfx/outro/meta.json
+  assets/sfx/outro/m_defeat.mp3       end of match, loss (about 8 s), same
   assets/music/menu-theme.mp3       menu theme, a seamless loop (about 1 min 55 s)
 FLUIDSYNTH and SOUNDFONT override the paths of the tools; elsewhere than Windows, install fluidsynth from the package
 manager. Also needs numpy, scipy and ffmpeg. docs/music.md says how to put other tracks in their place."""
@@ -367,23 +367,23 @@ def loud(x, target, ceil):
 
 PIECES = {
     'rankup': lambda: C.write_mp3(rankup(), os.path.join(ROOT, 'assets', 'rankup.mp3'), target=-15.9),
-    'victory': lambda: _fin('m_victory', victory(), -13.8),
-    'defeat': lambda: _fin('m_defeat', defeat(), -18.4),
+    'victory': lambda: _ending('m_victory', victory(), -13.8),
+    'defeat': lambda: _ending('m_defeat', defeat(), -18.4),
     'menu': lambda: C.write_mp3(loud(menu(), C.MENU_LUFS, 0.75), os.path.join(ROOT, 'assets', 'music', 'menu-theme.mp3'), q=5),
 }
 
 
 def meta():
-    """assets/sfx/fin/meta.json entries of the end-of-match tracks, measured on the MP3 files in place (after a swap)"""
+    """assets/sfx/outro/meta.json entries of the end-of-match tracks, measured on the MP3 files in place (after a swap)"""
     for sid in ('m_victory', 'm_defeat'):
-        p = os.path.join(ROOT, 'assets', 'sfx', 'fin', sid + '.mp3')
+        p = os.path.join(ROOT, 'assets', 'sfx', 'outro', sid + '.mp3')
         raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', p, '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-'], capture_output=True, check=True).stdout
         x = np.frombuffer(raw, np.float32).reshape(-1, 2).T.astype(np.float64)
-        C.sfx_meta('fin', sid, x); print(f'{sid}: {x.shape[1] / SR:.2f} s')
+        C.sfx_meta('outro', sid, x); print(f'{sid}: {x.shape[1] / SR:.2f} s')
 
 
-def _fin(sid, x, target):
-    x = loud(x, target, 0.8); C.write_mp3(x, os.path.join(ROOT, 'assets', 'sfx', 'fin', sid + '.mp3'), q=4); C.sfx_meta('fin', sid, x)
+def _ending(sid, x, target):
+    x = loud(x, target, 0.8); C.write_mp3(x, os.path.join(ROOT, 'assets', 'sfx', 'outro', sid + '.mp3'), q=4); C.sfx_meta('outro', sid, x)
 
 
 if __name__ == '__main__':

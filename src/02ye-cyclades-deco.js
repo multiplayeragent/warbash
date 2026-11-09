@@ -1,11 +1,11 @@
 /* ==========================================================================
-   KIT CYCLADIQUE (4/4) : le décor. Arbres méditerranéens (olivier, cyprès, tamaris, figuier, platane), plantes en cartes
-   découpées (agave, figuier de Barbarie, géraniums, lavande, vigne, jasmin, bougainvillée), pots, tonnelles à toit de
-   roseaux, caïques (à flot ou à terre sur leur ber), étendage de poulpes, kiosque, puits, drapeau, chats.
-   Les feuillages sont des cartes de l'atlas de la carte (matière cyfol, voir 02yb).
+   CYCLADIC KIT (4/4): the scenery. Mediterranean trees (olive, cypress, tamarisk, fig, plane), plants as cut-out cards
+   (agave, prickly pear, geraniums, lavender, vine, jasmine, bougainvillea), pots, arbors with reed roofs,
+   caiques (afloat or ashore on their cradle), octopus drying line, kiosk, well, flag, cats.
+   The foliage is cards from the map's atlas (cyfol material, see 02yb).
    ========================================================================== */
 const _cyA = [0, 0, 0], _cyB = [0, 0, 0];
-/* Carte de feuillage orientée au hasard autour du point c : côté s, région reg de l'atlas, inclinaison de 0 (à plat) à tau (debout) */
+/* Foliage card randomly oriented around point c: side s, atlas region reg, tilt from 0 (flat) to tau (upright) */
 function cyPatch(M, c, s, reg, R, tint, o = {}) {
   const psi0 = R() * TAU, psi = o.psi !== undefined ? o.psi : psi0, tau = o.tilt !== undefined ? o.tilt : R() * 1.1, h = s / 2, sp = Math.sin(psi), cp = Math.cos(psi), st = Math.sin(tau), ct = Math.cos(tau);
   const a = _cyA, b = _cyB; a[0] = cp; a[1] = 0; a[2] = sp; b[0] = -sp * st; b[1] = ct; b[2] = cp * st;
@@ -13,14 +13,14 @@ function cyPatch(M, c, s, reg, R, tint, o = {}) {
   M.color(tint || [1, 1, 1]);
   foliageQuad(M, P(-1, -1), P(1, -1), P(1, 1), P(-1, 1), reg, o.up !== undefined ? o.up : 0.7, 'cyfol');
 }
-/* Touffe de cartes croisées (n plans verticaux autour de l'axe) : largeur w, hauteur h, base y0 */
+/* Tuft of crossed cards (n vertical planes around the axis): width w, height h, base y0 */
 function cyCard(M, reg, w, h, y0 = 0, n = 3, flare = 0.1) {
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI + 0.3, c = Math.cos(a) * w / 2, s = Math.sin(a) * w / 2, fc = Math.cos(a) * flare, fs = Math.sin(a) * flare;
     foliageQuad(M, [-c, y0, -s], [c, y0, s], [c + fc, y0 + h, s + fs], [-c - fc, y0 + h, -s - fs], reg, 0.6, 'cyfol');
   }
 }
-/* Nuage de cartes dans un ellipsoïde (cx, cy, cz, rx, ry, rz) : n cartes de côté s */
+/* Cloud of cards in an ellipsoid (cx, cy, cz, rx, ry, rz): n cards of side s */
 function cyCanopy(M, cx, cy, cz, rx, ry, rz, n, s, reg, R, tints, o = {}) {
   for (let i = 0; i < n; i++) {
     let x, y, z; do { x = R.range(-1, 1); y = R.range(-1, 1); z = R.range(-1, 1); } while (x * x + y * y + z * z > 1);
@@ -29,8 +29,8 @@ function cyCanopy(M, cx, cy, cz, rx, ry, rz, n, s, reg, R, tints, o = {}) {
 }
 const CY_GREENS = { olive: [[0.92, 0.98, 0.9], [0.86, 0.95, 0.84], [1, 1, 0.96]], dark: [[0.8, 0.92, 0.8], [0.7, 0.85, 0.72], [0.88, 0.98, 0.86]], fig: [[0.95, 1, 0.85], [0.85, 0.98, 0.78], [1, 1, 0.9]] };
 
-/* ---------- Arbres ---------- */
-/* Olivier : tronc noueux qui se divise en trois charpentières, couronne argentée en trois masses */
+/* ---------- Trees ---------- */
+/* Olive tree: gnarled trunk that divides into three main limbs, silvery crown in three masses */
 PF.cyOlive = (h = 4.4, seed = 1) => prefab(`cyOlive${h}_${seed}`, (M) => {
   const R = rngOf(seed * 13 + 5), n = 3;
   M.color([0.5, 0.45, 0.4]).local(1); M.aoFn = (x, y) => lerp(0.65, 1, smoothstep(0, 1.2, y));
@@ -48,10 +48,10 @@ PF.cyOlive = (h = 4.4, seed = 1) => prefab(`cyOlive${h}_${seed}`, (M) => {
   M.col(-0.3, 0.3, 0, h * 0.6, -0.3, 0.3, 'wood');
   M.occ(-2.4, 2.4, h * 0.6, h + 0.8, -2.4, 2.4, 0.35);
 });
-/* Cyprès : flamme sombre et serrée */
+/* Cypress: dark, tight flame */
 PF.cyCypress = (h = 8, seed = 1) => prefab(`cyCypress${h}_${seed}`, (M) => {
   const R = rngOf(seed * 7 + 3), rmax = h * 0.1;
-  M.swFn = swHeight(0.5, h, 1.8, 0.9); // la flamme plie par la cime
+  M.swFn = swHeight(0.5, h, 1.8, 0.9); // the flame bends at the top
   M.color([0.34, 0.3, 0.26]).local(1); M.save().move(0, 0, 0); M.cyl('wood', 0.22, 1.2, 7, { r1: 0.12 }); M.restore();
   for (let i = 0; i < Math.round(h * 15); i++) {
     const y = R.range(0.5, h * 0.98), t = y / h, r = rmax * Math.sin(Math.PI * Math.pow(t, 0.8)) * Math.sqrt(R()), a = R() * TAU;
@@ -60,14 +60,14 @@ PF.cyCypress = (h = 8, seed = 1) => prefab(`cyCypress${h}_${seed}`, (M) => {
   M.col(-0.28, 0.28, 0, h * 0.5, -0.28, 0.28, 'wood');
   M.occ(-rmax, rmax, 0.5, h, -rmax, rmax, 0.4);
 });
-/* Tamaris : tronc clair et tordu, longs plumeaux bleu-vert retombants */
+/* Tamarisk: pale twisted trunk, long hanging blue-green plumes */
 PF.cyTamarisk = (h = 3.8, seed = 1) => prefab(`cyTamarisk${h}_${seed}`, (M) => {
   const R = rngOf(seed * 11 + 1), path = [];
   for (let k = 0; k <= 7; k++) { const t = k / 7; path.push([Math.sin(t * 4 + seed) * 0.28 * t, t * h * 0.7, Math.cos(t * 3 + seed) * 0.22 * t]); }
   M.color([0.66, 0.58, 0.5]).local(1); M.sweep('wood', circleShape(1, 7), path, { scale: (t) => lerp(0.2, 0.07, t), uAround: 0.6 });
-  // trois branches maîtresses qui portent des touffes de plumeaux
+  // three main branches that carry tufts of plumes
   const top = path[path.length - 1], tufts = [];
-  M.swFn = swCrown(top[0], top[2], h * 0.45, h, h * 0.45, 1); // plumeaux légers : ils battent plus que les autres feuillages
+  M.swFn = swCrown(top[0], top[2], h * 0.45, h, h * 0.45, 1); // light plumes: they sway more than the other foliage
   for (let b = 0; b < 3; b++) {
     const a = b * 2.1 + seed, P2 = [], reach = h * 0.34;
     for (let k = 0; k <= 4; k++) { const t = k / 4; P2.push([top[0] * (1 - t * 0.2) + Math.cos(a) * reach * t, top[1] - h * 0.12 + t * h * 0.16, top[2] * (1 - t * 0.2) + Math.sin(a) * reach * t]); }
@@ -81,7 +81,7 @@ PF.cyTamarisk = (h = 3.8, seed = 1) => prefab(`cyTamarisk${h}_${seed}`, (M) => {
   M.col(-0.2, 0.2, 0, h * 0.5, -0.2, 0.2, 'wood');
   M.occ(-h * 0.4, h * 0.4, h * 0.5, h, -h * 0.4, h * 0.4, 0.3);
 });
-/* Figuier : tronc court, large dôme de grandes feuilles lobées */
+/* Fig tree: short trunk, wide dome of large lobed leaves */
 PF.cyFig = (h = 4.4, seed = 1) => prefab(`cyFig${h}_${seed}`, (M) => {
   const R = rngOf(seed * 17 + 9);
   M.color([0.62, 0.56, 0.5]).local(1); M.swFn = swCrown(0, 0, h * 0.45, h, h * 0.7, 0.65);
@@ -90,7 +90,7 @@ PF.cyFig = (h = 4.4, seed = 1) => prefab(`cyFig${h}_${seed}`, (M) => {
   M.col(-0.3, 0.3, 0, h * 0.5, -0.3, 0.3, 'wood');
   M.occ(-h * 0.6, h * 0.6, h * 0.45, h, -h * 0.6, h * 0.6, 0.45);
 });
-/* Platane de la place : tronc clair et massif, vaste couronne ; son ombre est cuite dans l'éclairage */
+/* Plane tree of the square: pale, massive trunk, vast crown; its shadow is baked into the lighting */
 PF.cyPlane = (h = 10.5, seed = 1) => prefab(`cyPlane${h}_${seed}`, (M) => {
   const R = rngOf(seed * 19 + 4);
   M.color([0.74, 0.7, 0.62]).local(1); M.aoFn = (x, y) => lerp(0.7, 1, smoothstep(0, 1.5, y));
@@ -105,21 +105,21 @@ PF.cyPlane = (h = 10.5, seed = 1) => prefab(`cyPlane${h}_${seed}`, (M) => {
   M.occ(-6.2, 6.2, h * 0.62, h + 0.8, -6.2, 6.2, 0.5);
 });
 
-/* ---------- Plantes ---------- */
-PF.cyAgave = (s = 1) => prefab('cyAgave' + s, (M) => { M.swFn = swHeight(0, 1.35 * s, 1.5, 0.18); cyCard(M, CYF.agave, 1.7 * s, 1.35 * s, -0.04, 3, 0.1); }); // feuilles raides : à peine
+/* ---------- Plants ---------- */
+PF.cyAgave = (s = 1) => prefab('cyAgave' + s, (M) => { M.swFn = swHeight(0, 1.35 * s, 1.5, 0.18); cyCard(M, CYF.agave, 1.7 * s, 1.35 * s, -0.04, 3, 0.1); }); // stiff leaves: barely
 PF.cyOpuntia = (s = 1) => prefab('cyOpuntia' + s, (M) => { M.swFn = swHeight(0, 1.5 * s, 1.5, 0.1); cyCard(M, CYF.opuntia, 1.5 * s, 1.5 * s, -0.04, 3, 0.1); });
-/* Touffe : variété choisie par la graine (géranium, romarin, laurier-rose, lavande) */
+/* Tuft: variety chosen by the seed (geranium, rosemary, oleander, lavender) */
 PF.cyBush = (s = 1, seed = 1) => prefab(`cyBush${s}_${seed}`, (M) => {
   const kinds = [CYF.geranium, CYF.rosemary, CYF.oleander, CYF.jasmine], reg = kinds[((seed % 4) + 4) % 4];
   M.swFn = swHeight(0, 0.9 * s, 1.2, 0.55);
   cyCard(M, reg, 1.1 * s, 0.9 * s, 0, 3, 0.12);
 });
 PF.cyGrass = (s = 1) => prefab('cyGrass' + s, (M) => { M.swFn = swHeight(0, 0.6 * s, 1.3, 0.75); cyCard(M, CYF.grass, 0.8 * s, 0.6 * s, 0, 3, 0.1); });
-/* Plante grimpante sur un mur (repère de façade) : bougainvillée, jasmin, vigne ou lierre */
+/* Climbing plant on a wall (facade frame): bougainvillea, jasmine, vine or ivy */
 PF.cyClimber = (kind, w = 2.2, h = 2.6) => prefab(`cyClimber${kind}${w}${h}`, (M) => {
   const R = rngOf(Math.round(w * 10 + h) + kind.length * 7), reg = CYF[kind] || CYF.bougain;
   const n = Math.round(w * h * 3.2);
-  M.swFn = () => -0.6; // plaquée au mur : les feuilles frémissent, la plante ne s'incline pas
+  M.swFn = () => -0.6; // pressed against the wall: the leaves flutter, the plant does not lean
   for (let i = 0; i < n; i++) {
     const x = R.range(-w / 2, w / 2), y = R.range(0.1, h) * (0.55 + 0.45 * (1 - Math.abs(x) / (w / 2))), s = R.range(0.55, 0.9);
     cyPatch(M, [x, y, 0.06 + R() * 0.16], s, reg, R, kind === 'bougain' ? [1, 1, 1] : R.pick([[0.95, 1, 0.9], [1, 1, 1]]), { psi: 0, tilt: R.range(0.05, 0.35), up: 0.3 });
@@ -129,8 +129,8 @@ PF.cyClimber = (kind, w = 2.2, h = 2.6) => prefab(`cyClimber${kind}${w}${h}`, (M
 });
 PF.cyJasmine = (w = 1.8, h = 2.4) => PF.cyClimber('jasmine', w, h);
 
-/* ---------- Pots, mobilier de taverne ---------- */
-/* Pot en terre cuite fleuri : kind 0 géranium, 1 romarin, 2 agave nain, 3 jasmin */
+/* ---------- Pots, tavern furniture ---------- */
+/* Flowering terracotta pot: kind 0 geranium, 1 rosemary, 2 dwarf agave, 3 jasmine */
 PF.cyPot = (kind = 0) => prefab('cyPot' + kind, (M) => {
   M.color([0.74, 0.4, 0.26]).local(1);
   M.lathe('concrete', [[0, 0], [0.1, 0], [0.13, 0.2], [0.15, 0.22], [0.15, 0.25], [0.125, 0.25], [0.11, 0.05], [0, 0.05]], 10, { sharp: 0.6 });
@@ -139,8 +139,8 @@ PF.cyPot = (kind = 0) => prefab('cyPot' + kind, (M) => {
 });
 propType('cyPot', (a) => ({ pf: () => PF.cyPot(a[0] || 0), shapes: [CYL(0, 0.125, 0, 0.14, 0.125)], mass: 6, mu: 0.7, e: 0.2, resp: 2.6, blast: 7, hp: 20, mat: 'dirt', snd: 'clay', brk: 'clay', debris: [['shard', 6]] }));
 
-/* Tonnelle de taverne à toit de roseaux (le long de x ou de z) : poteaux peints, chevrons, nappe de roseaux, vigne grimpante.
-   Les poteaux arrêtent les soldats, le toit n'arrête que les tirs. o : tint (poteaux), vine (vigne sur le toit) */
+/* Tavern arbor with a reed roof (along x or z): painted posts, rafters, reed mat, climbing vine.
+   The posts stop soldiers, the roof only stops shots. o: tint (posts), vine (vine on the roof) */
 function cyPergola(x0, x1, z0, z1, h, seed, o = {}) {
   const M = DECOR, R = rngOf(seed), tint = o.tint || [0.95, 0.94, 0.9], nx = Math.max(1, Math.round((x1 - x0) / 2.4)), nz = Math.max(1, Math.round((z1 - z0) / 2.4));
   for (let i = 0; i <= nx; i++) for (let k = 0; k <= nz; k++) {
@@ -153,31 +153,31 @@ function cyPergola(x0, x1, z0, z1, h, seed, o = {}) {
   for (let k = 0; k <= nz; k++) { const z = lerp(z0, z1, k / nz); M.boxB('paintwood', x0 - 0.25, x1 + 0.25, h, h + 0.12, z - 0.06, z + 0.06, { bevel: 0.01 }); }
   for (let x = x0 - 0.2; x <= x1 + 0.2; x += 0.45) M.boxB('wood', x - 0.025, x + 0.025, h + 0.12, h + 0.17, z0 - 0.25, z1 + 0.25);
   M.restore();
-  // nappe de roseaux, à plat, qui laisse passer le soleil par plaques
+  // reed mat, flat, that lets the sun through in patches
   for (let x = x0 - 0.2; x < x1 + 0.2; x += 0.9) for (let z = z0 - 0.2; z < z1 + 0.2; z += 0.9) cyPatch(M, [x + 0.45, h + 0.22, z + 0.45], 1.05, CYF.reed, R, [0.92 + R() * 0.08, 0.92 + R() * 0.06, 0.8], { tilt: Math.PI / 2, up: 1 });
   if (o.vine) for (let q = 0; q < Math.round((x1 - x0) * (z1 - z0) * 0.5); q++) cyPatch(M, [R.range(x0, x1), h + 0.3, R.range(z0, z1)], 0.9, CYF.vine, R, [1, 1, 1], { tilt: Math.PI / 2 - 0.12, up: 1 });
   DECOR.col(x0 - 0.25, x1 + 0.25, h + 0.1, h + 0.25, z0 - 0.25, z1 + 0.25, 'wood', true);
   M.occ(x0 - 0.3, x1 + 0.3, h, h + 0.5, z0 - 0.3, z1 + 0.3, 0.55);
 }
-/* Parasol de taverne : mât, toile blanche et bleue ; sans collision (la toile est au-dessus des têtes). Chaque pan est une toile simulée
-   (Maker.toile) tendue entre deux baleines : il se creuse un peu entre elles, son bord bat au vent et se soulève sous un souffle */
+/* Tavern parasol: pole, white and blue canvas; no collision (the canvas is above head height). Each panel is a simulated cloth
+   (Maker.canvasCloth) stretched between two ribs: it sags a little between them, its edge flaps in the wind and lifts under a gust */
 PF.cyUmbrella = (c = [0.95, 0.95, 0.92]) => prefab('cyUmbrella' + c.join(','), (M) => {
   M.color([0.3, 0.27, 0.24]).local(1); M.cyl('wood', 0.025, 2.3, 6);
   for (let i = 0; i < 8; i++) {
     const a0 = (i / 8) * TAU, a1 = ((i + 1) / 8) * TAU;
     M.color(i % 2 ? [0.1, 0.32, 0.62] : c);
-    M.toile(3, 4, (u, v) => { const a = lerp(a0, a1, u), r = v * 1.35; return [Math.cos(a) * r, 2.62 - v * 0.42 - 0.04 * Math.sin(u * Math.PI) * v, Math.sin(a) * r]; }, { uL: 1.05, vL: 1.4, side: [0, 1, 0], play: 0.1, glow: 0.35, pin: (u, v) => u <= 0 || u >= 1 || v <= 0 });
+    M.canvasCloth(3, 4, (u, v) => { const a = lerp(a0, a1, u), r = v * 1.35; return [Math.cos(a) * r, 2.62 - v * 0.42 - 0.04 * Math.sin(u * Math.PI) * v, Math.sin(a) * r]; }, { uL: 1.05, vL: 1.4, side: [0, 1, 0], play: 0.1, glow: 0.35, pin: (u, v) => u <= 0 || u >= 1 || v <= 0 });
   }
 });
 
-/* ---------- Barques et bord de mer ---------- */
+/* ---------- Boats and seaside ---------- */
 const HULL_KAIKI = [
   [0.0, 0.72, 1.0, 0.25, -0.35, 4.5], [0.08, 0.86, 0.9, 0.2, -0.55, 3.6], [0.35, 1.0, 0.8, 0.18, -0.62, 3.0], [0.62, 0.94, 0.86, 0.22, -0.6, 2.6],
   [0.82, 0.7, 1.15, 0.35, -0.5, 2.1], [0.93, 0.4, 1.6, 0.7, -0.3, 1.8], [1.0, 0.04, 2.15, 1.3, 0.1, 1.5],
 ];
-/* Nom peint de chaque côté de l'étrave (case i de l'atlas de la carte) : comme hullName du port, avec l'atlas grec */
-function cyHullName(M, H, idx, y) { for (const sd of [-1, 1]) hullSideName(M, H, idx, sd, 0.78, 0.9, y, 0.3, 'decals4'); } // (en bandes qui suivent le bordé, voir hullSideName)
-/* Caïque : coque de bois peinte à l'étrave haute, bande de flottaison, pont de planches, petite timonerie, mât de feu, filets. o : hull, boot, stripe, name (case des noms), seed */
+/* Name painted on each side of the stem (cell i of the map's atlas): like the port's hullName, with the Greek atlas */
+function cyHullName(M, H, idx, y) { for (const sd of [-1, 1]) hullSideName(M, H, idx, sd, 0.78, 0.9, y, 0.3, 'decals4'); } // (in bands that follow the planking, see hullSideName)
+/* Caique: painted wooden hull with a high stem, waterline stripe, plank deck, small wheelhouse, masthead light, nets. o: hull, boot, stripe, name (names cell), seed */
 PF.cyKaiki = (o = {}) => prefab('cyKaiki' + JSON.stringify(o), (M) => {
   const R = rngOf(o.seed || 3), hull = o.hull || [0.94, 0.94, 0.9], accent = o.accent || [0.1, 0.3, 0.62];
   const H = hullBody(M, HULL_KAIKI, { L: o.L || 7.6, B: o.B || 2.7, deck: 0.5, thick: 0.06, nv: 20, hull, boot: accent, stripe: o.stripe || accent, inner: o.inner || [0.9, 0.9, 0.86], deckTint: [0.6, 0.5, 0.38], noCol: true });
@@ -194,18 +194,18 @@ PF.cyKaiki = (o = {}) => prefab('cyKaiki' + JSON.stringify(o), (M) => {
   M.save().move(-0.3, 0.5, z(0.8)); M.put(PF.ropeCoil()); M.restore();
   M.restore();
 });
-/* Caïque tiré à terre sur son ber : la coque repose sur des cales et des chandelles ; collision pleine (un vrai couvert de 1,8 m) */
+/* Caique hauled ashore on its cradle: the hull rests on wedges and props; full collision (a real 1.8 m cover) */
 function cyHauledBoat(x, z, ry, o = {}) {
   const M = DECOR, L = o.L || 7.6, B = o.B || 2.7, alongX = Math.abs(Math.sin(ry)) > 0.5, hx = alongX ? L / 2 : B / 2, hz = alongX ? B / 2 : L / 2;
   M.place(PF.cyKaiki(o), x, 0.98, z, ry, { nocol: true });
-  // ber : deux traverses de bois sur des cales, trois chandelles de chaque côté
+  // cradle: two wooden cross-pieces on wedges, three props on each side
   M.save().move(x, 0, z).rotY(ry).color([0.5, 0.4, 0.3]).local(1);
   for (const q of [-0.28, 0.1, 0.38]) M.boxB('wood', -0.95, 0.95, 0, 0.35, q * L - 0.16, q * L + 0.16);
   for (const q of [-0.3, 0.05, 0.35]) for (const sd of [-1, 1]) { M.save().move(sd * 1.1, 0.2, q * L).rotZ(sd * 0.35); M.boxB('wood', -0.05, 0.05, 0, 1.2, -0.05, 0.05); M.restore(); }
   M.restore();
   DECOR.col(x - hx * 0.95, x + hx * 0.95, 0, 1.8, z - hz * 0.9, z + hz * 0.9, 'wood');
 }
-/* Poulpes à sécher : une corde tendue entre deux poteaux, six poulpes pendus */
+/* Octopuses drying: a rope stretched between two posts, six octopuses hanging */
 function cyOctopusLine(x, z, ry, len = 3.2) {
   const M = DECOR, R = rngOf(Math.round(x * 7 + z * 3) + 9);
   M.save().move(x, 0, z).rotY(ry).local(1);
@@ -221,7 +221,7 @@ function cyOctopusLine(x, z, ry, len = 3.2) {
   for (const sx of [-1, 1]) M.col(sx * len / 2 - 0.06, sx * len / 2 + 0.06, 0, 2.2, -0.06, 0.06, 'wood');
   M.restore();
 }
-/* Kiosque de rue (periptero) : cabine turquoise, comptoir coulissant, revues, glacier, store ; 2,2 x 1,6 m */
+/* Street kiosk (periptero): turquoise booth, sliding counter, magazines, ice-cream freezer, blind; 2.2 x 1.6 m */
 function cyKiosk(x, z, ry) {
   const M = DECOR;
   M.save().move(x, 0, z).rotY(ry).local(1);
@@ -234,45 +234,45 @@ function cyKiosk(x, z, ry) {
   M.col(-1.15, 1.15, 0, 2.6, -0.85, 0.85, 'metal');
   M.restore();
 }
-/* Puits de pierre à potence de bois et poulie. Il est creux : margelle de pierre sèche, conduit qui descend à 2,5 m sous la place, de plus en
-   plus sombre, jusqu'à l'eau (pondAdd) ; le sol de la carte est percé au droit du conduit (CYC.holes, voir meltemGround). Le seau pend à sa
-   corde sous la poulie et se balance (hangAdd, 04b-physprops.js) ; l'autre brin de la corde descend vers un taquet du montant nord.
-   Collisions : la margelle en quatre boîtes (une balle ou une grenade entre par l'ouverture), et au-dessus de l'ouverture une colonne que
-   seuls les soldats sentent (noRay : on ne marche pas sur le vide).
-   o : y (hauteur du sol, 0 : le sol plat de Meltem ; sur le sable de Simoun, celle du sol aplani sous le puits), rw (rayon du conduit, 0,6 m ;
-   0,5 m à Simoun, où la grille du relief est de 1 m : le trou du maillage est la case du puits, que le conduit remplit), relief (sol en relief :
-   le trou se fait dans le maillage du relief, qui saute la case de chaque HOLES, voir reliefMesh, et non dans le mur percé de Meltem, CYC.holes). */
+/* Stone well with a wooden gallows and pulley. It is hollow: dry-stone curb, shaft that goes down 2.5 m below the square, getting
+   darker and darker, down to the water (pondAdd); the map's ground is pierced at the shaft (CYC.holes, see notosGround). The bucket hangs from its
+   rope under the pulley and swings (hangAdd, 04b-physprops.js); the other strand of the rope goes down to a cleat on the north post.
+   Collisions: the curb as four boxes (a bullet or a grenade enters through the opening), and above the opening a column that
+   only soldiers feel (noRay: you do not walk on the void).
+   o: y (ground height, 0: Notos's flat ground; on Sirocco's sand, that of the flattened ground under the well), rw (radius of the shaft, 0.6 m;
+   0.5 m on Sirocco, where the terrain grid is 1 m: the mesh hole is the well's cell, which the shaft fills), relief (terrain ground:
+   the hole is made in the terrain mesh, which skips the cell of each HOLES, see reliefMesh, and not in Notos's pierced wall, CYC.holes). */
 function cyWell(x, z, o = {}) {
   const M = DECOR, Rw = o.rw || 0.6, deep = 2.5, n = 5, y = o.y || 0;
   M.save().move(x, y, z).local(1).color([0.82, 0.78, 0.7]);
   M.lathe('drystone', [[0.9, -0.05], [0.9, 0.85], [0.95, 0.9], [0.95, 0.98], [0.62, 0.98], [Rw, 0.7], [Rw, -0.02]], 14, { sharp: 0.5, uR: 1.1 });
-  // conduit : anneaux de pierre de plus en plus sombres (la lumière du jour n'y descend pas)
+  // shaft: stone rings getting darker and darker (daylight does not reach down there)
   for (let i = 0; i < n; i++) {
     const y0 = -0.02 - (i * (deep - 0.02)) / n, y1 = -0.02 - ((i + 1) * (deep - 0.02)) / n, k = 0.04 + 0.78 * Math.pow(1 - (i + 0.5) / n, 2);
     M.color([k, k * 0.95, k * 0.86]); M.lathe('drystone', [[Rw, y0], [Rw, y1]], 14, { uR: 1.1 });
   }
-  // potence : deux montants, la traverse et son chapeau
+  // gallows: two posts, the crossbeam and its cap
   M.color([0.42, 0.3, 0.2]);
   for (const sd of [-1, 1]) M.boxB('wood', -0.08, 0.08, 0.9, 2.7, sd * 0.85 - 0.06, sd * 0.85 + 0.06, { bevel: 0.01 });
   M.boxB('wood', -0.07, 0.07, 2.6, 2.74, -0.95, 0.95); M.boxB('wood', -0.08, 0.08, 2.75, 2.82, -1.0, 1.0);
-  // poulie sous la traverse : chape de fer, réa (axe le long de x, la corde passe dans le plan y-z)
+  // pulley under the crossbeam: iron yoke, sheave (axis along x, the rope runs in the y-z plane)
   M.color([0.3, 0.3, 0.3]);
   for (const sx of [-0.04, 0.04]) M.boxB('steel', sx - 0.008, sx + 0.008, 2.36, 2.6, -0.035, 0.035);
   M.save().move(-0.03, 2.42, 0).rotZ(-Math.PI / 2); M.cyl('steel', 0.09, 0.06, 12); M.restore();
-  // brin libre : du haut du réa au taquet du montant nord, puis quelques tours
+  // free strand: from the top of the sheave to the cleat on the north post, then a few turns
   M.color([0.55, 0.38, 0.22]); M.tube('canvas', 0.012, [[0, 2.5, -0.06], [0, 2.1, -0.4], [0, 1.45, -0.77]], 4);
   M.color([0.35, 0.33, 0.3]); M.boxB('steel', -0.03, 0.03, 1.4, 1.48, -0.8, -0.77);
   M.color([0.55, 0.38, 0.22]); M.save().move(0, 1.36, -0.79); M.cyl('canvas', 0.085, 0.08, 10, { caps: '' }); M.restore();
   M.restore();
-  // l'eau au fond, et le trou du sol
-  // (le ciel qu'elle reflète est vu par un trou de 1,2 m au bout de 2,5 m de conduit : reflet bien plus faible qu'en plein air)
+  // the water at the bottom, and the hole in the ground
+  // (the sky it reflects is seen through a 1.2 m hole at the end of 2.5 m of shaft: a much weaker reflection than in the open air)
   pondAdd({ shape: 'disc', r: Rw, seg: 14, rings: 2, x, y: y - deep + 0.1, z, tone: 0.4, depth: 0.3, murk: 1, caus: 0, deep: [0.004, 0.008, 0.008], shallow: [0.012, 0.022, 0.02], scatter: [0.002, 0.006, 0.006] }).material.envMapIntensity = 0.12;
   if (!o.relief) (CYC.holes || (CYC.holes = [])).push([x - 0.62, x + 0.62, z - 0.62, z + 0.62]);
   HOLES.push({ x, z, r: Rw, y: y - deep + 0.1, m: 'water', wall: 'concrete' });
-  // collisions : margelle en quatre boîtes, colonne invisible pour les soldats au-dessus du trou
+  // collisions: curb as four boxes, column invisible to soldiers above the hole
   for (const [a0, a1, b0, b1] of [[-0.9, -Rw, -0.9, 0.9], [Rw, 0.9, -0.9, 0.9], [-Rw, Rw, -0.9, -Rw], [-Rw, Rw, Rw, 0.9]]) DECOR.col(x + a0, x + a1, y, y + 1.0, z + b0, z + b1, 'concrete');
   COL.push({ x0: x - Rw, x1: x + Rw, y0: y, y1: y + 2.6, z0: z - Rw, z1: z + Rw, m: 'concrete', ray: false, noRay: true, inv: true });
-  // le seau : corde, anse et seau cerclé, dans un groupe qui pend du bas du réa (côté +z)
+  // the bucket: rope, handle and hooped bucket, in a group hanging from the bottom of the sheave (+z side)
   const L = 0.87, pf = prefab('cyWellBucket', (S) => {
     S.local(1);
     S.color([0.55, 0.38, 0.22]); S.tube('canvas', 0.012, [[0, 0, 0], [0, -L, 0]], 4);
@@ -284,11 +284,11 @@ function cyWell(x, z, o = {}) {
     S.restore();
   });
   const g = new THREE.Group(), body = cyPrefabGroup(pf, MAT);
-  g.name = 'pendule:seau'; g.position.set(x, y + 2.42, z + 0.09); g.add(body); mapAdd(g);
-  // butées : les montants (z = ±0,85) arrêtent le seau vers le nord et le sud
+  g.name = 'pendulum:bucket'; g.position.set(x, y + 2.42, z + 0.09); g.add(body); mapAdd(g);
+  // stops: the posts (z = ±0.85) stop the bucket to the north and south
   hangAdd(g, body, L + 0.27, { r: 0.16, top: L, mat: 'wood', lim: [-0.72, 0.55, -1.0, 1.0] });
 }
-/* Drapeau grec (neuf bandes, canton bleu à croix blanche) sur sa hampe de hp mètres, déployé dans le vent vers ry */
+/* Greek flag (nine stripes, blue canton with a white cross) on its pole of hp meters, unfurled in the wind toward ry */
 function cyFlag(x, y, z, ry = 0, hp = 2.0) {
   const M = DECOR, w = 1.5, h = 1.0;
   M.save().move(x, y, z).rotY(ry).local(1);
@@ -298,18 +298,18 @@ function cyFlag(x, y, z, ry = 0, hp = 2.0) {
   M.restore();
   M.restore();
 }
-/* L'étoffe : six bandes verticales qui ondulent un peu (forme au repos ; le vent la fait flotter, 02mc-tissus.js), texture cyFlagTex de la hampe (u = 0) au bout flottant (u = 1) */
+/* The cloth: six vertical strips that undulate a little (rest shape; the wind makes it flutter, 02mc-cloths.js), cyFlagTex texture from the pole (u = 0) to the free end (u = 1) */
 function cyFlagCloth(M, w, h) {
   const B = M.buf('cyflag', w / 2, h / 2, 0), n = 6, zAt = (u) => Math.sin(u * 5.2) * 0.07 * u + u * 0.08, P = [];
   M.save().color([1, 1, 1]);
   for (let k = 0; k <= n; k++) {
     const u = k / n, x = u * w, z = zAt(u), dz = (zAt(u + 0.01) - z) / (0.01 * w), l = hyp(1, dz);
-    P.push([M.v(B, x, 0, z, -dz / l, 0, 1 / l, u, 1, 1, u), M.v(B, x, h, z, -dz / l, 0, 1 / l, u, 0, 1, u)]); // souplesse u : la vague court de la hampe au bout (02mc-tissus.js)
+    P.push([M.v(B, x, 0, z, -dz / l, 0, 1 / l, u, 1, 1, u), M.v(B, x, h, z, -dz / l, 0, 1 / l, u, 0, 1, u)]); // softness u: the wave runs from the pole to the end (02mc-cloths.js)
   }
   for (let k = 0; k < n; k++) M.quadI(B, P[k][0], P[k + 1][0], P[k + 1][1], P[k][1]);
   M.restore();
 }
-/* Chat assis (de dos, tourné vers ry) : pelage de la graine */
+/* Seated cat (from behind, turned toward ry): coat from the seed */
 PF.cyCat = (seed = 1) => prefab('cyCat' + seed, (M) => {
   const fur = [[0.85, 0.5, 0.2], [0.35, 0.34, 0.33], [0.08, 0.08, 0.09], [0.9, 0.88, 0.82], [0.6, 0.45, 0.3]][seed % 5];
   M.color(fur).local(1);
