@@ -10,7 +10,7 @@ const { openGame } = require('./common');
 const path = require('path');
 const out = process.argv[2];
 if (out) require('fs').mkdirSync(out, { recursive: true });
-const MAPS = process.env.MAP ? [process.env.MAP] : ['chergui', 'saintgivre', 'portmael', 'floralia', 'notos', 'scoria', 'cirrus', 'sirocco', 'belhorizon'];
+const MAPS = process.env.MAP ? [process.env.MAP] : ['chergui', 'saintgivre', 'portmael', 'floralia', 'notos', 'scoria', 'cirrus', 'sirocco', 'belhorizon', 'outpost'];
 let fails = 0;
 const ok = (c, m) => { if (!c) { fails++; console.log('FAIL  :', m); } else console.log('ok    :', m); };
 const LIMIT = (n) => `(() => { const f = WebGL2RenderingContext.prototype.getParameter; WebGL2RenderingContext.prototype.getParameter = function (p) { return p === 0x8872 ? ${n} : f.call(this, p); }; })();`;

@@ -65,17 +65,19 @@ export function onTarget(adapter, renderer) {
   return adapter.vendor === NV ? /NVIDIA/i.test(renderer) : /AMD|Radeon|Intel/i.test(renderer);
 }
 
-/** Opens the game. o.url (default: served dist/), o.gpu ('soft' = SwiftShader headless, or 'igpu' | 'dgpu' | 'any' headful),
+/** Opens the game. o.url (default: served dist/), o.gpu ('soft' = SwiftShader headless, 'hw' = the machine's graphics card headless
+ *  (no window, light on the processor), or 'igpu' | 'dgpu' | 'any' headful),
  *  o.settings (merged into dc_settings), o.init (extra init script), o.w/o.h. Resolves once the main menu is up.
  *  Returns { browser, page, logs } where logs collects page errors and console errors. */
 export async function openGame(o = {}) {
-  const soft = (o.gpu || 'soft') === 'soft';
-  const g = soft ? { args: [], adapter: null } : await gpuArgs(o.gpu);
+  const soft = (o.gpu || 'soft') === 'soft', hw = o.gpu === 'hw', headless = soft || hw;
+  const g = headless ? { args: [], adapter: null } : await gpuArgs(o.gpu);
   const args = soft ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']
+    : hw ? ['--use-gl=angle', '--use-angle=d3d11', '--ignore-gpu-blocklist']
     : ['--use-gl=angle', '--use-angle=d3d11', '--ignore-gpu-blocklist', '--start-maximized', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', ...g.args];
   if (o.autoplay) args.push('--autoplay-policy=no-user-gesture-required');
-  const browser = await chromium.launch({ executablePath: CHROME, headless: soft, args });
-  const ctx = await browser.newContext(soft ? { viewport: { width: o.w || 1280, height: o.h || 720 } } : { viewport: null });
+  const browser = await chromium.launch({ executablePath: CHROME, headless, args });
+  const ctx = await browser.newContext(headless ? { viewport: { width: o.w || 1280, height: o.h || 720 } } : { viewport: null });
   const page = await ctx.newPage();
   const settings = Object.assign({ sv: 8, lang: 'en', quality: soft ? 'low' : 'auto' }, o.settings || {});
   await page.addInitScript(`try{localStorage.setItem('dc_settings', ${JSON.stringify(JSON.stringify(settings))});localStorage.setItem('cod_seen_version','99')}catch(e){}`);

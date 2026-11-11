@@ -60,14 +60,14 @@ function vwCamPlace(cam, a, p, d, aim) {
    was displayed made a Pixel (PowerVR) lose its WebGL context, 0.6 s after the class choice opened, when the thumbnails resumed. The target has the
    sRGB encoding (hardware conversion on write): same image as before, when three.js converted to the canvas. */
 const VWT = { rt: null, px: null, img: null, tmp: null };
-function vwDraw(ctx, dw, dh, W, H) {
+function vwDraw(ctx, dw, dh, W, H, bg = VW_BG) {
   const r = renderer, w = Math.max(2, Math.min(2048, Math.floor(W))), h = Math.max(2, Math.min(2048, Math.floor(H)));
   if (!VWT.rt) { VWT.rt = new THREE.WebGLRenderTarget(w, h); VWT.rt.texture.encoding = THREE.sRGBEncoding; }
   else if (VWT.rt.width !== w || VWT.rt.height !== h) VWT.rt.setSize(w, h);
   if (!VWT.px || VWT.px.length !== w * h * 4) { VWT.px = new Uint8Array(w * h * 4); VWT.img = new ImageData(w, h); }
   const keep = { rt: r.getRenderTarget(), tm: r.toneMapping, ex: r.toneMappingExposure, ac: r.autoClear, cc: r.getClearColor(_vwCol).clone(), ca: r.getClearAlpha() };
   const S = vwScene(); S.scene.environment = envMap;
-  r.setRenderTarget(VWT.rt); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1; r.autoClear = true; r.setClearColor(VW_BG, 1);
+  r.setRenderTarget(VWT.rt); r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1; r.autoClear = true; r.setClearColor(bg, 1);
   r.render(S.scene, S.cam);
   r.readRenderTargetPixels(VWT.rt, 0, 0, w, h, VWT.px);
   r.setRenderTarget(keep.rt); r.toneMapping = keep.tm; r.toneMappingExposure = keep.ex; r.autoClear = keep.ac; r.setClearColor(keep.cc, keep.ca);

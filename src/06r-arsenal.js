@@ -98,7 +98,7 @@ function arsKill(wid, head) {
   return { weapon: wid, level: l1, up: l1 - l0, gained: gain, items };
 }
 /* The gains of a match: reset when it opens, picked up by the end screen */
-function arsSessionReset() { ARS.sess = {}; ARS.chSess = {}; ARS.t0 = MATCH.time; ARS.gain = null; ARS.lvSeen = playerLevel(); ARS.lvT = 0; }
+function arsSessionReset() { ARS.sess = {}; ARS.chSess = {}; challengesReset(); ARS.t0 = MATCH.time; ARS.gain = null; ARS.lvSeen = playerLevel(); ARS.lvT = 0; }
 function arsSessionHtml() {
   const rows = Object.keys(ARS.sess).filter((id) => ARS.sess[id].xp > 0).sort((a, b) => ARS.sess[b].xp - ARS.sess[a].xp).map((id) => {
     const S = ARS.sess[id], L = wLevelInfo(id), up = L.level - S.l0;

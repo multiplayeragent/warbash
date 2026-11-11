@@ -1,5 +1,5 @@
 // Every map: it loads, a short bot match runs on it (bots move and fight) and nothing throws. Run after touching a map, a kit or
-// anything shared by the maps. node tools/gate/maps.mjs [seconds=12]; GPU=any (default) | dgpu | igpu | soft; MAPS=id1,id2 to pick
+// anything shared by the maps. node tools/gate/maps.mjs [seconds=12]; GPU=any (default) | dgpu | igpu | soft | hw (graphics card, no window); MAPS=id1,id2 to pick
 import { openGame, serve } from './lib.mjs';
 
 const SECS = +(process.argv[2] || 12);

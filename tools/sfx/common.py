@@ -27,7 +27,7 @@ def fetch(rel, url):
     p = SRC / rel
     if not p.exists():
         p.parent.mkdir(parents=True, exist_ok=True)
-        req = urllib.request.Request(url, headers={'User-Agent': 'war-bash-sfx'})
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (sfx-fetch)'})
         with urllib.request.urlopen(req, timeout=120) as r, open(p, 'wb') as f:
             f.write(r.read())
     return p

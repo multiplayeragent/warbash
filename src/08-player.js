@@ -337,6 +337,9 @@ function updatePlayer(dt, now) {
   if (voidCheck(e) || ringCheck(e, dt)) return; // fell into the void (floating islands), or stayed too long outside the round zone
   // end of a slide on the ground (not a jump): the player stays crouched; Shift while moving forward, jump or C raise them
   if (PL.wasSliding && !(e.slideT > 0) && !mv.jumped && e.onGround && e.alive) PL.crouchToggle = true;
+  // moments for the challenges (06s-challenges.js): end of a slide, landing after at least a quarter second in the air
+  if (PL.wasSliding && !(e.slideT > 0)) CHX.slideT = MATCH.time;
+  if (!e.onGround) CHX.airT += dt; else { if (CHX.airT > 0.25) CHX.landT = MATCH.time; CHX.airT = 0; }
   PL.wasSliding = e.slideT > 0;
   // (5.1, more pronounced: slide, jump, landing and sprint start marked more)
   if (mv.slid) { sfxSlide(); e.dustT = 0; VM.vland += 0.65; PL.fovK = 6.5; PL.vpP += 0.7; PL.vrollP += 0.35; }

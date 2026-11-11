@@ -17,7 +17,7 @@ const ok = (c, msg, extra) => { console.log((c ? 'ok    ' : 'FAIL ') + msg + (ex
 const OUT = path.join(HERE, 'minimaps');
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
-  const maps = (process.env.MAP_LIST || 'chergui,saintgivre,portmael,floralia,notos,scoria,cirrus,sirocco,belhorizon').split(',');
+  const maps = (process.env.MAP_LIST || 'chergui,saintgivre,portmael,floralia,notos,scoria,cirrus,sirocco,belhorizon,outpost').split(',');
   for (const id of maps) {
     console.log(id);
     const { browser, page, logs } = await openGame({ page: process.argv[2], ...(process.env.PHONE ? { mobile: true } : { w: 1280, h: 720 }), settings: { quality: 'low', map: id, mode: id === 'saintgivre' ? 'dom' : 'tdm' }, noHdri: true });

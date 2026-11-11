@@ -4,8 +4,11 @@ const { chromium } = require('playwright-core');
 const path = require('path');
 const HERE = __dirname, REPO = path.resolve(HERE, '../../..');
 const CHROME = process.env.CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+/* Rendering: software by default (SwiftShader: the same image on every machine, but all on the processor); GPU=hw renders on the machine's
+   graphics card, still without a window (Windows, Direct3D 11): many times faster and the processor stays free */
+const GL = process.env.GPU === 'hw' ? ['--use-gl=angle', '--use-angle=d3d11', '--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 async function openGame(o = {}) {
-  const b = await chromium.launch({ executablePath: CHROME, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', ...(process.env.CHROME_ARGS ? process.env.CHROME_ARGS.split(' ') : [])] }); // CHROME_ARGS: extra options (e.g. --js-flags=--allow-natives-syntax)
+  const b = await chromium.launch({ executablePath: CHROME, args: [...GL, ...(process.env.CHROME_ARGS ? process.env.CHROME_ARGS.split(' ') : [])] }); // CHROME_ARGS: extra options (e.g. --js-flags=--allow-natives-syntax)
   // o.mobile: Android phone in landscape (touch screen, pixels of 2.625 or o.dpr, Chrome Android; o.ua: another agent, an iPhone for example; o.pwa: lets the install prompt come up); otherwise a desktop screen
   const pg = o.mobile
     ? await (await b.newContext({ bypassCSP: !o.csp, viewport: { width: o.w || 915, height: o.h || 412 }, deviceScaleFactor: o.dpr || 2.625, isMobile: true, hasTouch: true, userAgent: o.ua || 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36' })).newPage()

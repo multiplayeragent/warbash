@@ -448,7 +448,7 @@ div.lb-foot { display: flex; justify-content: flex-end; }
 .mapcard { position: relative; display: block; text-align: left; color: var(--paper); background: var(--ink-3); border: 1px solid var(--line-2); overflow: hidden; cursor: pointer; outline: none; transition: border-color var(--t1), box-shadow var(--t1); }
 .mapcard .mapart { position: absolute; inset: 0; display: block; width: 100%; height: 100%; background: var(--ink-3); object-fit: cover; object-position: 50% 50%; transition: transform var(--t3) var(--ease), filter var(--t2); }
 .mapcard .mapart.none { background: linear-gradient(135deg, #1b1d17, #10110d); }
-.mapcard::after { content: ""; display: block; padding-top: 31%; } /* compact banner (about 3.2:1): the height comes from the width, all maps fit together */
+.mapcard::after { content: ""; display: block; padding-top: 25%; } /* compact banner (4:1): the height comes from the width, the ten maps fit together in two columns without scrolling */
 .mapcard .mtx { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; }
 .mapcard::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(5,6,4,.94) 0%, rgba(5,6,4,.62) 30%, rgba(5,6,4,0) 62%); pointer-events: none; }
 .mapcard .mt, .mapcard .mg { display: block; text-shadow: 0 1px 3px rgba(0,0,0,.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -977,9 +977,16 @@ div.lb-foot { display: flex; justify-content: flex-end; }
 .skv.live { background: none; } /* animated preview: the soldier and his studio are drawn in the game canvas, under this frame (09u-outfits.js) */
 .sk-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 10px; align-content: start; margin: -8px; padding: 8px; }
 .sk-card { position: relative; display: flex; align-items: stretch; gap: 12px; padding: 0; text-align: left; color: var(--paper); background: rgba(10,11,9,.6); border: 1px solid var(--line); overflow: hidden; transition: background var(--t1), border-color var(--t1); }
-.sk-card img { flex: none; width: 34%; aspect-ratio: 2 / 3; object-fit: cover; background: #181b14; }
+.sk-card img { flex: none; width: 34%; aspect-ratio: 2 / 3; object-fit: cover; background: #30352a; }
 .sk-card img[data-pend] { opacity: .4; }
-.sk-tx { display: flex; flex-direction: column; gap: 4px; padding: 10px 10px 10px 0; min-width: 0; }
+.sk-card.challenge img { width: 24%; } /* (26 challenge outfits: shorter cards, less scrolling; the whole thumbnail, a banner or an antenna not cut) */
+.sk-card.challenge .cn { font-size: clamp(15px, 1.35vw, 20px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* (Standard-Bearer, Verdant Phantom: one line) */
+.sk-card .sk-uw { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-top: 4px; }
+.sk-card .sk-uw .cb { margin-top: 0; }
+.sk-card .cb.un { background: none; color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); } /* (a mark) */
+.sk-card .cb.wear { padding-left: 14px; padding-right: 14px; } /* (its own button: an unlocked outfit is worn by choosing its card) */
+.sk-card .nw, .sk-info .nw { white-space: nowrap; }
+.sk-tx { flex: 1 1 auto; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px 10px 0; min-width: 0; } /* (the whole width: progress bars of equal length) */
 .sk-card .cn { font-size: clamp(18px, 1.9vw, 22px); font-weight: 700; line-height: 1.05; letter-spacing: .03em; text-transform: uppercase; overflow-wrap: anywhere; }
 .sk-card .cw { font-size: 15px; color: var(--dim); line-height: 1.25; }
 .sk-card .cb { align-self: flex-start; margin-top: 4px; padding: 2px 8px; font-size: 13px; font-weight: 700; line-height: 1.3; letter-spacing: var(--track); text-transform: uppercase; background: var(--acc); color: var(--acc-ink); }
@@ -991,7 +998,7 @@ div.lb-foot { display: flex; justify-content: flex-end; }
 .sk-h::before { content: ""; flex: none; width: 12px; height: 2px; background: var(--acc); }
 .sk-h span { font-size: var(--fs-xs); font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--dim); }
 .sk-card.locked { background: rgba(10,11,9,.45); }
-.sk-card.locked img { filter: grayscale(.5) brightness(.72); }
+.sk-card.locked img { filter: saturate(.75); } /* (a locked outfit stays readable: the player sees what they are earning) */
 .sk-card.locked .cn { color: var(--dim); }
 .sk-card.viewing { border-color: rgba(242,238,227,.75); box-shadow: 0 0 0 1px rgba(242,238,227,.75); } /* locked outfit in the preview (yellow stays with the chosen outfit) */
 .sk-card.viewing .cn { color: var(--paper); }
@@ -1001,8 +1008,9 @@ div.lb-foot { display: flex; justify-content: flex-end; }
 .sk-info-h b { font-family: var(--stencil); font-weight: 400; font-size: clamp(22px, 3vh, 30px); line-height: 1; letter-spacing: .02em; }
 .sk-info .sk-lk { margin: 0; color: var(--paper); }
 .sk-info > .cw { font-size: var(--fs-s); color: var(--dim); }
-.sk-info .sk-dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 8px; }
-.sk-info .sk-d small { display: none; } @media (min-height: 900px) { .sk-info .sk-d small { display: block; } } /* a challenge's hint: only if the preview is tall enough that the soldier is still visible */
+.sk-info .sk-dl { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 8px; }
+/* short screens: the challenges beside the soldier, not under him (the soldier keeps the full height of the preview) */
+@media (max-height: 899px) { .sk-info { top: 0; left: auto; width: 54%; justify-content: center; padding: 16px 16px 16px 30px; background: linear-gradient(to left, rgba(6,7,5,.95) 84%, rgba(6,7,5,0)); } }
 .sk-info .sk-dt { font-size: var(--fs-s); }
 .skv.has-info .vw-help { display: none; }
 .sk-lk { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: var(--fs-xs); font-weight: 700; color: var(--dim); }
@@ -1014,7 +1022,7 @@ div.lb-foot { display: flex; justify-content: flex-end; }
 .sk-dt { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 15px; line-height: 1.2; }
 .sk-dt b { font-weight: 600; color: var(--paper); }
 .sk-dt em { flex: none; font-style: normal; font-weight: 700; color: var(--dim); font-variant-numeric: tabular-nums; }
-.sk-d small { font-size: var(--fs-xs); line-height: 1.3; color: var(--dim); }
+.sk-d small { font-size: var(--fs-xs); line-height: 1.25; color: var(--dim); } /* (a challenge's hint: under its name, before its bar) */
 .sk-d.ok .sk-dt em { color: var(--acc); }
 .ars-row.done span { color: var(--xp); }
 @media (max-width: 900px) and (min-height: 521px) { .sk { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); } }
@@ -1661,6 +1669,7 @@ body.touch .fpv-bat { right: 50%; transform: translateX(50%); } /* on touch, the
 #endScore { margin: 0; font: 700 clamp(20px, 3.2vh, 30px)/1.15 var(--hud); letter-spacing: .03em; text-transform: uppercase; }
 #endMeta { margin: 6px 0 0; font-size: var(--fs-s); color: var(--dim); }
 .end-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; display: flex; flex-direction: column; gap: clamp(10px, 2vh, 20px); padding: clamp(10px, 2vh, 20px) 0; }
+@media (max-height: 520px) { .end-body { padding-bottom: calc(var(--u) * 7); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - var(--u) * 7), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - var(--u) * 7), transparent); } } /* phone: the boards fade out above the footer (they scroll), not cut by it */
 .end-body > :first-child { margin-top: auto; } .end-body > :last-child { margin-bottom: auto; } /* (in the center when space allows, at the top otherwise) */
 .end-boards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 #end.one .end-boards { grid-template-columns: minmax(0, 820px); justify-content: center; } #end.one .end-boards > .eb + .eb { display: none; }
@@ -1714,6 +1723,23 @@ body.touch .fpv-bat { right: 50%; transform: translateX(50%); } /* on touch, the
 .ars-row i { font-style: normal; font-weight: 700; white-space: nowrap; color: var(--acc); }
 .ars-row em { margin-left: 6px; padding: 0 6px; font-style: normal; font-weight: 700; color: var(--acc-ink); background: var(--acc); }
 .ars-row.done span { color: var(--acc); }
+/* end screen: the rows' cells share one grid (gains, counts and outfits in true columns), in two halves when the panel is wide */
+.end-ars { container-type: inline-size; }
+.end-ch { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; }
+@container (min-width: 860px) { .end-ch { grid-template-columns: minmax(0, 1fr) auto auto auto minmax(0, 1fr) auto auto auto; } .end-ch > .ars-row:nth-child(even) > b { margin-left: 28px; } }
+.end-ch > .ars-row { display: contents; }
+.end-ch > .ars-row > * { padding: 5px 0 5px 14px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: visible; }
+.end-ch > .ars-row > b { padding-left: 0; white-space: normal; text-transform: none; letter-spacing: 0; } /* (the challenge's words as on the Outfits screen) */
+.end-ch > .ars-row > span { text-align: right; color: var(--dim); font-variant-numeric: tabular-nums; }
+.end-ch > .ars-row > i { text-align: right; color: var(--paper); font-variant-numeric: tabular-nums; }
+.end-ch > .ars-row > u { text-decoration: none; font-weight: 700; color: var(--acc); }
+.end-ch > .ars-row.done > * { background: rgba(246,196,69,.13); }
+.end-ch > .ars-row.done > b { padding-left: 10px; box-shadow: inset 3px 0 0 var(--acc); }
+.end-ch > .ars-row.done > u { padding-right: 10px; } /* (the tint does not stop at the outfit's last letter) */
+.end-ch > .ars-row.done > span em { margin: 0; }
+.end-ch-sum { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 20px; padding-top: 7px; font-size: var(--fs-s); color: var(--dim); }
+.end-ch-sum b { font-weight: 700; color: var(--paper); }
+.ars-row.more b, .ars-row.more i { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--dim); } /* (end screen: challenges beyond the first rows, summed up) */
 .end-foot { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; padding: 14px 0 max(18px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 .end-time { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
 #endTimer { font-size: var(--fs-s); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dim); }
@@ -2251,6 +2277,7 @@ body.touch #perf { top: auto; right: auto; left: var(--sl); bottom: var(--sb); }
    (the player's ratio stays in their tile) so that names are readable. The single deathmatch ranking has the full width and keeps them. */
 @media (max-height: 520px) and (max-width: 940px) { #endStats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (max-height: 520px) and (max-width: 860px) { #end:not(.one) .end-boards :is(th, td):nth-child(n+6) { display: none; } }
+@media (max-height: 520px) { .end-prog { order: -1; } } /* phone: the match's progression (XP, challenges) first, the boards below */
 
 /* Screens with an action panel (Solo, lobby, deployment) on a short screen: everything is sized in "u" (1% of the screen height, like the touch
    HUD), the screen itself never scrolls and the footer ("Start the match") has its own line, nothing below; only the choice area
@@ -2372,14 +2399,14 @@ body.touch #perf { top: auto; right: auto; left: var(--sl); bottom: var(--sb); }
   .skv { flex: 1 1 0; aspect-ratio: auto; max-height: none; min-height: 0; }
   .sk-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: calc(var(--u) * 2); grid-auto-rows: max-content; } /* (without max-content, the fixed height of the list squashed the cards: cut-off text) */
   .sk-card { gap: calc(var(--u) * 2.2); }
-  .sk-card img { width: 26%; aspect-ratio: 3 / 4; }
-  .sk-info { padding: calc(var(--u) * 6) calc(var(--u) * 2.6) calc(var(--u) * 2); gap: calc(var(--u) * .4); background: linear-gradient(to top, rgba(6,7,5,.95) 70%, rgba(6,7,5,0)); }
+  .sk-card img, .sk-card.challenge img { width: 23%; }
+  .sk-info { width: 56%; padding: calc(var(--u) * 2) calc(var(--u) * 2.4) calc(var(--u) * 2) calc(var(--u) * 5); gap: calc(var(--u) * .4); }
   .sk-info .sk-dt { font-size: var(--fs-xs); line-height: 1.15; }
   .sk-info .sk-pb { margin-top: 2px; }
   .sk-info-h b { font-size: calc(var(--u) * 5.6); }
   .sk-info > .cw { display: none; }
-  .sk-info .sk-dl { grid-template-columns: minmax(0, 1fr); gap: calc(var(--u) * .9); margin-top: calc(var(--u) * .6); }
-  .sk-info .sk-d small { display: none; }
+  .sk-info .sk-dl { grid-template-columns: minmax(0, 1fr); gap: calc(var(--u) * 1.8); margin-top: calc(var(--u) * .8); }
+  .sk-info .sk-d small { font-size: var(--fs-xs); line-height: 1.15; }
   .sk-card .cn { font-size: calc(var(--u) * 4.6); }
   .sk-card .cw { font-size: calc(var(--u) * 3.4); }
   .sk-tx { padding: calc(var(--u) * 2) calc(var(--u) * 1.5) calc(var(--u) * 2) 0; gap: calc(var(--u) * .8); }
@@ -2521,7 +2548,9 @@ body.touch #perf { top: auto; right: auto; left: var(--sl); bottom: var(--sb); }
 /* Outfits (screen and pause view): nine outfits no longer fit in height; the list scrolls within its frame, rows sized to their content */
 #scr-skins .shead { flex: none; }
 #scr-skins .sk { flex: 1 1 0; min-height: 0; align-items: stretch; }
-#scr-skins .sk-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; grid-auto-rows: max-content; }
+#scr-skins .sk-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(242,238,227,.35) transparent; grid-auto-rows: max-content; grid-template-columns: repeat(2, minmax(0, 1fr)); } /* (two columns at every width: the groups of ten fill their rows) */
+#scr-skins .sk-list { padding-bottom: 48px; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 10px, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 10px, #000 calc(100% - 48px), transparent); } /* (the list fades out at the bottom: more below) */
+#scr-skins .sk-list.sk-up { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 48px, #000 calc(100% - 48px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 48px, #000 calc(100% - 48px), transparent); } /* (and at the top once scrolled: more above) */
 /* pause: the Class and Options views fit in the panel (the list scrolls, "Confirm" stays in view) */
 #pmClass.on, #pmOptions.on { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 #pmClass .pm-h, #pmOptions .pm-h, #pmClass .pm-foot { flex: none; }

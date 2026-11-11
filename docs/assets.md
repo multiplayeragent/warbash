@@ -2,7 +2,7 @@
 
 Produced from the code by `python3 tools/dev/assets.py`, which `build.py` runs on every build: do not edit it by hand. The whole game is built by code (README, "Art direction: everything in code"); only the photo textures, the skies and the HDRIs come from files, all CC0. An asset's description is the comment written above its definition: to change it, change the comment.
 
-224 prefabs, 39 physics props, 47 photo surfaces, 62 procedural surfaces, 14 atlases drawn at load, 8 photographed skies, 3 HDRI, 18 weapons, 18 attachments.
+300 prefabs, 39 physics props, 47 photo surfaces, 79 procedural surfaces, 19 atlases drawn at load, 8 photographed skies, 3 HDRI, 18 weapons, 18 attachments.
 
 ## Maps
 
@@ -17,6 +17,7 @@ Produced from the code by `python3 tools/dev/assets.py`, which `build.py` runs o
 | Cirrus | `src/02yj-cirrus.js` | wood, stone, strata, lawn, dirt, flagstone, humus, canvas, burlap, timber, bark |  |
 | Sirocco | `src/02yl-sirocco.js` | stone, wood, sand, dirt, pise, adobe, shingle, vase, strata, reg, canvas, woolen, steel, burlap, timber, palmbark |  |
 | Bel-Horizon | `src/02yn-belhorizon.js` | plaster, slate, rooftiles, asphalt, concrete, pavers, lawn, pathgravel, wood, paintwood, rollshutter, steel, timber, bark, dirt, sand, canvas, cardboard |  |
+| Selva | `src/02yq-outpost.js` | concrete, dirt, humus, lawn, pathgravel, sand | kloofendal_48d |
 
 ## Scenery prefabs
 
@@ -28,10 +29,10 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 
 | Prefab | Parameters | Description | Placed in |
 | --- | --- | --- | --- |
-| `crate` | s = 1.1 | Plank crate: panels, battens on the edges, diagonal braces | 02k-dynprops, 02yi-cirrus-kit, 02yj-cirrus (Cirrus) |
-| `pallet` |  | Wooden pallet (1.2 x 0.8) | 02l-port, 02s-chergui (Chergui), 02t-saintgivre (Saint-Givre), 02u-portmael (Port-Maël), 02yh-scoria (Scoria) |
-| `barrel` |  | 200 L metal drum: rolling hoops, bungs | 02k-dynprops |
-| `jerrycan` |  | Jerrycan (20 L, military model from photos): rounded-edge body, stamped Xs on the sides, weld seam all around, three handles across the top, spout and lever cap at the front | 02k-dynprops |
+| `crate` | s = 1.1 | Plank crate: panels, battens on the edges, diagonal braces | 02k-dynprops, 02yi-cirrus-kit, 02yj-cirrus (Cirrus), 02yp-outpost-yard |
+| `pallet` |  | Wooden pallet (1.2 x 0.8) | 02l-port, 02s-chergui (Chergui), 02t-saintgivre (Saint-Givre), 02u-portmael (Port-Maël), 02yh-scoria (Scoria), 02yo-outpost-building, and 1 others |
+| `barrel` |  | 200 L metal drum: rolling hoops, bungs | 02k-dynprops, 02yp-outpost-yard |
+| `jerrycan` |  | Jerrycan (20 L, military model from photos): rounded-edge body, stamped Xs on the sides, weld seam all around, three handles across the top, spout and lever cap at the front | 02k-dynprops, 02ypa-outpost-tower |
 | `gasBottle` |  | Butane gas bottle (blue or orange) | 02k-dynprops |
 | `cardboard` | w = 0.5, h = 0.4, d = 0.4 | Moving box | 02k-dynprops |
 | `trashBag` |  | Garbage bag | 02k-dynprops |
@@ -43,7 +44,7 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 | Prefab | Parameters | Description | Placed in |
 | --- | --- | --- | --- |
 | `sandbag` |  | Low scenery sandbag (58 x 15 x 33 cm) | 02k-dynprops |
-| `sandbagFat` |  | Wall sandbag (physics): thicker than the scenery one (22 x 60 x 40 cm), so that the courses touch; its collision is the box it occupies and follows the bag when it falls | 02k-dynprops |
+| `sandbagFat` |  | Wall sandbag (physics): thicker than the scenery one (22 x 60 x 40 cm), so that the courses touch; its collision is the box it occupies and follows the bag when it falls | 02k-dynprops, 02yp-outpost-yard |
 | `sandbagHalf` |  | Half-bag (30 x 22 x 40 cm): half-filled bag, folded, which closes the end of an offset course | 02k-dynprops |
 | `jersey` | len | Concrete jersey barrier (F profile), length len along z | 02s-chergui (Chergui) |
 
@@ -63,7 +64,7 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 | `pebbles` | seed = 1 | Gravel and scattered small debris (minor details) | 02s-chergui (Chergui) |
 | `bollard` |  | Anti-parking bollard | 02u-portmael (Port-Maël) |
 | `dumpster` |  | Front-loading garbage bin (from photos): tank with sloped front face and straight back, rim, vertical ribs, lifting sleeves on the ends, two black plastic lids hinged at the back (one ajar), swivel... | 02s-chergui (Chergui), 02u-portmael (Port-Maël) |
-| `tire` |  | Stack of tires | 02k-dynprops |
+| `tire` |  | Stack of tires | 02k-dynprops, 02yp-outpost-yard |
 | `pole` |  | Wooden utility pole with crossarm and insulators | 02t-saintgivre (Saint-Givre) |
 
 **Facades and roofs**
@@ -72,7 +73,7 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 | --- | --- | --- | --- |
 | `acUnit` |  | Air conditioner (outdoor unit) with fan, grille and brackets; back against the wall (z = 0) | 02d-archi |
 | `waterTank` |  | Polyethylene water tank on its stand (typical of Maghreb rooftops) | 02d-archi, 02yc-cyclades-buildings, 02yl-sirocco (Sirocco) |
-| `dish` |  | Satellite dish on a stand | 02d-archi |
+| `dish` |  | Satellite dish on a stand | 02d-archi, 02yp-outpost-yard |
 | `solarHeater` |  | Solar water heater: tilted collector, horizontal tank, base | 02d-archi, 02yc-cyclades-buildings |
 | `antenna` |  | Yagi antenna | 02d-archi, 02yc-cyclades-buildings, 02yl-sirocco (Sirocco) |
 | `roofHut` |  | Rooftop access structure: stairwell with door | 02d-archi |
@@ -83,7 +84,7 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 | Prefab | Parameters | Description | Placed in |
 | --- | --- | --- | --- |
 | `rack` | L | Pallet racking: blue uprights, orange beams, loads | 02s-chergui (Chergui) |
-| `generator` |  | Soundproofed generator (from photos of construction site generators): U-shaped frame on skids, arched-roof hood, louvered radiator grille at +x, hot air outlet at -x, access doors on the sides... | 02s-chergui (Chergui), 02t-saintgivre (Saint-Givre), 02yh-scoria (Scoria), 02yl-sirocco (Sirocco) |
+| `generator` |  | Soundproofed generator (from photos of construction site generators): U-shaped frame on skids, arched-roof hood, louvered radiator grille at +x, hot air outlet at -x, access doors on the sides... | 02s-chergui (Chergui), 02t-saintgivre (Saint-Givre), 02yh-scoria (Scoria), 02yl-sirocco (Sirocco), 02ypa-outpost-tower |
 
 **Cafe, market**
 
@@ -118,7 +119,7 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 
 | Prefab | Parameters | Description | Placed in |
 | --- | --- | --- | --- |
-| `car` | model = 'sedan', o = {} | Car: model 'sedan', 'hatch' (city car), 'suv', 'mpv', 'cross' (tall family cars), 'offroad' (4x4); o: { dust, wreck, rack } (see carBuild, offroadBuild). | 02g-vehicles, 02s-chergui (Chergui), 02yl-sirocco (Sirocco) |
+| `car` | model = 'sedan', o = {} | Car: model 'sedan', 'hatch' (city car), 'suv', 'mpv', 'cross' (tall family cars), 'offroad' (4x4); o: { dust, wreck, rack } (see carBuild, offroadBuild). | 02g-vehicles, 02s-chergui (Chergui), 02yl-sirocco (Sirocco), 02yp-outpost-yard |
 | `bicycle` |  |  | 02k-dynprops |
 | `moped` |  | Moped on its kickstand | 02s-chergui (Chergui), 02u-portmael (Port-Maël) |
 
@@ -302,8 +303,8 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 | Prefab | Parameters | Description | Placed in |
 | --- | --- | --- | --- |
 | `fern` | kind = 'fernA', s = 1, seed = 1, n = 9 | Ground fern: about ten fronds that droop. | 02r-greenhouse, 02w-gardens |
-| `rosette` | kind = 'monstera', atlas = 'leafA', size = 1, n = 6, seed = 1, o = {} | Rosette of large upright leaves (monstera, alocasia, philodendron, dwarf banana, calathea, hosta...): n cards tilted outward | 02r-greenhouse, 02w-gardens |
-| `clump` | kind = 'grass', atlas = 'leafB', w = 0.7, h = 0.6, n = 3, seed = 1, o = {} | Tuft of crossed cards (flowers, grasses, lavender, tulips...): n vertical cards of width w and height h around the axis | 02q-garden, 02r-greenhouse, 02v-floralia (Floralia), 02w-gardens |
+| `rosette` | kind = 'monstera', atlas = 'leafA', size = 1, n = 6, seed = 1, o = {} | Rosette of large upright leaves (monstera, alocasia, philodendron, dwarf banana, calathea, hosta...): n cards tilted outward | 02r-greenhouse, 02w-gardens, 02ypb-outpost-jungle |
+| `clump` | kind = 'grass', atlas = 'leafB', w = 0.7, h = 0.6, n = 3, seed = 1, o = {} | Tuft of crossed cards (flowers, grasses, lavender, tulips...): n vertical cards of width w and height h around the axis | 02q-garden, 02r-greenhouse, 02v-floralia (Floralia), 02w-gardens, 02ypb-outpost-jungle |
 | `liana` | w = 1.4, h = 2.6, seed = 1 | Hanging vine (sprite A, attached at the top): vertical card of width w, height h, from the ground y = 0 to the attachment point y = h | 02r-greenhouse |
 | `hanging` | kind = 'wisteria', w = 1.0, h = 2.4, seed = 1 | Ivy or wisteria pressed flat: same principle, hanging from a horizontal support (sprite B) | 02w-gardens |
 | `reeds` | h = 2.0, seed = 1 | Reeds, papyrus, cattails: tall crossed cards | 02w-gardens |
@@ -332,7 +333,7 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 
 | Prefab | Parameters | Description | Placed in |
 | --- | --- | --- | --- |
-| `rockG` | seed = 1, rx = 1.2, ry = 1, rz = 1.2 | Faceted rock block (like PF.boulder) in the rockery material: pinkish ochre sandstone, tint of your choice | 02r-greenhouse, 02w-gardens |
+| `rockG` | seed = 1, rx = 1.2, ry = 1, rz = 1.2 | Faceted rock block (like PF.boulder) in the rockery material: pinkish ochre sandstone, tint of your choice | 02r-greenhouse, 02w-gardens, 02ypb-outpost-jungle |
 
 ### `src/02v-floralia.js` (Floralia)
 
@@ -503,6 +504,133 @@ Built once in local coordinates (placed on y = 0, main face toward +z), stamped 
 | `fdSkip` |  | Site skip (3.6 x 1.8): yellow sheet metal, flared sides, rubble | 02yn-belhorizon (Bel-Horizon) |
 | `fdToilet` | tint = [0.2, 0.42, 0.68] | Site toilet cabin (1.2 x 1.2 m, 2.3 m high): molded plastic shell with vertical ribs, white roof, door on the front (+z) with its free/occupied latch, vent pipe at the back; one solid collision | 02yn-belhorizon (Bel-Horizon) |
 
+### `src/02yoa-outpost-props.js`
+
+**Upper floor: office kit (sheet 2)**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opDesk` | w = 1.6, d = 0.8, ped = 2, tone = 1 | 01 Office desk (w x d, 0.75 m): warm wood top, olive steel drawer pedestals (o.ped: 2 sides, 1, 0), modesty panel | 02yo-outpost-building, 02yoa-outpost-props |
+| `opSwivel` |  | 02 Swivel chair: five-star base on casters, gas column, olive seat and backrest, armrests; seated facing +z. | 02yo-outpost-building |
+| `opVisitor` | arms = true | 03 Visitor chair (also the briefing chair, sheet item 13): black steel tube frame, olive seat and back; facing +z. | 02yo-outpost-building |
+| `opMonitor` | scr | 04 Monitor (0.6 m, on a desk): black stand, bezel, lit screen (atlas cell scr); 05 keyboard and mouse in front; 06 computer tower (o.tower: beside, on the floor: dx) | 02yo-outpost-building |
+| `opTower` |  |  | 02yo-outpost-building |
+| `opTaskLamp` |  | 07 Task lamp: weighted base, two arms, shade with a lit bulb (no light of its own: the room's fittings light it) | 02yo-outpost-building |
+| `opFiling` |  | 08 Filing cabinet: four olive drawers with handles and label holders (0.46 x 0.62, 1.32 m) | 02yo-outpost-building |
+| `opBookcase` | w = 1.2, seed = 0 | 09 Bookcase (w, 1.8 m, 0.4 deep): olive steel shelves, binders in colors, file boxes (collision placed with it, like the shelving) | 02yo-outpost-building |
+| `opMapBoard` | w = 2.0, h = 1.2, cell = OPS.mapW | 10 Wall map board (2.0 x 1.2): the jungle terrain map in a wooden frame; 11 whiteboard (1.8 x 1.2): aluminum frame, marker tray | 02yo-outpost-building |
+| `opWhiteboard` |  |  | 02yo-outpost-building |
+| `opPlanTable` | L = 2.0, D = 1.0, map = true | 12 Planning table (2.0 x 1.0, 0.75 m): wood top, steel legs and stretcher, the terrain map laid on it, rolled maps | 02yo-outpost-building |
+| `opRadioConsole` |  | 14 Radio console (1.8 x 0.8): desk with olive radio sets (front panels from the atlas, knobs), handset, headset, microphone | 02yo-outpost-building |
+| `opRack` |  | 15 Equipment rack (0.6 x 0.8, 1.8 m): black cabinet, perforated door frame, units with indicator lights | 02yo-outpost-building |
+| `opLocker` | n = 2, dw = 0.45, h = 1.8 | 16 Storage locker (n doors of dw, h high: 1.8 m upstairs, 2.0 m for the hall's three-door one, 0.5 deep): olive, louvered vents, handles | 02yo-outpost-building, 02ypa-outpost-tower |
+| `opClock` |  | 17 Wall clock (0.4 m): black rim, face from the atlas | 02yo-outpost-building, 02ypa-outpost-tower |
+| `opBin` |  | 18 Waste bin (0.28 m, 0.32 high): black wire-mesh basket | 02yo-outpost-building, 02ypa-outpost-tower |
+| `opCeilLight` | L = 1.2 | 19 Ceiling light, LED strip (1.2 x 0.18 x 0.08): hung under the ceiling (origin at the ceiling, body below), lit diffuser | 02yo-outpost-building, 02ypa-outpost-tower |
+| `opWallStrip` | L = 0.9 | Wall strip light (L x 0.1, back at z = 0): dark housing, lit diffuser | 02yo-outpost-building |
+| `opMiniCrate` |  | Small olive crate of the reception counter (0.35 x 0.25, 0.25 m): lid seam, dark corners, a latch | 02yo-outpost-building |
+| `opVent` | w = 0.4, h = 0.3, tint = [0.86, 0.86, 0.84] | 20 Wall vent (0.4 x 0.3): frame and slanted louvers | 02yo-outpost-building |
+| `opKitchen` | w = 1.6, front = false | 21 Kitchenette counter (w x 0.6, 0.9 m): olive base cabinets, steel top with its inset basin and faucet, wall cabinet; 22 mini fridge (0.55 x 0.6, 0.85 m) | 02yo-outpost-building |
+| `opFridge` |  |  | 02yo-outpost-building |
+| `opToilet` |  | 23 Toilet (white ceramic bowl, seat and lid, cistern against the wall at z = 0); 24 handwash basin, faucet, mirror (wall-mounted) | 02yo-outpost-building |
+| `opBasin` |  |  | 02yo-outpost-building |
+
+**Ground floor: hall kit (sheet 3)**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opReception` | w = 2.4 | 1 Reception desk (2.4 x 0.8, 1.1 m): concrete-look front with an olive kick strip, warm wood counter top, work top behind at 0.75 | 02yo-outpost-building |
+| `opPrepTable` |  | 3 Preparation table (2.4 x 1.2, 0.9 m): galvanized steel frame and top, green work mat, lower shelf; small crates on the shelf, one on the mat | 02yo-outpost-building |
+| `opBench` | L = 2.0 | 4 Bench (L x 0.4, 0.45 m): wooden seat on two steel frames | 02yo-outpost-building |
+| `opWorkbench` | L = 2.4 | 5 Workbench (L x 0.8, 0.9 m): thick wood top, olive drawer cabinets under both ends, back rail; vise | 02yo-outpost-building |
+| `opPegboard` |  | 6 Tool pegboard (1.8 x 0.9, wall-mounted, centered at its middle): perforated gray board, wrenches, pliers, hammers, yellow bins | 02yo-outpost-building |
+| `opShelving` | L = 1.8, h = 1.3, d = 0.6 | 7 Steel shelving (L x d, h: 1.3 m in the hall): galvanized posts and shelves, olive crates on each level (medium ones, or small ones turned, on a deep shelf; small ones lengthwise on a shallow one). | 02yo-outpost-building |
+| `opAmmo` | k = 0 | 8, 9 Olive ammunition crates: 0 large (1.2 x 0.8 x 0.6), 1 small (0.6 x 0.4 x 0.4), 2 medium (0.6 x 0.5 x 0.35): ribbed lid, handles, latches, yellow stencil bands | 02yo-outpost-building, 02yoa-outpost-props, 02yp-outpost-yard |
+| `opCart` |  | 11 Rolling cart (1.2 x 0.6, 0.9 m): two steel shelves on casters, push handle | 02yo-outpost-building |
+| `opHandTruck` |  | 12 Hand truck (dolly), leaning: yellow frame, nose plate, two wheels. | 02yo-outpost-building |
+| `opFirstAid` |  | 13 First aid cabinet (0.45 x 0.55, wall-mounted, centered); 14 fire extinguisher on its bracket (wall-mounted, bottom at y = 0); 15 electrical panel | 02yo-outpost-building, 02ypa-outpost-tower |
+| `opExtinguisher` |  |  | 02yo-outpost-building, 02ypa-outpost-tower |
+| `opElecPanel` |  |  | 02yo-outpost-building |
+| `opSink` |  | 16 Utility sink (0.9 x 0.6, 0.9 m): stainless basin on legs, faucet; 17 water cooler (0.35 x 0.35, 1.3 m with its blue bottle); 18 industrial waste bin (0.4 x 0.4, 0.8 m, olive with lid) | 02yo-outpost-building |
+| `opCooler` |  |  | 02yo-outpost-building |
+| `opWasteBin` |  |  | 02yo-outpost-building |
+| `opHeater` |  | Water heater of the utility annex (0.5 m across, 1.5 m): white enamel tank on three feet, two pipes up the wall, a small control box | 02yo-outpost-building |
+| `opPlant` |  | Potted plant (0.75 m): grey pot, long green leaves | 02yo-outpost-building |
+| `opMapStand` |  | Stand of rolled maps (0.4 x 0.4, 0.8 m): open wooden box, five rolls standing in it | 02yo-outpost-building |
+| `opFan` |  | 20 Wall fan (wall-mounted, back at z = 0): bracket, motor, blades in a wire cage | 02yo-outpost-building |
+| `opDrain` |  | 22 Floor drain (0.5 x 0.5): steel grate on a dark sump, flush with the floor | 02yo-outpost-building |
+
+**Exterior and roof equipment**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opAcBig` | w = 1.9, d = 1.3, h = 0.95 | Rooftop AC unit (w x d, h; the main one 1.9 x 1.3, 0.95 m): grey-beige casing, horizontal louvers on the long sides, fan grille on top, base rails | 02yo-outpost-building |
+| `opMast` |  | Telecom mast (about 3.4 m with its antennas): three-legged lattice, three sector panel antennas, a small dish, cable ladder | 02yo-outpost-building |
+| `opHatch` |  | Roof hatch box (1.0 x 1.0, 0.55 m): concrete upstand, olive steel lid, hinges, latch |  |
+| `opWallLamp` |  | Bulkhead wall lamp over a door (wall-mounted): dark housing, lit lens below | 02yo-outpost-building, 02ypa-outpost-tower |
+| `opElecBox` | down = 1.0 | Exterior electrical cabinet (0.55 x 0.75, wall-mounted, bottom at y = 0): gray steel, warning pictogram, conduits down into the ground | 02yo-outpost-building |
+
+### `src/02yp-outpost-yard.js`
+
+**Props**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opyCrate` | w = 1.2, h = 0.6, d = 0.8, v = 0 | Olive supply crate (1.2 x 0.6 x 0.8 or 0.6 x 0.4 x 0.4) | 02yp-outpost-yard, 02ypa-outpost-tower |
+| `opyLocker` |  | Steel locker (0.6 x 0.45, 1.85 m), olive; door toward +z: louvers, handle |  |
+| `opyCot` |  | Folding army cot (2 x 0.72 m): olive canvas bed, steel X legs, folded blanket and pillow at one end | 02ypa-outpost-tower |
+| `opyRadio` |  | Field radio set (on a table): olive case, dial panel, handset on its cord, whip antenna | 02ypa-outpost-tower |
+| `opyPhone` |  | Field telephone: olive box with its crank, handset on the cradle | 02ypa-outpost-tower |
+| `opySearchlight` | post = 1.3 | Searchlight on its post (post m): steel tube, a U-yoke on a turntable, the drum with its bezel and glass face, its cable; aimed toward +z, slightly down | 02ypa-outpost-tower |
+| `opyBinoculars` |  | Binoculars set down on a ledge | 02ypa-outpost-tower |
+| `opyChair` |  | Folding steel chair (olive): seat, back, tube legs | 02ypa-outpost-tower |
+| `opyTable` | w = 1.2, d = 0.7 | Field table (1.2 x 0.7 m): olive steel frame, plywood top | 02ypa-outpost-tower |
+| `opyShelf` | w = 1.8, h = 1.85, seed = 1, dbl = false | Steel shelving (w along x, 0.5 deep, h high), four levels loaded with boxes, crates, cans and jerrycans (seeded) | 02ypa-outpost-tower |
+| `opyWorkbench` |  | Workbench (2.4 x 0.8 m): thick plank top, olive steel drawers, vise, tools, pegboard behind (toward -z) | 02ypa-outpost-tower |
+| `opyFlood` |  | Floodlight pole (7 m): galvanized tapered pole on a concrete footing, crossbar with two lamps aimed toward +z, junction box | 02yp-outpost-yard |
+| `opyTarpStack` |  | Tarped stack: two pallets end to end, two crates high (the building's ammunition crates), under an olive canvas tarp that sags between them and hangs in folds down the sides, lashed with a rope; mud... | 02yp-outpost-yard |
+| `opyGenset` |  | Generator set on its skid (1.4 x 1.5 m, 1.75 m to the top of its hood; the exhaust to 2 m): olive enclosure with louvres, a door panel and its latches, the exhaust stack with its rain cap, a lifting... | 02yp-outpost-yard |
+| `opyDrumRack` |  | Drum rack (the water tank's footprint, 2.2 x 2.2 m): a low steel frame with two tiers of drums, a third on top in one corner | 02yp-outpost-yard |
+| `opyWaterTank` |  | Water tank on its steel stand: 2.3 m vertical olive drab tank (matte paint) on a 1.6 m platform, ladder, outlet pipe and tap | 02yp-outpost-yard |
+| `opyBooth` |  | Guard booth (1.9 x 1.9 m): olive corrugated walls, window band on three sides, door on the back (-z), flat roof with an overhang; closed: a block of cover (its glass stops soldiers, not shots) | 02yp-outpost-yard |
+| `opyBarrier` |  | Barrier arm (5.5 m) raised on its post: concrete footing, olive housing, red and white pole at about 80 degrees, counterweight | 02yp-outpost-yard |
+
+**Static cover pieces (one collision each)**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opyJersey` | len | Jersey barrier (len m, along z): mid-grey weathered concrete, drip stains running down from the top, mud splashed up its foot in the earth's colour (a soft gradient, 10 to 25 cm) | 02yp-outpost-yard |
+
+### `src/02ypa-outpost-tower.js`
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opyCooler` |  | Water cooler (sheet 3 item 17): white cabinet, smooth blue bottle upside down on top, two taps | 02ypa-outpost-tower |
+
+### `src/02ypb-outpost-jungle.js`
+
+**Leaf masses**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opjMass` | r, h, seed, deep, near | Leaf mass r (radius), h (height): an ellipsoid sitting on the ground (squashed at random: no round outline), its lower half widened to a cylinder (a skirt of leaves down to the ground; now and then a... | 02ypb-outpost-jungle |
+| `opjTree` | h, r, seed, th, lite | Broadleaf canopy tree (h, crown radius r, bare trunk th; lite: no branches, fewer cards): a leaning trunk forking into three to five clumps of foliage round the top, each a small mass of tilted and... | 02ypb-outpost-jungle |
+| `opjTrunk` | h, seed | Bare trunk of the second row (h m): the stem of a tree whose crown is lost in the canopy above, a fork near the top | 02ypb-outpost-jungle |
+
+**Plants of the jungle's edge**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opjBanana` | h = 3.2, seed = 1, leaf = 0 | Banana plant: olive false trunk, large torn leaves that droop (PF.banana on the jungle's sprites) | 02ypb-outpost-jungle |
+| `opjFern` | s = 1, seed = 1, n = 9 | Ground fern: fronds that arch out from the crown and droop (PF.fern on the jungle's sprites), one in three darker | 02ypb-outpost-jungle |
+| `opjFan` | h = 1.8, seed = 1 | Fan palm: a short ringed trunk, fan leaves on long stalks, held up and out, the old ones hanging | 02ypb-outpost-jungle |
+
+**Open-ground cover**
+
+| Prefab | Parameters | Description | Placed in |
+| --- | --- | --- | --- |
+| `opjPalm` | h = 10, seed = 1, kind = 'palm' | Coconut palm: a stipe about 0.38 m thick at the foot, leaning and curving; a crown 6 to 7 m wide of 14 pinnate fronds (upright, spreading, drooping) and two dead ones hanging brown; there are many of... | 02ypb-outpost-jungle |
+
 ## Physics props
 
 Objects that fall, roll and shatter (`propType`, README "Physics props").
@@ -567,19 +695,19 @@ CC0 photos brought to a common range (`tools/build_assets.py`), one file per sur
 | `canvas` | Fabric066 | ambientCG | CC0 1.0 | Chergui, Saint-Givre, Port-Maël, Notos, Cirrus, Sirocco, Bel-Horizon |
 | `cardboard` | Cardboard004 | ambientCG | CC0 1.0 | Chergui, Bel-Horizon |
 | `cobble` | cobblestone_floor_001 | Poly Haven | CC0 1.0 | Chergui, Saint-Givre, Port-Maël, Notos |
-| `concrete` | concrete_wall_009 | Poly Haven | CC0 1.0 | Chergui, Saint-Givre, Port-Maël, Floralia, Bel-Horizon |
+| `concrete` | concrete_wall_009 | Poly Haven | CC0 1.0 | Chergui, Saint-Givre, Port-Maël, Floralia, Bel-Horizon, Selva |
 | `crate` | brown_planks_09 | Poly Haven | CC0 1.0 | Chergui, Port-Maël |
-| `dirt` | forest_ground_04 | Poly Haven | CC0 1.0 | Cirrus, Sirocco, Bel-Horizon |
+| `dirt` | forest_ground_04 | Poly Haven | CC0 1.0 | Cirrus, Sirocco, Bel-Horizon, Selva |
 | `drystone` | stone_wall | Poly Haven | CC0 1.0 | Notos |
 | `flagstone` | stone_pathway | Poly Haven | CC0 1.0 | Floralia, Cirrus |
-| `humus` | forest_leaves_02 | Poly Haven | CC0 1.0 | Floralia, Cirrus |
-| `lawn` | aerial_grass_rock | Poly Haven | CC0 1.0 | Floralia, Cirrus, Bel-Horizon |
+| `humus` | forest_leaves_02 | Poly Haven | CC0 1.0 | Floralia, Cirrus, Selva |
+| `lawn` | aerial_grass_rock | Poly Haven | CC0 1.0 | Floralia, Cirrus, Bel-Horizon, Selva |
 | `linen` | rough_linen | Poly Haven | CC0 1.0 | Chergui, Port-Maël, Notos |
 | `mecha` | green_metal_rust | Poly Haven | CC0 1.0 |  |
 | `mechadark` | blue_metal_plate | Poly Haven | CC0 1.0 |  |
 | `paintwood` | distressed_painted_planks | Poly Haven | CC0 1.0 | Chergui, Saint-Givre, Port-Maël, Notos, Bel-Horizon |
 | `palmbark` | palm_tree_bark | Poly Haven | CC0 1.0 | Chergui, Sirocco |
-| `pathgravel` | gravel_floor_02 | Poly Haven | CC0 1.0 | Floralia, Bel-Horizon |
+| `pathgravel` | gravel_floor_02 | Poly Haven | CC0 1.0 | Floralia, Bel-Horizon, Selva |
 | `pavers` | Concrete012 | ambientCG | CC0 1.0 | Chergui, Saint-Givre, Port-Maël, Notos, Scoria, Bel-Horizon |
 | `pise` | excavated_soil_wall | Poly Haven | CC0 1.0 | Sirocco |
 | `plaster2` | clay_plaster | Poly Haven | CC0 1.0 | Chergui, Port-Maël |
@@ -589,7 +717,7 @@ CC0 photos brought to a common range (`tools/build_assets.py`), one file per sur
 | `rollshutter` | rusty_metal_shutter | Poly Haven | CC0 1.0 | Chergui, Port-Maël, Bel-Horizon |
 | `rooftiles` | clay_roof_tiles_03 | Poly Haven | CC0 1.0 | Chergui, Port-Maël, Bel-Horizon |
 | `rust` | rust_coarse_01 | Poly Haven | CC0 1.0 | Saint-Givre, Port-Maël |
-| `sand` | dense_sand | Poly Haven | CC0 1.0 | Notos, Sirocco, Bel-Horizon |
+| `sand` | dense_sand | Poly Haven | CC0 1.0 | Notos, Sirocco, Bel-Horizon, Selva |
 | `shingle` | dry_river_pebbles | Poly Haven | CC0 1.0 | Sirocco |
 | `shutter` | wood_shutter | Poly Haven | CC0 1.0 | Chergui, Saint-Givre, Port-Maël, Floralia, Notos |
 | `slate` | roof_slates_03 | Poly Haven | CC0 1.0 | Saint-Givre, Port-Maël, Floralia, Bel-Horizon |
@@ -671,6 +799,23 @@ Generated on the GPU at map load (`TEXLAB`); a photo surface of the same name re
 | `sandstone` | 1024 | red sandstone of the cliffs: beds of uneven thickness, wavy, cross-bedding in each bed, vertical joints specific to each bed, hollowed seams between two beds,... | `src/02yk-sirocco-kit.js` |
 | `dune` | 1024 | dune sand: curved wind ripples (long back, steep face), erased in patches, fine grain, shades from ocher to golden | `src/02yk-sirocco-kit.js` |
 | `cinderblock` | 512 |  | `src/02ym-houses-kit.js` |
+| `opPanel` | 1024 | cast-in-place concrete in 1 m formwork panels (one tile: 2 x 2 panels): smooth faces, fine recessed joints, four tie holes per panel, panel-to-panel shade,... | `src/02yoa-outpost-props.js` |
+| `opWallIn` | 512 | inner faces of the concrete walls and the columns: grey-beige painted concrete, faint formwork joints, the lanes of the roller, soft grime clouds (scuffs and... | `src/02yoa-outpost-props.js` |
+| `opCeilTx` | 512 | underside of the slabs: the walls' pale concrete, faint joints, grey tie holes (no rust) | `src/02yoa-outpost-props.js` |
+| `opWood` | 512 | wood of the tops, bench seats and frames: one matte honey tan, a fine straight grain along u (no clouds, no gloss) | `src/02yoa-outpost-props.js` |
+| `opPaintTx` | 512 | drab matte paint on steel (doors, cabinets, lockers, crates), tinted by the vertices: faint mottling, a fine grain, a few small chips down to the primer (no... | `src/02yoa-outpost-props.js` |
+| `opSteelTx` | 512 | steel of the stairs, rails, posts and fittings, tinted by the vertices: brushed along u, an even grain, a few rust specks | `src/02yoa-outpost-props.js` |
+| `opyLink` | 512 | galvanized chain-link: diamonds of woven wire, rust spots; alpha = opacity | `src/02yp-outpost-yard.js` |
+| `opyCorrS` | 512 | the same sheet, matte and soft (the shed, the booth, the guard room): ribs by their shading only, half the relief, no pale ridge | `src/02yp-outpost-yard.js` |
+| `opyCorr` | 512 | painted corrugated sheet (tinted by vertices: olive green of the shed, the gates, the booth): vertical ribs, chipped paint showing the zinc, rust streaks under... | `src/02yp-outpost-yard.js` |
+| `opyMud` | 512 | wet tropical mud (the yard after the shower, layer under the dry packed earth): grey-brown, smooth, hollows holding water (dark and glossy), now and then a... | `src/02yp-outpost-yard.js` |
+| `opyBoard` | 512 | weathered boards about 15 cm (the tower cabin): grey-brown, dark joints, grain along the boards, a knot now and then, grey bleaching | `src/02yp-outpost-yard.js` |
+| `opyEarth` | 512 | trodden earth of the yard, damp: grey-brown, scuffed in broad patches, a rare small stone (no crack, no repeat that reads) | `src/02yp-outpost-yard.js` |
+| `opyRut` | 512 | a wheel rut (the tile 5.6 m along it, 0.7 m across; alpha = its extent): a worn wet track about 0.3 m wide whose width wanders and whose edges break up, tread... | `src/02yp-outpost-yard.js` |
+| `opyFilm` | 256 | mud lapping over a concrete edge (the tile across it: 0.5 m, the edge at the bottom; alpha = its extent): a thin film of dried earth, thick at the edge, frayed... | `src/02yp-outpost-yard.js` |
+| `opyTarp` | 512 | olive tarpaulin (tinted): heavy cloth, broad folds and creases, water stains, no fine weave (it would shimmer) | `src/02yp-outpost-yard.js` |
+| `opjCanopy` | 512 | forest canopy seen from afar (the hills): tree crowns in clumps, lit on top, dark hollows between them, no fine grain (no speckle) | `src/02yp-outpost-yard.js` |
+| `opyLitter` | 512 | jungle floor: dark leaf litter (brown and olive leaves, twigs) | `src/02yp-outpost-yard.js` |
 
 ## Atlases drawn at load
 
@@ -690,6 +835,11 @@ Generated on the GPU at map load (`TEXLAB`); a photo surface of the same name re
 | `tpSignAtlas` |  | `src/02yg-scoria-kit.js` |
 | `tpDecalAtlas` |  | `src/02yg-scoria-kit.js` |
 | `fdSignAtlas` |  | `src/02ym-houses-kit.js` |
+| `opSignAtlas` |  | `src/02yoa-outpost-props.js` |
+| `opAtlas` | Atlas cell i on a quad of the current frame (local uv): facing +z at depth z, or laid flat (o.flat: facing +y at height z) | `src/02yoa-outpost-props.js` |
+| `opStainAtlas` |  | `src/02yoa-outpost-props.js` |
+| `opyAtlas` |  | `src/02yp-outpost-yard.js` |
+| `opjLeafAtlas` |  | `src/02ypb-outpost-jungle.js` |
 
 ## Skies and lighting
 

@@ -289,11 +289,11 @@ function ksConfirm() {
     const p = new V3(q.x, q.y, q.z);
     ksCloseMap(); KS.stage = 'confirm'; KS.st = 0; KS.pressT = 0; PL.ks.mecha = false; updateStreakHud(); sfxKs('confirm');
     mechaCall(PL.ent, p, Math.atan2(-(p.x - PL.ent.pos.x), -(p.z - PL.ent.pos.z)) + Math.PI); // it lands turned away from the player, toward the front
-    return;
+    challengesKs(); return;
   }
   ksCloseMap(); KS.stage = 'confirm'; KS.st = 0; KS.pressT = 0; PL.ks.air = false; updateStreakHud();
   sfxKs('confirm');
-  netAirstrike(new V3(KS.map.x, 0, KS.map.z), KS.map.yaw, PL.ent);
+  netAirstrike(new V3(KS.map.x, 0, KS.map.z), KS.map.yaw, PL.ent); challengesKs();
   hudMsg(_t('Airstrike incoming'), 'ally', 2.5);
 }
 function ksCancel() {
@@ -357,14 +357,17 @@ function updateKillstreak(dt) {
     const up = smoothstep(0.16, 0.38, t) * (1 - smoothstep(KS_PH.down, KS_PH.down + 0.16, t));
     if (KS.pressT < 0 && t > KS_PH.press) {
       KS.pressT = 0; sfxKs('press');
-      // helicopter refused (an ally called one during the gesture): the streak stays ready
-      if (KS.mode === 'heli') { if (!callHeli(PL.ent)) { PL.ks.heli = true; updateStreakHud(); hudMsg(_t('A helicopter is already airborne'), 'none', 1.8); } }
-      else if (KS.mode === 'sat') satFire(PL.ent);
-      else if (KS.mode === 'emp') empFire(PL.ent);
-      else if (KS.mode === 'fpv') fpvLaunch(PL.ent);
+      // helicopter refused (an ally called one during the gesture): the streak stays ready; otherwise the call counts for the challenges (06s-challenges.js)
+      if (KS.mode === 'heli') { if (!callHeli(PL.ent)) { PL.ks.heli = true; updateStreakHud(); hudMsg(_t('A helicopter is already airborne'), 'none', 1.8); } else challengesKs(); }
       else {
-        uavStart(PL.ent.team); spawnDrone(PL.ent.team); netUav(PL.ent); sfxAnnounce('uav_on');
-        hudMsg(_t('UAV online'), 'ally', 2);
+        challengesKs();
+        if (KS.mode === 'sat') satFire(PL.ent);
+        else if (KS.mode === 'emp') empFire(PL.ent);
+        else if (KS.mode === 'fpv') fpvLaunch(PL.ent);
+        else {
+          uavStart(PL.ent.team); spawnDrone(PL.ent.team); netUav(PL.ent); sfxAnnounce('uav_on');
+          hudMsg(_t('UAV online'), 'ally', 2);
+        }
       }
     }
     if (KS.pressT >= 0) KS.pressT += dt;

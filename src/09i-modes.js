@@ -470,8 +470,9 @@ function domChanged(p, was) {
     for (const e of entities) {
       if (!e.alive || e.team !== o || !p.n[o] || Math.abs(e.pos.y - p.y) > DOM.dy || hyp(e.pos.x - p.x, e.pos.z - p.z) > DOM.rad) continue;
       e.score += 100; e.caps++;
-      if (e.isPlayer) { xpPopup('+100', `${_t('Point {0} captured', p.name)}`); challengeAdd('vDom'); }
+      if (e.isPlayer) { xpPopup('+100', `${_t('Point {0} captured', p.name)}`); challengesCapture(true, false); }
     }
+    if (o === me && DOM.pts.length && DOM.pts.every((q) => q.owner === me)) challengesCapture(false, true); // (06s-challenges.js)
     hudMsg(o === me ? `${_t('Point {0} captured', p.name)}` : _t('Point {0} lost', p.name), o === me ? 'ally' : 'enemy', 2.2);
     sfxAnnounce(o === me ? 'cap' : was === me ? 'lost' : 'ecap', o === me ? 'st_capture' : 'st_lost'); // ecap: taken by the enemy on a neutral point (voiceless signal)
   } else if (was === me) { hudMsg(`${_t('Point {0} neutralized by the enemy', p.name)}`, 'enemy', 2); sfxAnnounce('neutral', 'st_lost'); }

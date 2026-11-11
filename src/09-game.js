@@ -341,7 +341,7 @@ function updateHud(dt) {
   const rh = $('reloadHint'), low = e.alive && !PL.knifeOut && w.mag <= Math.ceil(d.mag * 0.25) && !PL.reload && w.reserve > 0;
   hudStyle(rh, 'opacity', low ? '1' : '0');
   if (low) { const g = actGlyph('reload'); hudHtml(rh, g ? _t('{0} Reload', g) : _t('Reload')); hudCls(rh, 'empty', w.mag === 0); }
-  if ((HUD.zT = (HUD.zT || 0) - dt) <= 0) { hudText($('zone'), zoneName(e.pos.x, e.pos.z)); HUD.zT = 0.3; }
+  if ((HUD.zT = (HUD.zT || 0) - dt) <= 0) { hudText($('zone'), zoneName(e.pos.x, e.pos.z, e.pos.y)); HUD.zT = 0.3; }
   arsLevelTick(dt); // player level crossed during a match (06r-arsenal.js)
   { const t = performance.now(); if (t - HUD.mmAt >= 8) { HUD.mmAt = t; drawMinimap(); } } // minimap: 120 times per second at most (at 280 frames per second, it was redrawn on every one)
   // reticle

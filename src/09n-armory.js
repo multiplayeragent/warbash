@@ -299,5 +299,6 @@ function arsNotifyLevel(level) { rankUpShow(level, CUSTOM_UNLOCK.indexOf(level))
 function arsEndFill() {
   const el = $('endArs'); if (!el) return;
   const h = arsSessionHtml(), d = challengesEndHtml(); // and the outfit challenges (06s-challenges.js)
-  el.innerHTML = (h ? `<h4>${_t('Weapon progression')}</h4>${h}` : '') + (d ? `<h4>${_t('Challenges')}</h4>${d}` : ''); el.classList.toggle('hidden', !h && !d);
+  // (the challenges in two columns when the panel is wide: a match can move a dozen)
+  el.innerHTML = (h ? `<h4>${_t('Weapon progression')}</h4>${h}` : '') + (d ? `<h4>${_t('Challenges')}</h4><div class="end-ch">${d}</div>` : ''); el.classList.toggle('hidden', !h && !d);
 }

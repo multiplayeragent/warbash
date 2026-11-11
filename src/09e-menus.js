@@ -49,7 +49,7 @@ function uiBack() {
 }
 function uiRefresh(name, fresh) {
   if (name === 'main') menuMainRefresh();
-  else if (name === 'solo') { if (fresh) lmReset(LM.scr.solo); else lmRender(LM.scr.solo, { focus: true, restore: true }); }
+  else if (name === 'solo') { if (fresh) soloOpen(); else lmRender(LM.scr.solo, { focus: true, restore: true }); }
   else if (name === 'multi') netRender({ focus: true, restore: true, fresh });
   else if (name === 'classes' || name === 'deploy') { if (name === 'classes') { CPV.view = -1; CPV.confirm = -1; classesHeader(); } PICKERS.forEach(renderPicker); if (name === 'deploy') renderDeploy(); }
   else if (name === 'options') syncOptions();
@@ -507,9 +507,14 @@ const SOLO_PAGES = {
     if (netInLobby()) rows.push({ k: 'note', text: SRV.on ? _t('You are in a public lobby. Starting a match here leaves it.') : _t('You are in lobby {0}. Starting a match here leaves it.', NET.code) });
     return { title: _t('Solo'), sub: MD.sub, rows, stage: soloStage, preview: mapPreview(m, soloCfg()) };
   },
-  map: () => ({ head: _t('Map'), grid: true, rows: mapCards(Settings.map, (id) => { Settings.map = id; saveSettings(); sfxUi('click'); lmPop(LM.scr.solo); }) }),
+  map: () => ({ head: _t('Map'), grid: true, rows: mapCards(Settings.map, (id) => { Settings.map = id; saveSettings(); sfxUi('click'); lmPop(LM.scr.solo); soloGoFocus(); }) }),
   setup: () => ({ head: _t('Match settings'), rows: matchRows(soloCfg()) }),
 };
+/* Solo opens on the choice of the map, at every visit (from Play, and after a match): the map is never silently the last one
+   played. The one in use is marked and holds the focus; picking a card, or Back, shows the match and its Start button */
+function soloOpen() { const L = LM.scr.solo; lmReset(L); L.stack[0].key = 'map'; lmPush(L, 'map'); }
+/* The map is chosen: the next press starts the match */
+function soloGoFocus() { if (lmWantFocus()) $('soloGo').focus({ preventScroll: true }); }
 function renderSolo() { lmRender(LM.scr.solo); $('soloGo').title = netInLobby() ? _t('Starting a solo match makes you leave the lobby') : ''; }
 
 /* ---------- Launching a match: loading, class selection, deployment ---------- */
@@ -725,7 +730,7 @@ function menuInit() {
   // end of match
   $('againBtn').addEventListener('click', () => {
     if (MATCH.online) { toMenu(); return; }
-    toMenu('solo'); menuLaunch({ online: false, map: Settings.map, deploy: () => startMatch() });
+    toMenu('solo'); // back on the map choice (the last map marked): one press plays it again, another card changes map
   });
   $('menuBtn').addEventListener('click', () => toMenu());
   $('perf').classList.toggle('hidden', !Settings.perf);

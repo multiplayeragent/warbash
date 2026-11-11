@@ -38,7 +38,7 @@
 const CLOTH_H = 1 / 60;
 const CLOTH_MAX = COARSE || ULTRA ? 3 : 8;
 /* Per-map breeze for the cloths: direction (x, z) and mean speed (m/s); otherwise CLOTH_BREEZE_DEF */
-const CLOTH_BREEZE = { chergui: [0.8, 0.5, 2.6], saintgivre: [-0.6, 0.8, 3.0], portmael: [1, 0.2, 3.4], floralia: [0.6, 0.6, 1.4], notos: [0.3, -1, 3.8], scoria: [0.55, -0.85, 3.0], cirrus: [1, 0.35, 4.6], sirocco: [0.9, 0.3, 3.4], belhorizon: [0.7, 0.7, 2.2] };
+const CLOTH_BREEZE = { chergui: [0.8, 0.5, 2.6], saintgivre: [-0.6, 0.8, 3.0], portmael: [1, 0.2, 3.4], floralia: [0.6, 0.6, 1.4], notos: [0.3, -1, 3.8], scoria: [0.55, -0.85, 3.0], cirrus: [1, 0.35, 4.6], sirocco: [0.9, 0.3, 3.4], belhorizon: [0.7, 0.7, 2.2], outpost: [0.6, 0.5, 1.6] };
 const CLOTH_BREEZE_DEF = [0.8, 0.4, 2.2];
 const CLOTH = { t: 0, wind: new V3(), gust: 1, damp: 0.978 }; // damp: velocity kept at each step (0.992 before: the capes, finally visible in the outfit preview, were still flapping a second after a U-turn)
 

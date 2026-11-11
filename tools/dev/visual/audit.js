@@ -12,8 +12,8 @@
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const HERE = __dirname, OUT = path.join(HERE, 'audits'), BEFORE = process.env.BEFORE ? path.resolve(process.env.BEFORE) : OUT;
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
-const MAP_LIST = ['chergui', 'saintgivre', 'portmael', 'floralia', 'notos', 'scoria', 'cirrus', 'sirocco', 'belhorizon'];
-const NAMES = { chergui: 'Chergui', saintgivre: 'Saint-Givre', portmael: 'Port-Maël', floralia: 'Floralia', notos: 'Notos', scoria: 'Scoria', cirrus: 'Cirrus', sirocco: 'Sirocco', belhorizon: 'Bel-Horizon' };
+const MAP_LIST = ['chergui', 'saintgivre', 'portmael', 'floralia', 'notos', 'scoria', 'cirrus', 'sirocco', 'belhorizon', 'outpost'];
+const NAMES = { chergui: 'Chergui', saintgivre: 'Saint-Givre', portmael: 'Port-Maël', floralia: 'Floralia', notos: 'Notos', scoria: 'Scoria', cirrus: 'Cirrus', sirocco: 'Sirocco', belhorizon: 'Bel-Horizon', outpost: 'Selva' };
 const TOOLS = ['leveldesign', 'navigation', 'decor', 'slits', 'snags', 'zfight', 'crossing'], onlyTools = (opt('--only', '') || '').split(',').filter(Boolean);
 const skip = new Set(onlyTools.length ? TOOLS.filter((t) => !onlyTools.includes(t)) : (opt('--skip', '') || '').split(',').filter(Boolean)), parallel = +opt('--parallel', 2);
 const mapList = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));

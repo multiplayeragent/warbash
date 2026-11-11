@@ -157,6 +157,15 @@
       "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a suburban housing estate of identical houses) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
     },
     {
+      "id": "map-outpost",
+      "size": "1536x1024",
+      "opaque": true,
+      "images": [
+        "assets/maps/outpost.webp"
+      ],
+      "prompt": "Repaint the attached in-game screenshot of a multiplayer map (a fenced military command post in a tropical rainforest clearing, with a guard tower) as dramatic key art for a modern military PvP shooter. Keep the same place, composition, buildings, terrain and landmarks so players recognise the map, but give it cinematic lighting, atmospheric haze, drifting smoke and a few glowing embers, and a painterly AAA game marketing finish. No people."
+    },
+    {
       "id": "crest-victory",
       "size": "1024x1024",
       "prompt": "A triumphant military victory crest emblem, front view, centered: a golden eagle with wide spread wings above a laurel wreath, two crossed modern rifles and a five-pointed star, polished gold and bronze with a hot orange glow and light rays. Bold readable silhouette for a game end screen."
@@ -165,6 +174,54 @@
       "id": "crest-defeat",
       "size": "1024x1024",
       "prompt": "A battle-damaged military crest emblem, front view, centered: a cracked dark steel shield with a broken rifle across it, scorched edges, smoke curling up and a dim red ember glow, desaturated and somber. Bold readable silhouette for a game end screen."
+    },
+    {
+      "id": "leaf-clump-a",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "A dense clump of tropical rainforest foliage for a foliage card: one leafy branch tip with about fifty small oval glossy leaves (like a ficus), overlapping in depth, darker in the middle, with an irregular ragged outline that breaks into single leaves at the edges. The clump fills most of the square canvas."
+    },
+    {
+      "id": "leaf-clump-b",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "A dense clump of tropical rainforest foliage for a foliage card: a branch tip with about twenty five long pointed drooping leaves (like a mango tree), overlapping in depth, darker in the middle, with an irregular ragged outline that breaks into single leaves at the edges. The clump fills most of the square canvas."
+    },
+    {
+      "id": "leaf-palm",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "One single coconut palm frond lying horizontally across the canvas, stem base at the middle of the left edge, tip at the right edge: a long arched midrib with many long narrow leaflets on both sides, slightly drooping, a few leaflets torn or bent. Nothing else in the image."
+    },
+    {
+      "id": "leaf-banana",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "One single large banana plant leaf, upright, its stem at the bottom centre of the canvas and its tip near the top: a broad paddle-shaped leaf with a thick midrib and a few natural tears along the side veins. Nothing else in the image."
+    },
+    {
+      "id": "leaf-ear",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "One single large elephant ear (alocasia) leaf, upright, its stem at the bottom centre of the canvas: a broad heart-shaped leaf with pale main veins and wavy edges. Nothing else in the image."
+    },
+    {
+      "id": "leaf-fan",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "One single fan palm leaf, upright, its stem at the bottom centre of the canvas: a round pleated fan of stiff segments splitting into points at the rim. Nothing else in the image."
+    },
+    {
+      "id": "leaf-fern",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "One single large fern frond, upright, its stem at the bottom centre of the canvas and its tip at the top, with regular feathered leaflets on both sides getting shorter toward the tip. Nothing else in the image."
+    },
+    {
+      "id": "leaf-vine",
+      "size": "1024x1024",
+      "style": "photorealistic botanical cut-out for a video game foliage texture, flat front view with no perspective, even soft overcast daylight, no cast shadow, no drawn outline, no ink lines, natural leaf surface with fine veins and slight color variation, matte, muted deep olive green with a few yellow-green and darker leaves, a little wear (small holes, dry brown edges)",
+      "prompt": "One hanging strand of jungle vine running from the top centre of the canvas to the bottom: a thin woody stem with about fifteen heart-shaped leaves on short stalks on both sides. Nothing else in the image."
     }
   ]
 }

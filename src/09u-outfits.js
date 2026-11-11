@@ -80,8 +80,10 @@ function skinPvPlace(S, key) {
    cloth stayed that of the first frame (a frozen cape, stuck to the pelvis, that the arms went through) */
 function skinSkel(M) { renderer.info.render.frame++; M.root.updateMatrixWorld(true); M.skel.update(); }
 /* Renders outfit skin as seen by rel (0 ally, 1 enemy), camera at azimuth a, into ctx (dw x dh); the showcase shows only it */
+const SKRIM = { l: null }, SK_THUMB_BG = 0x30352a;
 function skinDraw(ctx, dw, dh, skin, rel, a) {
   const S = vwScene(), M = skinPvModel(skin), m = skinPvMat(skin), live = VW.model && VW.model.visible ? VW.model : null;
+  if (!SKRIM.l) SKRIM.l = new THREE.DirectionalLight(0xe4ecff, 2.6);
   skinPvPlace(M, skinPvGunKey());
   skinTone(skin, rel, m.color); skinRelColor(rel, m.userData.skU.tag.value);
   skinSkel(M);
@@ -90,7 +92,9 @@ function skinDraw(ctx, dw, dh, skin, rel, a) {
   S.cam.aspect = dw / dh; S.cam.updateProjectionMatrix();
   const d = 1.08 / Math.tan(THREE.MathUtils.degToRad(VW_FOV) / 2) * Math.max(1, 0.62 / (dw / dh));
   vwCamPlace(S.cam, a + Math.PI / 2, 0.06, d, SK_AIM);
-  try { vwDraw(ctx, dw, dh, dw, dh); } finally { S.scene.remove(M.root); if (live) live.visible = true; }
+  // rim light: from behind the soldier as the camera sees him, high, so the outline stands out of the ground
+  SKRIM.l.position.set(Math.cos(a + Math.PI / 2) * 2, 2.4, Math.sin(a + Math.PI / 2) * 2); S.scene.add(SKRIM.l);
+  try { vwDraw(ctx, dw, dh, dw, dh, SK_THUMB_BG); } finally { S.scene.remove(M.root); S.scene.remove(SKRIM.l); if (live) live.visible = true; }
 }
 /* An outfit's thumbnail (three-quarter view from its right, by an ally), in the weapon thumbnail queue (thumbsStep: "skin:..." keys); SKTH.gun: the weapon
    held on the thumbnails, which are redone when the chosen class changes it (skinThumbsCheck) */
@@ -157,26 +161,35 @@ const skinBar = (f) => `<span class="sk-pb"><i style="width:${Math.round(clamp(f
    the card keeps its size, nothing moves in the list */
 function skinCardHtml(s) {
   const K = SKINS[s], cur = skinMine(), lock = !skinUnlocked(s), viewing = lock && SKV.view === s, D = K.challenge ? challengesOf(s) : [], done = D.filter((d) => challengeDone(d.id)).length;
-  // locked: the padlock and progress take the place of the role (a phone card has only two lines)
-  let tx = `<span class="cn">${K.name}</span>${!lock ? `<span class="cw">${K.role}</span>` : ''}`;
+  // locked: the padlock and progress take the place of the role (a phone card has only two lines): the challenges completed (the same
+  // words as the preview), with the bar of the share of the way done; an unlocked challenge outfit says so, with the cue to wear it
+  const f = D.length ? D.reduce((a, d) => a + challengeCount(d.id) / d.goal, 0) / D.length : 0;
+  let tx = `<span class="cn">${K.name}</span>${!lock ? `<span class="cw">${skinRoleHtml(K)}</span>` : ''}`;
   if (s === cur) tx += `<span class="cb next">${_t('Selected')}</span>`;
-  else if (lock) tx += `<span class="sk-lk">${SK_LOCK}${_t('Challenges {0} / {1}', done, D.length)}</span>${skinBar(D.reduce((a, d) => a + challengeCount(d.id) / d.goal, 0) / D.length)}`;
-  return `<button type="button" class="sk-card${lock ? ' locked' : ''}${viewing ? ' viewing' : ''}${K.challenge ? 'challenge' : ''}" role="option" data-skin="${s}" aria-selected="${s === cur}">${skinThumbImg(s)}<span class="sk-tx">${tx}</span></button>`;
+  else if (lock) tx += `<span class="sk-lk">${SK_LOCK}${_t('{0} of {1} done', done, D.length)}</span>${skinBar(f)}`;
+  else if (K.challenge) tx += `<span class="sk-uw"><span class="cb un">${_t('Unlocked')}</span><span class="cb wear">${_t('Wear')}</span></span>`;
+  return `<button type="button" class="sk-card${lock ? ' locked' : ''}${viewing ? ' viewing' : ''}${K.challenge ? ' challenge' : ''}" role="option" data-skin="${s}" aria-selected="${s === cur}">${skinThumbImg(s)}<span class="sk-tx">${tx}</span></button>`;
 }
+/* An outfit's role, a map name in it kept on one line (Saint-Givre did not break at its hyphen) */
+function skinRoleHtml(K) { const m = K.map && MAPS.find((x) => x.id === K.map); return m ? K.role.replace(m.name, `<span class="nw">${m.name}</span>`) : K.role; }
 /* Detail of a locked challenge outfit (name, role, progress, each challenge with its bar): at the bottom of the Outfits screen preview;
    '' for an outfit that can be taken */
 function skinInfoHtml(s) {
   const K = SKINS[s]; if (!K || !K.challenge || skinUnlocked(s)) return '';
   const D = challengesOf(s), done = D.filter((d) => challengeDone(d.id)).length;
-  return `<div class="sk-info-h"><b>${K.name}</b><span class="sk-lk">${SK_LOCK}${_t('Challenges {0} / {1}', done, D.length)}</span></div><span class="cw">${K.role}</span>`
-    + `<span class="sk-dl">${D.map((d) => { const n = challengeCount(d.id), ok = n >= d.goal; return `<span class="sk-d${ok ? ' ok' : ''}"><span class="sk-dt"><b>${esc(d.label)}</b><em>${ok ? _t('Complete') : `${n} / ${d.goal}`}</em></span>${skinBar(n / d.goal)}${d.hint && !ok ? `<small>${esc(d.hint)}</small>` : ''}</span>`; }).join('')}</span>`;
+  return `<div class="sk-info-h"><b>${K.name}</b><span class="sk-lk">${SK_LOCK}${_t('{0} of {1} done', done, D.length)}</span></div><span class="cw">${skinRoleHtml(K)}</span>`
+    + `<span class="sk-dl">${D.map((d) => { const n = challengeCount(d.id), ok = n >= d.goal; return `<span class="sk-d${ok ? ' ok' : ''}"><span class="sk-dt"><b>${esc(d.label)}</b><em>${ok ? _t('Done') : `${n} / ${d.goal}`}</em></span>${d.hint && !ok ? `<small>${esc(d.hint)}</small>` : ''}${skinBar(n / d.goal)}</span>`; }).join('')}</span>`;
 }
-/* Outfit list (cards): the base ones, then the challenge ones under their title */
+/* Outfit list (cards): the base ones, then the challenge ones in three groups under their titles (the first six, the map outfits, the
+   play-style outfits), each title with the count of unlocked ones */
 function skinCardsHtml() {
-  const own = skinOwned();
+  const own = skinOwned(), first = SKIN_CHALLENGE.filter((s) => !SKIN_MAP_OUT.includes(s) && !SKIN_PLAY_OUT.includes(s));
+  const group = (L, title, sub) => `<p class="sk-h">${title}<span>${sub} · ${_t('{0} / {1} unlocked', L.filter(skinUnlocked).length, L.length)}</span></p>` + L.map(skinCardHtml).join('');
   return SKIN_IDS.map(skinCardHtml).join('')
     + (own.length ? `<p class="sk-h">${_t('One-of-a-kind outfit')}<span>${_t('Made for you, nobody else can wear it')}</span></p>` + own.map(skinCardHtml).join('') : '')
-    + `<p class="sk-h">${_t('Challenge outfits')}<span>${_t('Complete their challenges to unlock them')}</span></p>` + SKIN_CHALLENGE.map(skinCardHtml).join('');
+    + group(first, _t('Challenge outfits'), _t('Complete their challenges to unlock them'))
+    + group(SKIN_MAP_OUT, _t('Map outfits'), _t('Each one is earned on its own map'))
+    + group(SKIN_PLAY_OUT, _t('Play-style outfits'), _t('Each one is earned by a way of playing'));
 }
 /* The chosen class has changed weapon since the thumbnails: they go back into the queue (at the head), the new weapon in hand */
 function skinThumbsCheck() {
@@ -203,6 +216,8 @@ function skinScreenInit() {
   host.innerHTML = _t('<canvas class="vw-cv" aria-hidden="true"></canvas><div class="vw-help">Drag to rotate</div>');
   SKV.cv = host.firstChild; SKV.ctx = SKV.cv.getContext('2d');
   const info = document.createElement('div'); info.id = 'skInfo'; info.className = 'sk-info hidden'; info.setAttribute('aria-live', 'polite'); host.appendChild(info);
+  // the list fades at the top too once it has scrolled (cards above)
+  const L = $('skList'); if (L) L.addEventListener('scroll', () => L.classList.toggle('sk-up', L.scrollTop > 6), { passive: true });
   SKV.cv.addEventListener('pointerdown', (e) => { SKV.drag = { x: e.clientX, a: SKV.a }; SKV.cv.setPointerCapture(e.pointerId); host.classList.add('drag'); });
   SKV.cv.addEventListener('pointermove', (e) => { if (!SKV.drag) return; SKV.a = SKV.drag.a - (e.clientX - SKV.drag.x) * 0.01; SKV.dirty = true; });
   const up = () => { SKV.drag = null; host.classList.remove('drag'); };
@@ -332,7 +347,13 @@ function skinLive(drew, dt) {
 }
 function skinLiveDraw() {
   const d = Math.min(SKV.acc, 0.1); SKV.acc = 0;
-  const r = SKV.host.getBoundingClientRect(), cr = renderer.domElement.getBoundingClientRect();
+  const r0 = SKV.host.getBoundingClientRect(), cr = renderer.domElement.getBoundingClientRect(), si = $('skInfo');
+  // a locked outfit's challenges cover the bottom of the preview (tall screens) or its right side (short screens, phone: a larger soldier):
+  // the soldier is drawn in the part left free, whole (cape, legs, boots); on the side, the studio runs under the panel's fade
+  const ib = si && !si.classList.contains('hidden') ? si.getBoundingClientRect() : null, side = !!ib && ib.left > r0.left + r0.width * 0.2;
+  const cut = ib && !side && ib.height > 20 ? Math.max(0, Math.min(r0.height * 0.55, r0.bottom - ib.top - 18)) : 0;
+  const cutX = side ? Math.max(0, Math.min(r0.width * 0.6, r0.right - ib.left - ib.width * 0.14)) : 0;
+  const r = { left: r0.left, top: r0.top, width: r0.width - cutX, height: r0.height - cut, bottom: r0.bottom - cut };
   if (r.width < 20 || r.height < 20 || cr.width < 20 || r.bottom <= cr.top || r.top >= cr.bottom) return;
   const k = VIEW.w / cr.width, x = (r.left - cr.left + 1) * k, y = (cr.bottom - r.bottom + 1) * k, w = (r.width - 2) * k, h = (r.height - 2) * k; // (in the border)
   const move = mbgMotion(), skin = SKINS[SKV.view] ? SKV.view : skinMine(), M = skinLiveModel(skin), m = skinPvMat(skin), key = skinPvGunKey();

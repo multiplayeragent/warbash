@@ -7,6 +7,7 @@
    Installation (once):  cd tools/dev && npm install
    Usage (from the root):  python3 build.py && node tools/dev/illustrations.js [id ...] && python3 build.py
    Without an id: all playable maps. Chromium: Playwright's, or the CHROME environment variable.
+   GPU=hw renders on the machine's graphics card (fast) instead of the software renderer.
    Rendered at 2560 x 1440 then downscaled to 1920 x 1080 (smoothed edges), with a light color grade and a soft vignette. */
 const path = require('path'), fs = require('fs');
 const DEV = __dirname, ROOT = path.join(DEV, '..', '..');
@@ -15,7 +16,7 @@ let chromium;
 try { ({ chromium } = require('playwright-core')); } catch (e) { console.error('playwright-core not found: cd tools/dev && npm install'); process.exit(1); }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
+  const b = await chromium.launch({ executablePath: process.env.CHROME || undefined, args: process.env.GPU === 'hw' ? ['--use-gl=angle', '--use-angle=d3d11', '--ignore-gpu-blocklist'] : ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   try {
     const pg = await b.newPage({ bypassCSP: true, viewport: { width: W, height: H } });
     await pg.addInitScript("try{localStorage.setItem('dc_settings', JSON.stringify({quality:'high', sv:2, dynres:false, ao:true}));localStorage.setItem('cod_seen_version','99')}catch(e){}");

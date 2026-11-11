@@ -656,11 +656,13 @@ function soldierVest(B, skin, hi) {
     { wp: (p) => torsoW(p), col: () => BELT, uv: () => GEAR_TILE.nyl });
   gBox(B, 0.052, 0.036, 0.012, 0.004, gMat(0, 1.04, -0.112), SB.PEL, MET, 'met');
   const th = M[SB.THR], hl = (x, y, z) => new THREE.Matrix4().makeTranslation(x, y, z);
-  // thigh frame: -z toward the knee, +x forward, +y inward (right thigh: the outside is at -y)
-  gBox(B, 0.11, 0.02, 0.18, 0.01, th.clone().multiply(hl(0.0, -0.085, -0.14)), SB.THR, BELT, 'nyl');
-  gBox(B, 0.05, 0.042, 0.15, 0.012, th.clone().multiply(hl(0.002, -0.106, -0.13)), SB.THR, POUCH, 'nyl');
-  if (hi) gBox(B, 0.03, 0.028, 0.06, 0.008, th.clone().multiply(hl(0.012, -0.106, -0.035)).multiply(gMat(0, 0, 0, -0.35)), SB.THR, DARK, 'poly');
-  if (hi) for (const d of [0.1, 0.2]) {
+  // thigh frame: -z toward the knee, +x forward, +y inward (right thigh: the outside is at -y); no holster under long coat tails (parts.holster === false)
+  if (Pp.holster !== false) {
+    gBox(B, 0.11, 0.02, 0.18, 0.01, th.clone().multiply(hl(0.0, -0.085, -0.14)), SB.THR, BELT, 'nyl');
+    gBox(B, 0.05, 0.042, 0.15, 0.012, th.clone().multiply(hl(0.002, -0.106, -0.13)), SB.THR, POUCH, 'nyl');
+    if (hi) gBox(B, 0.03, 0.028, 0.06, 0.008, th.clone().multiply(hl(0.012, -0.106, -0.035)).multiply(gMat(0, 0, 0, -0.35)), SB.THR, DARK, 'poly');
+  }
+  if (hi && Pp.holster !== false) for (const d of [0.1, 0.2]) {
     const S = []; for (let i = 0; i <= 12; i++) { const a = i / 12 * TAU; S.push(new V3(Math.cos(a) * 0.09, Math.sin(a) * 0.088, -d).applyMatrix4(th)); }
     gBand(B, S, 0.022, 0.004, (p) => p.clone().sub(new V3(0, 0, -d).applyMatrix4(th)), SB.THR, BELT, null, 4);
   }

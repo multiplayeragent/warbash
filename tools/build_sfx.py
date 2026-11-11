@@ -95,21 +95,27 @@ def voices_only():
 
 
 def pack_credits(packs):
-    """--pack: only the credits of the re-encoded packs are replaced in credits.json (those of the other packs kept as is:
-    their masters may be missing on this machine)"""
+    """--pack: only the credits of the re-encoded packs are replaced in credits.json; those of the other packs, their sources
+    included, are kept as is (their masters may be missing on this machine). The sources that only the re-encoded packs use are
+    re-read from SOURCES; a source they share with another pack keeps its current entry."""
     f = OUT / 'credits.json'
     cur = json.loads(f.read_text(encoding='utf-8')) if f.exists() else {'sources': {}, 'soundList': []}
-    brand_new, sources = [], dict(cur['sources'])
+    brand_new, described = [], {}
     for fam in FAMILIES:
         p = common.MASTERS / f'credits-{fam}.json'
         if p.exists(): brand_new += [e for e in json.loads(p.read_text(encoding='utf-8')) if e['pack'] in packs]
-        if (ROOT / 'tools' / 'sfx' / f'{fam}.py').exists(): sources.update(getattr(importlib.import_module(fam), 'SOURCES', {}))
+        if (ROOT / 'tools' / 'sfx' / f'{fam}.py').exists(): described.update(getattr(importlib.import_module(fam), 'SOURCES', {}))
     soundList = [e for e in cur['soundList'] if e['pack'] not in packs] + brand_new
-    used = sorted({e['source'] for e in soundList})
-    missing = [k for k in used if k not in sources]
+    others = {e['source'] for e in soundList if e['pack'] not in packs}
+    before = {e['source'] for e in cur['soundList'] if e['pack'] in packs}
+    mine = {e['source'] for e in brand_new}
+    sources = {k: v for k, v in cur['sources'].items() if k not in before - others}
+    missing = [k for k in sorted(mine) if k not in described and not (k in others and k in sources)]
     if missing: raise SystemExit('credits: sources not described in SOURCES: ' + ', '.join(missing))
-    f.write_text(json.dumps({'sources': {k: sources[k] for k in used}, 'soundList': soundList}, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
-    print('credits:', len(soundList), 'sounds,', len(used), 'sources (packs replaced: ' + ', '.join(sorted(packs)) + ')')
+    for k in sorted(mine):
+        if not (k in others and k in sources): sources[k] = described[k]
+    f.write_text(json.dumps({'sources': sources, 'soundList': soundList}, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
+    print('credits:', len(soundList), 'sounds,', len(sources), 'sources (packs replaced: ' + ', '.join(sorted(packs)) + ')')
 
 
 def main():

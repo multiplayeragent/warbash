@@ -11,6 +11,8 @@ Groups and outputs:
   ranks  assets/ranks.webp: the 11 rank insignia (rank01..rank11) in one sprite sheet of 256 px cells
   crests assets/crests.webp: victory and defeat crests of the end-of-match announcement (two 512 px cells)
   maps   assets/maps/<id>.webp: map cards repainted from their in-game screenshots (map-<id>)
+  leaves assets/fx/opLeaves.webp: Selva's foliage atlas (map id outpost) (2048 x 2048, alpha) from the eight leaf-* cut-outs, cells
+         in LEAF_CELLS (the same table as OPJ_LEAF in src/02ypb-outpost-jungle.js)
 Needs Pillow, numpy and OpenCV (cv2: the soldier cut-out for the depth map)."""
 import os, sys
 import numpy as np
@@ -171,8 +173,71 @@ def do_maps():
         save(cover(Image.open(f).convert('RGB'), 1920, 1080), A('maps', k + '.webp'), quality=84, method=6)
 
 
+# Foliage atlas cells [x, y, w, h] in px of the 2048 atlas, and how each sprite sits in its cell: base at the bottom centre (upright
+# leaves and clumps), hung from the top (vine), base on the left with the rachis on the middle line (palm fronds)
+LEAF_CELLS = {
+    'leaf-clump-a': ((0, 0, 1024, 1024), 'base'), 'leaf-clump-b': ((1024, 0, 1024, 1024), 'base-flip'),
+    'leaf-palm': ((0, 1024, 1024, 512), 'frond'), 'palm2': ((1024, 1536, 1024, 512), 'frond-flip'),
+    'leaf-ear': ((1024, 1024, 512, 512), 'base'), 'leaf-fan': ((1536, 1024, 512, 512), 'base'),
+    'leaf-banana': ((0, 1536, 320, 512), 'base'), 'leaf-fern': ((320, 1536, 384, 512), 'base'), 'leaf-vine': ((704, 1536, 128, 512), 'top'),
+}
+
+
+def straighten_frond(im):
+    """A side-view palm frond (base on the left) bent back onto a straight rachis along the middle row: each column is shifted so the
+    alpha-weighted centre line (a smooth quadratic fit) lands on the image's middle"""
+    a = np.array(im).astype(np.float32); al = a[:, :, 3] / 255.0; h, w = al.shape
+    xs = np.arange(w); ys = np.arange(h)[:, None]; m = al.sum(0)
+    ok = m > 4; cy = (al * ys).sum(0)[ok] / m[ok]
+    c = np.polyfit(xs[ok], cy, 2); line = np.polyval(c, xs)
+    out = np.zeros_like(a)
+    for x in range(w):
+        d = int(round(h / 2 - line[x])); col = a[:, x]
+        if d >= 0: out[d:, x] = col[:h - d]
+        else: out[:h + d, x] = col[-d:]
+    return Image.fromarray(out.astype(np.uint8), 'RGBA')
+
+
+def bleed(im, it=6):
+    """Fill the colour of transparent pixels from their opaque neighbours (no dark fringe in the mipmaps of a cut-out)"""
+    import cv2
+    a = np.array(im).astype(np.float32); al = a[:, :, 3] / 255.0; rgb = a[:, :, :3]
+    fill = rgb.copy(); done = al > 0.85; k = 2.0  # (the semi-transparent rim takes its colour from inside the leaf: no pale halo)
+    for _ in range(it):
+        acc = cv2.GaussianBlur(rgb * al[:, :, None], (0, 0), k); ws = cv2.GaussianBlur(al, (0, 0), k)
+        est = acc / np.maximum(ws, 1e-4)[:, :, None]; new = (~done) & (ws > 1e-3)
+        fill[new] = est[new]; done = done | new; k *= 2
+    return Image.fromarray(np.concatenate([np.clip(fill, 0, 255), a[:, :, 3:4]], 2).astype(np.uint8), 'RGBA')
+
+
+def do_leaves():
+    """Selva's foliage atlas (map id outpost): each cut-out cropped to its alpha, fitted to its cell as LEAF_CELLS says"""
+    sheet = Image.new('RGBA', (2048, 2048), (0, 0, 0, 0))
+    for k, ((x, y, w, h), how) in LEAF_CELLS.items():
+        im = raw('leaf-palm' if k == 'palm2' else k).convert('RGBA')
+        if how.startswith('frond'):
+            im = im.crop(alpha_bbox(im)); im = straighten_frond(im); im = im.crop(alpha_bbox(im, 40))
+            hh = max(im.height, 1); pad = Image.new('RGBA', (im.width, hh), (0, 0, 0, 0)); pad.paste(im, (0, 0)); im = pad
+            if how.endswith('flip'):
+                im = im.transpose(Image.FLIP_TOP_BOTTOM); r, g, b, al = im.split()
+                im = Image.merge('RGBA', (r.point(lambda v: min(255, int(v * 1.08))), g, b.point(lambda v: int(v * 0.85)), al))
+            im = im.resize((w, h), Image.LANCZOS); sheet.alpha_composite(im, (x, y)); continue
+        if how == 'base-flip': im = im.transpose(Image.FLIP_TOP_BOTTOM)
+        im = im.crop(alpha_bbox(im)); s = min(w / im.width, h / im.height); im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))), Image.LANCZOS)
+        ox = x + (w - im.width) // 2; oy = y if how == 'top' else y + h - im.height
+        sheet.alpha_composite(im, (ox, oy))
+    # toward the sheets' deep greens: hue 8 degrees from yellow toward green, 40 % less saturated, 13 % darker (the alpha untouched)
+    import cv2
+    a = np.array(sheet); hsv = cv2.cvtColor(np.ascontiguousarray(a[:, :, :3]), cv2.COLOR_RGB2HSV).astype(np.float32)
+    hsv[:, :, 0] = np.clip(hsv[:, :, 0] + 4, 0, 179); hsv[:, :, 1] *= 0.6; hsv[:, :, 2] *= 0.87
+    a[:, :, :3] = cv2.cvtColor(np.clip(hsv, 0, 255).astype(np.uint8), cv2.COLOR_HSV2RGB)
+    sheet = Image.fromarray(a, 'RGBA')
+    save(bleed(sheet), A('fx', 'opLeaves.webp'), quality=70, alpha_quality=80, method=6)
+
+
 GROUPS = {'logo': (do_logo, ['logo']), 'icons': (do_icons, ['emblem']), 'menu': (do_menu, ['keyart']),
-          'deck': (do_deck, ['keyart', 'logo']), 'ranks': (do_ranks, []), 'crests': (do_crests, ['crest-victory', 'crest-defeat']), 'maps': (do_maps, [])}
+          'deck': (do_deck, ['keyart', 'logo']), 'ranks': (do_ranks, []), 'crests': (do_crests, ['crest-victory', 'crest-defeat']), 'maps': (do_maps, []),
+          'leaves': (do_leaves, list(k for k in LEAF_CELLS if k.startswith('leaf-')))}
 if __name__ == '__main__':
     for g in sys.argv[1:] or GROUPS:
         fn, need = GROUPS[g]

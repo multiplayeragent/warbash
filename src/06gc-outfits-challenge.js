@@ -111,33 +111,33 @@ function dScarf(B, col, hi, k = 1, tile = 'fab', drop = 0) {
     }, { out: !inner });
   }
 }
-/* Plates of a limb: forearms (bracers), shins, thighs; col, accent (strip of another color or glowing) */
+/* Plates of a limb: forearms (bracers), shins, thighs; col, accent (strip of another color or glowing); o.plateTile: tile of the plates ('plate' by default) */
 function dArmor(B, G, hi, o) {
   const R = soldierRest(), J = R.J;
   for (const sx of [-1, 1]) {
     const b = SIDE_B(sx);
     if (o.fore) {
       const out = new V3(sx * 0.75, 0.65, 0.1);
-      dPlate(B, 0.075, 0.15, 0.016, dSeg(J[b.jEl], J[b.jHa], 0.52, out, 0.04), armW(b)(SD.ua + SD.fa * 0.52), o.fore, -3.2);
+      dPlate(B, 0.075, 0.15, 0.016, dSeg(J[b.jEl], J[b.jHa], 0.52, out, 0.04), armW(b)(SD.ua + SD.fa * 0.52), o.fore, -3.2, o.plateTile);
       if (o.foreAcc) dPlate(B, 0.012, 0.11, 0.004, dSeg(J[b.jEl], J[b.jHa], 0.52, out, 0.05), armW(b)(SD.ua + SD.fa * 0.52), o.foreAcc, 0, o.foreTile || 'paint');
     }
     if (o.shin) {
       const out = new V3(sx * 0.15, 0, -1);
-      dPlate(B, 0.085, 0.22, 0.016, dSeg(J[b.jKn], J[b.jFt], 0.36, out, 0.062), legW(b)(SD.thigh + SD.shin * 0.36), o.shin, -2.8);
+      dPlate(B, 0.085, 0.22, 0.016, dSeg(J[b.jKn], J[b.jFt], 0.36, out, 0.062), legW(b)(SD.thigh + SD.shin * 0.36), o.shin, -2.8, o.plateTile);
       if (o.shinAcc) for (const s of [-1, 1]) dPlate(B, 0.008, 0.07, 0.004, dSeg(J[b.jKn], J[b.jFt], 0.36, out, 0.071).multiply(gMat(s * 0.017, -0.03, 0, 0, 0, s * 0.5)), legW(b)(SD.thigh + SD.shin * 0.36), o.shinAcc, 0, o.shinTile || 'paint');
     }
-    if (o.thigh) dPlate(B, 0.09, 0.16, 0.014, dSeg(J[b.jHi], J[b.jKn], 0.42, new V3(sx * 0.7, 0, -0.7), 0.085), legW(b)(SD.thigh * 0.42), o.thigh, -2.6);
+    if (o.thigh) dPlate(B, 0.09, 0.16, 0.014, dSeg(J[b.jHi], J[b.jKn], 0.42, new V3(sx * 0.7, 0, -0.7), 0.085), legW(b)(SD.thigh * 0.42), o.thigh, -2.6, o.plateTile);
     if (o.knee) {
       // faceted knee pad, larger than the vest's
       const km = R.mats[b.kn].clone().multiply(new THREE.Matrix4().makeBasis(new V3(0, -1, 0), new V3(0, 0, 1), new V3(-1, 0, 0)));
-      dExtrude(B, [[-0.05, -0.06], [0.05, -0.06], [0.062, 0.0], [0.04, 0.07], [-0.04, 0.07], [-0.062, 0.0]], 0.022, hi ? 0.006 : 0, km.clone().multiply(new THREE.Matrix4().makeTranslation(0, -0.012, -0.084)), [[b.kn, 0.45], [b.sh, 0.55]], o.knee, 'plate');
+      dExtrude(B, [[-0.05, -0.06], [0.05, -0.06], [0.062, 0.0], [0.04, 0.07], [-0.04, 0.07], [-0.062, 0.0]], 0.022, hi ? 0.006 : 0, km.clone().multiply(new THREE.Matrix4().makeTranslation(0, -0.012, -0.084)), [[b.kn, 0.45], [b.sh, 0.55]], o.knee, o.plateTile || 'plate');
       if (o.kneeStar && sx > 0) dExtrude(B, dStar(0.026), 0.004, 0, km.clone().multiply(new THREE.Matrix4().makeTranslation(0, -0.008, -0.1)), [[b.kn, 0.45], [b.sh, 0.55]], o.kneeStar, 'paint');
       if (o.kneeAcc) dPlate(B, 0.07, 0.008, 0.004, km.clone().multiply(new THREE.Matrix4().makeTranslation(0, 0.03, -0.098)), [[b.kn, 0.45], [b.sh, 0.55]], o.kneeAcc, 0, o.kneeTile || 'paint');
     }
     if (o.pauldron) {
       // pauldron: three tiered plates on the upper arm
       const sh = J[b.jSh], el = J[b.jEl], out = new V3(sx, 0.85, 0.05);
-      for (let k = 0; k < (hi ? 3 : 2); k++) dPlate(B, 0.13 - k * 0.014, 0.075, 0.014, dSeg(sh, el, 0.02 + k * 0.17, out, 0.072 - k * 0.006).multiply(gMat(0, 0, 0, -0.28)), dShoulderW(sx, 0.35 + k * 0.25), o.pauldron, -5 + k);
+      for (let k = 0; k < (hi ? 3 : 2); k++) dPlate(B, 0.13 - k * 0.014, 0.075, 0.014, dSeg(sh, el, 0.02 + k * 0.17, out, 0.072 - k * 0.006).multiply(gMat(0, 0, 0, -0.28)), dShoulderW(sx, 0.35 + k * 0.25), o.pauldron, -5 + k, o.plateTile);
       if (o.pauldronAcc) dPlate(B, 0.1, 0.008, 0.004, dSeg(sh, el, 0.14, out, 0.081).multiply(gMat(0, 0, 0, -0.28)), dShoulderW(sx, 0.55), o.pauldronAcc, 0, o.pauldronTile || 'paint');
     }
   }

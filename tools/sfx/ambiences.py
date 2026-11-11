@@ -1,5 +1,5 @@
 """"Ambiences" family: ambience beds and one-shots of the maps (packs amb_chergui, amb_saintgivre, amb_portmael, amb_floralia, amb_notos,
-amb_scoria, amb_cirrus).
+amb_scoria, amb_cirrus, amb_outpost).
 
 Each pack has a loopable stereo bed (a_bed, 27 s, RMS -20 dBFS) and mono one-shots (peak -3 dBFS,
 6 s at most) that the game scatters in space; a few one-shots are mono loops (fountain, surf, waterfall).
@@ -11,7 +11,10 @@ Beds: long layers chosen with no prominent event (no voice, nearby engine or rec
 filtered (high-pass against wind rumble on the mic, low-pass for distance), mixed then looped
 by a long constant-power crossfade (3 s). A mono source becomes stereo by taking two different
 passages for left and right. The cut points come from the analysis of the sources (envelope and
-spectrogram)."""
+spectrogram).
+
+One map only: AMB=outpost python3 tools/build_sfx.py --fetch --family ambiences (downloads only that map's sources), the same
+with --build (makes only its masters), then python3 tools/build_sfx.py --pack amb_outpost."""
 import urllib.parse
 import numpy as np
 import common as C
@@ -336,6 +339,33 @@ SOURCES.update({
 })
 
 
+def _fs_page(ident, user, naming):
+    """Outpost sources: licence read on the sound's own Freesound page (no API key)."""
+    url = f'https://freesound.org/people/{user}/sounds/{ident}/'
+    return {'naming': f'"{naming}" (freesound {ident})', 'creator': user, 'licence': 'CC0 1.0', 'url': url,
+            'proof': f'sound page {url} read on 2026-11-10: its licence link reads "Creative Commons 0" and points to '
+                     'creativecommons.org/publicdomain/zero/1.0/; the page puts it in no remix group (no declared source sound)'}
+
+
+# Outpost
+SOURCES.update({f'fs-{i}': _fs_page(i, u, n) for i, u, n in (
+    (676675, 'felix.blume', 'Forest atmosphere in the morning with bird, insect, cicada, subtle dew drops on foliage and road far away at '
+                            'the end, recorded in Amazon rainforest'),
+    (737513, 'alberto_cendra_woodman', 'Amazon Jungle in the Morning at Rainforest Tambopata National Reserve'),
+    (423800, 'klangfabrik', 'Wind through Palm Trees.wav'),
+    (812935, 'zachrau', 'Toucans calling'),
+    (512109, 'felix.blume', 'Montezuma oropendola bird call'),
+    (407583, 'felix.blume', 'Screaming Piha in the Amazonian Rain Forest'),
+    (426274, 'marc.om', 'Macaws at Dawn, Fazenda in Goiás, Brazil'),
+    (414248, 'FlyingMarmot', 'Howler Monkeys'),
+    (836411, 'newtad1', 'dripping rain hitting leaves 2'),
+    (446254, 'lukiacostello', 'Dripping Water in Forest'),
+    (749487, 'wak4n', "Mexican Frogs advertisement call's"),
+    (812936, 'zachrau', 'Cicadas chirping in the jungle'),
+    (571077, 'TRP', '180724 House fly, close buzzing event.flac'),
+)})
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Source files: local path under assets_src/sfx/src -> direct download URL.
 FILES = {}
@@ -457,6 +487,21 @@ ROPE_CREAK = _fs(231438, '231/231438_2016452-hq.mp3')
 BUZZARDS = _fs(648430, '648/648430_11519060-hq.mp3')
 BUZZARD = _fs(194678, '194/194678_2824510-hq.mp3')
 FLAG_MOJAVE = _fs(187364, '187/187364_1661766-hq.mp3')
+
+# Outpost (Freesound)
+AMAZON_MORNING = _fs(676675, '676/676675_1661766-hq.mp3')
+TAMBOPATA = _fs(737513, '737/737513_3312507-hq.mp3')
+PALMS = _fs(423800, '423/423800_181941-hq.mp3')
+TOUCANS = _fs(812935, '812/812935_676927-hq.mp3')
+OROPENDOLA = _fs(512109, '512/512109_1661766-hq.mp3')
+HOWLERS = _fs(414248, '414/414248_2724967-hq.mp3')
+PIHA = _fs(407583, '407/407583_1661766-hq.mp3')
+MACAWS = _fs(426274, '426/426274_5417386-hq.mp3')
+DRIPS_LEAVES = _fs(836411, '836/836411_10255582-hq.mp3')
+DRIPS_FLOOR = _fs(446254, '446/446254_932203-hq.mp3')
+TREEFROG = _fs(749487, '749/749487_11550148-hq.mp3')
+CICADA = _fs(812936, '812/812936_676927-hq.mp3')
+FLY = _fs(571077, '571/571077_97550-hq.mp3')
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -1062,7 +1107,89 @@ def cirrus():
                  f'{num(t)}-{num(t + 3.5)} s, high-pass 100 Hz, rise 0.35 s, fall 0.9 s', cutpoint=-60)
 
 
-SOUND_PACKS = {'chergui': chergui, 'saintgivre': saintgivre, 'portmael': portmael, 'floralia': floralia, 'notos': notos, 'scoria': scoria, 'cirrus': cirrus}
+# ---------------------------------------------------------------------------------------------------------------------
+# Outpost: military outpost in a clearing of tropical jungle, daytime, humid after rain
+
+def outpost():
+    P = 'amb_outpost'
+    # Bed: insect chorus of the Amazon rainforest in the morning (Félix Blume; 900-9000 Hz: its far low rumble and a pulsing insect removed), the
+    # pulsing insects of Tambopata above 3 kHz (its periodic bird call and hum removed, 6 dB under) and a light breeze in palm
+    # fronds (low-pass 5 kHz, 7 dB under); the treble softened a little so that the chorus does not tire over a match
+    chorus = af(src(AMAZON_MORNING, 3.0, 30.0, stereo=True), hp(900), lp(9000, 3))
+    pulses = to_level(af(src(TAMBOPATA, 72.0, 30.0, stereo=True), hp(3000, 3), lp(10000, 1)), chorus, -6)
+    palms = to_level(af(src(PALMS, 10.0, 30.0, stereo=True), hp(150), lp(5000)), chorus, -7)
+    bed(P, ceiling(af(chorus + pulses + palms, trebles(5000, -4)), 6), 3.0, [('fs-676675', AMAZON_MORNING), ('fs-737513', TAMBOPATA), ('fs-423800', PALMS)],
+        'rainforest 3-33 s (900-9000 Hz); insects 72-102 s (3-10 kHz, -6 dB); wind in palm trees 10-40 s (150-5000 Hz, -7 dB); treble -4 dB above 5 kHz; two isolated drops limited (6 dB); '
+        'loop with 3 s fade')
+
+    # Canopy birds: keel-billed toucans (a croaking bout), Montezuma oropendola (two gurgling songs, without the wing display
+    # that precedes them), a screaming piha (its call, with the last low lead-in notes), a macaw squawking in flight;
+    # the low-pass removes the insect chorus behind each recording
+    birds = [
+        (TOUCANS, 'fs-812935', 17.1, 1.55, (hp(1000), lp(5000, 3)), 'keel-billed toucans', '1-5 kHz'),
+        (OROPENDOLA, 'fs-512109', 39.75, 2.05, (hp(350), lp(8000, 1)), 'Montezuma oropendola', '350-8000 Hz'),
+        (OROPENDOLA, 'fs-512109', 62.12, 1.7, (hp(350), lp(8000, 1)), 'Montezuma oropendola', '350-8000 Hz'),
+        (PIHA, 'fs-407583', 46.25, 2.35, (hp(800), lp(5500, 3)), 'screaming piha', '800-5500 Hz'),
+        (MACAWS, 'fs-426274', 4.42, 1.18, (hp(500), lp(5500, 2)), 'macaw', '500-5500 Hz'),
+    ]
+    for k, (f, key, t, d, filters, what, band) in enumerate(birds):
+        x = af(mono(src(f, t, d, stereo=True)), *filters)
+        one_shot(P, f'a_bird-{k + 1}', queue(x, 1.0, 0.12, 5000, 70 + k), 4.0, [(key, f)],
+                 f'{what}, {num(t)}-{num(t + d)} s, {band}, small open-air reverb', fout=0.3)
+
+    # Howler monkeys (Lamanai, Belize): two roars of the troop, already distant; low-pass and open-air reverb push them farther
+    for k, (t, d) in enumerate(((64.6, 4.4), (15.9, 4.4))):
+        x = C.fade(af(mono(src(HOWLERS, t, d, stereo=True)), hp(150), lp(4000, 1)), 0, 0.8)
+        one_shot(P, f'a_monkey-{k + 1}', queue(x, 2.0, 0.25, 3000, 80 + k), 6.0, [('fs-414248', HOWLERS)],
+                 f'{num(t)}-{num(t + d)} s (0.8 s fade), 150-4000 Hz, 2 s open-air reverb', fout=0.6)
+
+    # Water dripping from the leaves after the rain: a few drops onto lower leaves, a few onto the litter
+    for k, (f, key, t, d) in enumerate(((DRIPS_LEAVES, 'fs-836411', 35.6, 3.4), (DRIPS_FLOOR, 'fs-446254', 14.85, 3.55))):
+        x = af(mono(src(f, t, d, stereo=True)), hp(250))
+        one_shot(P, f'a_drip-{k + 1}', x, 4.0, [(key, f)], f'{num(t)}-{num(t + d)} s, high-pass 250 Hz', cutpoint=-30, fout=0.2)
+
+    # Southern highland treefrog: one advertisement call (the insect band of the recording above 5 kHz removed)
+    x = af(mono(src(TREEFROG, 10.8, 0.95, stereo=True)), hp(500), lp(5000, 2))
+    one_shot(P, 'a_frog', queue(x, 0.6, 0.1, 4000, 90), 2.0, [('fs-749487', TREEFROG)],
+             '10.8-11.75 s, 500-5000 Hz, small reverb', fout=0.15)
+
+    # Cicada in a nearby tree: two loud pulses of its call, then the softer ones of its end (Costa Rica)
+    x = af(mono(src(CICADA, 11.85, 6.0, stereo=True)), hp(2000))
+    one_shot(P, 'a_cicada', x, 6.0, [('fs-812936', CICADA)], '11.85-17.85 s, high-pass 2 kHz', fout=1.0)
+
+    # Fly buzzing past the ear
+    x = af(mono(src(FLY, 3.75, 3.15, stereo=True)), hp(150))
+    one_shot(P, 'a_fly', x, 3.2, [('fs-571077', FLY)], '3.75-6.9 s, high-pass 150 Hz', fout=0.4)
+
+
+SOUND_PACKS = {'chergui': chergui, 'saintgivre': saintgivre, 'portmael': portmael, 'floralia': floralia, 'notos': notos, 'scoria': scoria, 'cirrus': cirrus,
+               'outpost': outpost}
+
+
+def _files_of(maps):
+    """Source files that the functions of these maps name (module constants that are FILES keys, lists included)."""
+    def names(code):
+        yield from code.co_names
+        for k in code.co_consts:
+            if hasattr(k, 'co_names'): yield from names(k)
+    g, out = globals(), set()
+    for c in maps:
+        for name in (names(SOUND_PACKS[c].__code__) if c in SOUND_PACKS else ()):
+            v = g.get(name)
+            out.update(r for r in (v if isinstance(v, list) else [v]) if isinstance(r, str) and r in FILES)
+    return out
+
+
+def _only_files(env=None):
+    """With AMB=<map,...> (as for build()), FILES keeps only the sources of those maps: --fetch downloads nothing else."""
+    import os
+    maps = [c for c in (env if env is not None else os.environ.get('AMB', '')).split(',') if c]
+    if not maps: return
+    keep = _files_of(maps)
+    for k in [k for k in FILES if k not in keep]: del FILES[k]
+
+
+_only_files()
 
 
 def build(exclusively=None):

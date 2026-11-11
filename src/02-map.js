@@ -2,7 +2,7 @@
    MAP: infrastructure common to all maps. Bounds, map list, axis-aligned box collisions
    (COL) and ramps (RAMPS), queries (ground, sliding, ceiling, rays), simple blocks and stairs.
    The scenery is built by the workshop (02a-kit.js) and its libraries; each map's layout is in
-   its own file (Chergui: 02s-chergui.js, Saint-Givre: 02t-saintgivre.js, Port-Maël: 02u-portmael.js, Floralia: 02v-floralia.js, Notos: 02yb to 02yf, Scoria: 02yg and 02yh, Cirrus: 02yi and 02yj, Bel-Horizon: 02ym and 02yn; a map's name is a proper noun, the same in both languages), which declares its
+   its own file (Chergui: 02s-chergui.js, Saint-Givre: 02t-saintgivre.js, Port-Maël: 02u-portmael.js, Floralia: 02v-floralia.js, Notos: 02yb to 02yf, Scoria: 02yg and 02yh, Cirrus: 02yi and 02yj, Bel-Horizon: 02ym and 02yn, Selva: 02yo to 02yq; a map's name is a proper noun, the same in both languages), which declares its
    definition (MAP_DEFS); the water of a harbor map is in 02m-water.js;
    loading is in 09a-loading.js, each map's own settings (ambience, zones...) in 02z-load.js.
    ========================================================================== */
@@ -33,6 +33,8 @@ const MAPS = [
     desc: _t('An oasis lost in a sandstorm. The only well for a hundred kilometers, and everyone wants it.') },
   { id: 'belhorizon', name: 'Bel-Horizon', tag: _t('New-build suburb'), ok: true,
     desc: _t('New houses with perfect lawns. The neighbors notice everything except the gunfire.') },
+  { id: 'outpost', name: 'Selva', tag: _t('Military compound in the rainforest'), ok: true,
+    desc: _t('A command post cut out of the rainforest. The generator never stops, and neither do the mosquitoes.') },
 ];
 const mapById = (id) => MAPS.find((m) => m.id === id && m.ok) || MAPS[0];
 /* Loaded map: entry of MAPS and definition (null outside a match: startup builds no map) */
@@ -316,6 +318,7 @@ function lineClear(a, b) {
 }
 
 /* ---------- Named zones (shown under the minimap) ----------
-   [name, x0, x1, z0, z1]; the first one that contains the point wins. Copied from the map definition. */
+   [name, x0, x1, z0, z1, y0, y1]; the first one that contains the point wins. Copied from the map definition. y0, y1 (optional): a
+   floor of a building (its rooms upstairs and downstairs differ); a point given without height is taken on the ground. */
 const ZONES = [];
-function zoneName(x, z) { for (const zn of ZONES) if (x >= zn[1] && x <= zn[2] && z >= zn[3] && z <= zn[4]) return zn[0]; return CURMAP.info ? CURMAP.info.name : ''; }
+function zoneName(x, z, y = 0) { for (const zn of ZONES) if (x >= zn[1] && x <= zn[2] && z >= zn[3] && z <= zn[4] && (zn[5] === undefined || (y >= zn[5] && y <= zn[6]))) return zn[0]; return CURMAP.info ? CURMAP.info.name : ''; }
